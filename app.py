@@ -3,6 +3,12 @@ import os
 from dotenv import load_dotenv
 from api.dispatcharr_client import DispatcharrClient
 from models import RulesManager, AutoAssignmentRule, StreamMatcher
+from stream_sorter_models import (
+    SortingRulesManager,
+    SortingRule,
+    SortingCondition,
+    StreamSorter
+)
 
 # Load environment variables
 load_dotenv()
@@ -19,6 +25,9 @@ dispatcharr_client = DispatcharrClient(
 
 # Initialize auto-assignment rules manager
 rules_manager = RulesManager()
+
+# Initialize sorting rules manager
+sorting_rules_manager = SortingRulesManager()
 
 @app.route('/')
 def index():
@@ -436,6 +445,233 @@ def api_toggle_rule(rule_id):
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# ============================================================================
+# STREAM SORTER ROUTES
+# ============================================================================
+
+@app.route('/stream-sorter')
+def stream_sorter():
+    """Stream sorting rules management page"""
+    try:
+        channels = dispatcharr_client.get_channels()
+        sorting_rules = sorting_rules_manager.load_rules()
+        m3u_accounts = dispatcharr_client.get_m3u_accounts()
+        
+        return render_template(
+            'stream_sorter.html',
+            channels=channels,
+            sorting_rules=sorting_rules,
+            m3u_accounts=m3u_accounts
+        )
+    except Exception as e:
+        flash(f'Error loading sorting rules: {str(e)}', 'error')
+        return render_template('stream_sorter.html', channels=[], sorting_rules=[], m3u_accounts=[])
+
+
+@app.route('/api/sorting-rules', methods=['GET', 'POST'])
+def api_sorting_rules():
+    """API endpoint to list and create sorting rules"""
+    try:
+        if request.method == 'GET':
+            # Get all rules
+            rules = sorting_rules_manager.load_rules()
+            return jsonify([rule.to_dict() for rule in rules])
+        
+        elif request.method == 'POST':
+            # Create new rule
+            data = request.get_json()
+            
+            # Validate required fields
+            if not data.get('name'):
+                return jsonify({'error': 'The "name" field is required'}), 400
+            
+            # Convert conditions from dict to SortingCondition objects
+            conditions = []
+            if 'conditions' in data and data['conditions']:
+                for cond_data in data['conditions']:
+                    conditions.append(SortingCondition.from_dict(cond_data))
+            
+            # Create rule object
+            rule = SortingRule(
+                id=0,  # Will be assigned by manager
+                name=data['name'],
+                enabled=data.get('enabled', True),
+                channel_ids=data.get('channel_ids', []),
+                channel_group_ids=data.get('channel_group_ids', []),
+                conditions=conditions,
+                description=data.get('description')
+            )
+            
+            # Save rule
+            created_rule = sorting_rules_manager.create_rule(rule)
+            return jsonify(created_rule.to_dict()), 201
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/sorting-rules/<int:rule_id>', methods=['GET', 'PUT', 'DELETE'])
+def api_sorting_rule(rule_id):
+    """API endpoint to get, update or delete a specific sorting rule"""
+    try:
+        if request.method == 'GET':
+            # Get rule by ID
+            rule = sorting_rules_manager.get_rule(rule_id)
+            if not rule:
+                return jsonify({'error': 'Rule not found'}), 404
+            return jsonify(rule.to_dict())
+        
+        elif request.method == 'PUT':
+            # Update rule
+            data = request.get_json()
+            
+            # Validate required fields
+            if not data.get('name'):
+                return jsonify({'error': 'The "name" field is required'}), 400
+            
+            # Convert conditions from dict to SortingCondition objects
+            conditions = []
+            if 'conditions' in data and data['conditions']:
+                for cond_data in data['conditions']:
+                    if isinstance(cond_data, dict):
+                        conditions.append(SortingCondition.from_dict(cond_data))
+                    else:
+                        conditions.append(cond_data)
+            
+            # Create updated rule object
+            rule = SortingRule(
+                id=rule_id,
+                name=data['name'],
+                enabled=data.get('enabled', True),
+                channel_ids=data.get('channel_ids', []),
+                channel_group_ids=data.get('channel_group_ids', []),
+                conditions=conditions,
+                description=data.get('description')
+            )
+            
+            # Update rule
+            updated_rule = sorting_rules_manager.update_rule(rule_id, rule)
+            if not updated_rule:
+                return jsonify({'error': 'Rule not found'}), 404
+            
+            return jsonify(updated_rule.to_dict())
+        
+        elif request.method == 'DELETE':
+            # Delete rule
+            success = sorting_rules_manager.delete_rule(rule_id)
+            if not success:
+                return jsonify({'error': 'Rule not found'}), 404
+            return jsonify({'success': True, 'message': 'Rule deleted successfully'})
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/sorting-rules/<int:rule_id>/execute', methods=['POST'])
+def execute_sorting_rule(rule_id):
+    """API endpoint to execute a sorting rule on specific channel(s)"""
+    try:
+        data = request.get_json() or {}
+        channel_id = data.get('channel_id')
+        
+        if not channel_id:
+            return jsonify({'error': 'channel_id is required'}), 400
+        
+        # Get the rule
+        rule = sorting_rules_manager.get_rule(rule_id)
+        if not rule:
+            return jsonify({'error': 'Rule not found'}), 404
+        
+        if not rule.enabled:
+            return jsonify({'error': 'Rule is disabled'}), 400
+        
+        # Get streams from the channel
+        streams = dispatcharr_client.get_channel_streams(channel_id)
+        
+        if not streams:
+            return jsonify({
+                'success': True,
+                'message': 'No streams to sort',
+                'sorted_count': 0
+            })
+        
+        # Sort streams using the rule
+        sorted_streams = StreamSorter.sort_streams(rule, streams)
+        
+        # Update channel with sorted stream order
+        channel = dispatcharr_client.get_channel(channel_id)
+        sorted_stream_ids = [s['id'] for s in sorted_streams]
+        channel['streams'] = sorted_stream_ids
+        
+        # Update channel
+        dispatcharr_client.update_channel(channel_id, channel)
+        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully sorted {len(sorted_streams)} streams',
+            'sorted_count': len(sorted_streams),
+            'channel_id': channel_id
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/sorting-rules/<int:rule_id>/preview', methods=['POST'])
+def preview_sorting_rule(rule_id):
+    """API endpoint to preview sorting results without applying them"""
+    try:
+        data = request.get_json() or {}
+        channel_id = data.get('channel_id')
+        
+        if not channel_id:
+            return jsonify({'error': 'channel_id is required'}), 400
+        
+        # Get the rule
+        rule = sorting_rules_manager.get_rule(rule_id)
+        if not rule:
+            return jsonify({'error': 'Rule not found'}), 404
+        
+        # Get streams from the channel
+        streams = dispatcharr_client.get_channel_streams(channel_id)
+        
+        # Generate preview
+        preview = StreamSorter.preview_sorting(rule, streams)
+        
+        return jsonify(preview)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/sorting-rules/<int:rule_id>/toggle', methods=['POST'])
+def toggle_sorting_rule(rule_id):
+    """API endpoint to enable/disable a sorting rule"""
+    try:
+        # Get the rule
+        rule = sorting_rules_manager.get_rule(rule_id)
+        if not rule:
+            return jsonify({'error': 'Rule not found'}), 404
+        
+        # Toggle enabled state
+        rule.enabled = not rule.enabled
+        
+        # Update rule
+        updated_rule = sorting_rules_manager.update_rule(rule_id, rule)
+        if not updated_rule:
+            return jsonify({'error': 'Error updating rule'}), 500
+        
+        return jsonify({
+            'success': True,
+            'enabled': updated_rule.enabled,
+            'message': f'Rule {"enabled" if updated_rule.enabled else "disabled"}'
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 if __name__ == '__main__':
     debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'

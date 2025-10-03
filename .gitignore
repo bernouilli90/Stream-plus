@@ -62,6 +62,9 @@ temp/
 # Auto-assignment rules data
 auto_assignment_rules.json
 
+# Sorting rules data
+sorting_rules.json
+
 # Playwright MCP
 .playwright-mcp/
 

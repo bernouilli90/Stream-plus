@@ -12,6 +12,8 @@ Stream Plus is a web application developed in Python with Flask that provides a 
 - 🔍 **Search and Filters**: Quickly find channels and streams
 - 📋 **Logs**: Real-time stream log visualization
 - 🎨 **Modern Interface**: Clean design with Bootstrap 5
+- 🤖 **Auto-Assignment**: Intelligent automatic stream assignment to channels
+- 🏆 **Stream Sorter**: Score-based stream ordering system with custom rules
 
 ## Requirements
 
@@ -136,6 +138,49 @@ Stream-plus/
 - `POST /api/streams/<id>/stop` - Stop stream
 
 ## Advanced Features
+
+### Stream Sorter
+The Stream Sorter allows you to create intelligent sorting rules that score and reorder streams within a channel based on quality metrics.
+
+#### Key Features
+- **Multi-condition Scoring**: Each rule can have multiple scoring conditions
+- **Flexible Targeting**: Apply rules to specific channels or channel groups
+- **Preview Mode**: Test rules before applying them
+- **Weighted Scoring**: Assign different point values to each condition
+
+#### Scoring Parameters
+1. **M3U Source**: Match streams from specific M3U accounts
+2. **Video Bitrate**: Score based on bitrate thresholds (>, >=, <, <=, ==)
+3. **Video Resolution**: Score based on resolution (e.g., 1920x1080)
+4. **Video Codec**: Score specific codecs (h264, h265, av1, etc.)
+5. **Audio Codec**: Score audio formats (aac, ac3, eac3, etc.)
+6. **Video FPS**: Score based on frame rate
+
+#### Usage Example
+Create a rule to prioritize high-quality streams:
+```
+Rule: "High Quality Preference"
+Conditions:
+  - Video Bitrate >= 5000 → 10 points
+  - Video Resolution >= 1920 → 15 points
+  - Video Codec == "h265" → 8 points
+  - Audio Codec == "eac3" → 5 points
+  - Video FPS >= 50 → 7 points
+
+Max Score: 45 points
+```
+
+Streams matching more conditions will score higher and appear first in the channel.
+
+#### API Endpoints
+- `GET/POST /api/sorting-rules` - List/create sorting rules
+- `GET/PUT/DELETE /api/sorting-rules/<id>` - Manage specific rule
+- `POST /api/sorting-rules/<id>/preview` - Preview sorting results
+- `POST /api/sorting-rules/<id>/execute` - Apply sorting to channel
+- `POST /api/sorting-rules/<id>/toggle` - Enable/disable rule
+
+### Auto-Assignment
+Automatically assign streams to channels based on customizable rules.
 
 ### Auto-refresh
 The application automatically updates data every 30 seconds when the page is visible.

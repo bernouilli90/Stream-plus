@@ -7,6 +7,14 @@ import re
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass, asdict
 
+# Import Stream Sorter models
+from stream_sorter_models import (
+    SortingCondition,
+    SortingRule,
+    SortingRulesManager,
+    StreamSorter
+)
+
 
 @dataclass
 class AutoAssignmentRule:

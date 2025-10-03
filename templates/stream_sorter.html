@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+
+{% block title %}Stream Sorter - Stream Plus{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>
+            <i class="fas fa-sort-amount-down text-primary"></i> Stream Sorter
+        </h2>
+        <button class="btn btn-primary" onclick="showCreateRuleModal()">
+            <i class="fas fa-plus"></i> New Sorting Rule
+        </button>
+    </div>
+
+    <!-- Info alert -->
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i>
+        <strong>Stream Sorter</strong> automatically sorts streams within channels based on scoring conditions.
+        Each condition awards points, and streams are ordered by total score (highest first).
+    </div>
+
+    <!-- Sorting Rules List -->
+    <div class="row" id="sortingRulesContainer">
+        {% if sorting_rules %}
+            {% for rule in sorting_rules %}
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100 sorting-rule-card" data-rule-id="{{ rule.id }}">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h5 class="card-title mb-0">{{ rule.name }}</h5>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" 
+                                       id="ruleToggle{{ rule.id }}"
+                                       {% if rule.enabled %}checked{% endif %}
+                                       onchange="toggleSortingRule({{ rule.id }})">
+                            </div>
+                        </div>
+
+                        {% if rule.description %}
+                        <p class="text-muted small mb-2">{{ rule.description }}</p>
+                        {% endif %}
+
+                        <!-- Conditions Summary -->
+                        <div class="mb-3">
+                            <small class="text-muted">
+                                <i class="fas fa-tasks"></i> {{ rule.conditions|length }} condition(s)
+                                {% if rule.conditions %}
+                                - Max Score: {{ rule.conditions|sum(attribute='points') }}
+                                {% endif %}
+                            </small>
+                        </div>
+
+                        <!-- Channel Tags -->
+                        <div class="mb-2">
+                            <small class="fw-bold d-block mb-1">Channels:</small>
+                            <div class="d-flex flex-wrap gap-1" id="channelTags{{ rule.id }}">
+                                {% if rule.channel_ids %}
+                                    {% for channel_id in rule.channel_ids %}
+                                    <span class="badge bg-primary">
+                                        Channel #{{ channel_id }}
+                                        <i class="fas fa-times ms-1" style="cursor: pointer;" 
+                                           onclick="removeChannelFromRule({{ rule.id }}, {{ channel_id }})"></i>
+                                    </span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="badge bg-secondary">All Channels</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Conditions List -->
+                        <div class="conditions-list mt-2">
+                            <small class="fw-bold d-block mb-1">Conditions:</small>
+                            {% if rule.conditions %}
+                            <div class="list-group list-group-flush small">
+                                {% for condition in rule.conditions %}
+                                <div class="list-group-item px-0 py-1">
+                                    <span class="badge bg-success">+{{ condition.points }}</span>
+                                    <span class="ms-1">
+                                        {{ condition.condition_type|replace('_', ' ')|title }}
+                                        {% if condition.operator %}{{ condition.operator }}{% endif %}
+                                        {{ condition.value }}
+                                    </span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <span class="text-muted small">No conditions defined</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="card-footer bg-transparent">
+                        <div class="btn-group w-100" role="group">
+                            <button class="btn btn-sm btn-outline-primary" 
+                                    onclick="editSortingRule({{ rule.id }})">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button class="btn btn-sm btn-outline-info" 
+                                    onclick="previewSortingRule({{ rule.id }})">
+                                <i class="fas fa-eye"></i> Preview
+                            </button>
+                            <button class="btn btn-sm btn-outline-success" 
+                                    onclick="executeSortingRule({{ rule.id }})">
+                                <i class="fas fa-play"></i> Execute
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" 
+                                    onclick="deleteSortingRule({{ rule.id }})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+        <div class="col-12">
+            <div class="alert alert-secondary text-center">
+                <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                <h5>No sorting rules yet</h5>
+                <p>Create your first sorting rule to automatically organize streams by quality, source, or codec.</p>
+                <button class="btn btn-primary" onclick="showCreateRuleModal()">
+                    <i class="fas fa-plus"></i> Create First Rule
+                </button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Create/Edit Sorting Rule Modal -->
+<div class="modal fade" id="sortingRuleModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="sortingRuleModalTitle">New Sorting Rule</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="sortingRuleForm">
+                    <input type="hidden" id="ruleId" name="ruleId">
+                    
+                    <!-- Rule Name -->
+                    <div class="mb-3">
+                        <label for="ruleName" class="form-label">Rule Name *</label>
+                        <input type="text" class="form-control" id="ruleName" required 
+                               placeholder="e.g., Prioritize HD H265 Streams">
+                    </div>
+
+                    <!-- Rule Description -->
+                    <div class="mb-3">
+                        <label for="ruleDescription" class="form-label">Description (optional)</label>
+                        <textarea class="form-control" id="ruleDescription" rows="2"
+                                  placeholder="Describe what this rule does..."></textarea>
+                    </div>
+
+                    <!-- Channel Assignment -->
+                    <div class="mb-3">
+                        <label class="form-label">Apply to Channels</label>
+                        <select class="form-select" id="channelSelect" multiple size="5">
+                            <option value="">All Channels</option>
+                            {% for channel in channels %}
+                            <option value="{{ channel.id }}">{{ channel.name or 'Channel #' ~ channel.id }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">
+                            Hold Ctrl (Cmd on Mac) to select multiple. Leave empty for all channels.
+                        </small>
+                        <div id="selectedChannelTags" class="mt-2"></div>
+                    </div>
+
+                    <!-- Conditions Section -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="form-label mb-0">Scoring Conditions</label>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addCondition()">
+                                <i class="fas fa-plus"></i> Add Condition
+                            </button>
+                        </div>
+                        
+                        <div id="conditionsContainer">
+                            <!-- Conditions will be added here dynamically -->
+                        </div>
+
+                        <div class="alert alert-info small mt-2 mb-0">
+                            <i class="fas fa-lightbulb"></i>
+                            <strong>Tip:</strong> Streams are scored based on all conditions. Higher total score = higher position.
+                        </div>
+                    </div>
+
+                    <!-- Max Possible Score Display -->
+                    <div class="mb-3">
+                        <div class="alert alert-secondary">
+                            <strong>Maximum Possible Score:</strong> <span id="maxPossibleScore">0</span> points
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveSortingRule()">
+                    <i class="fas fa-save"></i> Save Rule
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Sorting Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Select Channel to Preview</label>
+                    <select class="form-select" id="previewChannelSelect">
+                        {% for channel in channels %}
+                        <option value="{{ channel.id }}">{{ channel.name or 'Channel #' ~ channel.id }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div id="previewResults">
+                    <!-- Preview results will be shown here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-success" id="applyFromPreviewBtn">
+                    <i class="fas fa-check"></i> Apply Sorting
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Execute Modal -->
+<div class="modal fade" id="executeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Execute Sorting Rule</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Select the channel(s) where you want to apply this sorting rule:</p>
+                <div class="mb-3">
+                    <label class="form-label">Channel</label>
+                    <select class="form-select" id="executeChannelSelect">
+                        {% for channel in channels %}
+                        <option value="{{ channel.id }}">{{ channel.name or 'Channel #' ~ channel.id }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    This will reorder the streams in the selected channel based on the scoring conditions.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="confirmExecuteBtn">
+                    <i class="fas fa-play"></i> Execute Now
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- M3U Accounts and other data for JavaScript -->
+<script>
+    const m3uAccounts = {{ m3u_accounts|tojson|safe }};
+    const allChannels = {{ channels|tojson|safe }};
+</script>
+
+<script src="{{ url_for('static', filename='js/stream_sorter.js') }}"></script>
+{% endblock %}

@@ -48,6 +48,11 @@
                             <i class="fas fa-magic"></i> Auto-Assignment
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'stream_sorter' %}active{% endif %}" href="{{ url_for('stream_sorter') }}">
+                            <i class="fas fa-sort-amount-down"></i> Stream Sorter
+                        </a>
+                    </li>
                 </ul>
                 
                 <ul class="navbar-nav">
