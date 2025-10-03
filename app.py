@@ -587,27 +587,36 @@ def execute_sorting_rule(rule_id):
         if not rule.enabled:
             return jsonify({'error': 'Rule is disabled'}), 400
         
-        # Get streams from the channel
+        # Comprobar que el canal existe
+        try:
+            channel = dispatcharr_client.get_channel(channel_id)
+            if not channel:
+                return jsonify({'error': 'Channel not found'}), 404
+        except Exception as e:
+            # Si el canal no existe, Dispatcharr devuelve 404
+            if '404' in str(e):
+                return jsonify({'error': f'Channel {channel_id} not found'}), 404
+            raise  # Re-lanzar si es otro tipo de error
+
+        # Obtener streams del canal
         streams = dispatcharr_client.get_channel_streams(channel_id)
-        
         if not streams:
             return jsonify({
                 'success': True,
                 'message': 'No streams to sort',
                 'sorted_count': 0
             })
-        
-        # Sort streams using the rule
+
+        # Ordenar streams usando la regla
         sorted_streams = StreamSorter.sort_streams(rule, streams)
-        
-        # Update channel with sorted stream order
-        channel = dispatcharr_client.get_channel(channel_id)
+
+        # Actualizar canal con el nuevo orden
         sorted_stream_ids = [s['id'] for s in sorted_streams]
         channel['streams'] = sorted_stream_ids
-        
-        # Update channel
+
+        # Guardar canal actualizado
         dispatcharr_client.update_channel(channel_id, channel)
-        
+
         return jsonify({
             'success': True,
             'message': f'Successfully sorted {len(sorted_streams)} streams',
