@@ -158,14 +158,14 @@
                     <!-- Channel Assignment -->
                     <div class="mb-3">
                         <label class="form-label">Apply to Channels</label>
-                        <select class="form-select" id="channelSelect" multiple size="5">
-                            <option value="">All Channels</option>
+                        <select class="form-select" id="channelSelect" onchange="addChannelTag()">
+                            <option value="">Select a channel to add...</option>
                             {% for channel in channels %}
-                            <option value="{{ channel.id }}">{{ channel.name or 'Channel #' ~ channel.id }}</option>
+                            <option value="{{ channel.id }}" data-name="{{ channel.name or 'Channel #' ~ channel.id }}">{{ channel.name or 'Channel #' ~ channel.id }}</option>
                             {% endfor %}
                         </select>
                         <small class="form-text text-muted">
-                            Hold Ctrl (Cmd on Mac) to select multiple. Leave empty for all channels.
+                            Select channels from the dropdown. Click on tags to remove them. Leave empty to apply to all channels.
                         </small>
                         <div id="selectedChannelTags" class="mt-2"></div>
                     </div>

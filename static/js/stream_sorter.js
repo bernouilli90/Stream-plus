@@ -5,6 +5,7 @@
 
 let currentRuleId = null;
 let conditionCounter = 0;
+let selectedChannelIds = [];
 
 // Condition type configurations
 const conditionTypes = {
@@ -54,6 +55,7 @@ const conditionTypes = {
  */
 function showCreateRuleModal() {
     currentRuleId = null;
+    selectedChannelIds = [];
     document.getElementById('sortingRuleModalTitle').textContent = 'New Sorting Rule';
     document.getElementById('sortingRuleForm').reset();
     document.getElementById('ruleId').value = '';
@@ -242,15 +244,63 @@ function collectConditions() {
 }
 
 /**
+ * Add channel as tag
+ */
+function addChannelTag() {
+    const select = document.getElementById('channelSelect');
+    const channelId = select.value;
+    const channelName = select.options[select.selectedIndex].dataset.name;
+    
+    if (!channelId || channelId === '') {
+        return;
+    }
+    
+    const channelIdInt = parseInt(channelId);
+    
+    // Check if already added
+    if (selectedChannelIds.includes(channelIdInt)) {
+        select.value = '';
+        return;
+    }
+    
+    // Add to array
+    selectedChannelIds.push(channelIdInt);
+    
+    // Create tag
+    const tag = document.createElement('span');
+    tag.className = 'badge bg-primary me-1 mb-1';
+    tag.style.cursor = 'pointer';
+    tag.dataset.channelId = channelIdInt;
+    tag.innerHTML = `${channelName} <i class="fas fa-times ms-1"></i>`;
+    tag.onclick = function() {
+        removeChannelTag(channelIdInt);
+    };
+    
+    document.getElementById('selectedChannelTags').appendChild(tag);
+    
+    // Reset select
+    select.value = '';
+}
+
+/**
+ * Remove channel tag
+ */
+function removeChannelTag(channelId) {
+    // Remove from array
+    selectedChannelIds = selectedChannelIds.filter(id => id !== channelId);
+    
+    // Remove tag element
+    const tag = document.querySelector(`#selectedChannelTags [data-channel-id="${channelId}"]`);
+    if (tag) {
+        tag.remove();
+    }
+}
+
+/**
  * Collect selected channel IDs
  */
 function collectSelectedChannels() {
-    const select = document.getElementById('channelSelect');
-    const selectedOptions = Array.from(select.selectedOptions);
-    return selectedOptions
-        .map(option => option.value)
-        .filter(val => val !== '')
-        .map(val => parseInt(val));
+    return selectedChannelIds;
 }
 
 /**
@@ -336,15 +386,30 @@ async function editSortingRule(ruleId) {
         
         // Populate form
         currentRuleId = ruleId;
+        selectedChannelIds = [];
         document.getElementById('sortingRuleModalTitle').textContent = 'Edit Sorting Rule';
         document.getElementById('ruleId').value = ruleId;
         document.getElementById('ruleName').value = rule.name;
         document.getElementById('ruleDescription').value = rule.description || '';
         
-        // Set selected channels
-        const channelSelect = document.getElementById('channelSelect');
-        Array.from(channelSelect.options).forEach(option => {
-            option.selected = rule.channel_ids.includes(parseInt(option.value));
+        // Clear tags container
+        document.getElementById('selectedChannelTags').innerHTML = '';
+        
+        // Add channel tags
+        rule.channel_ids.forEach(channelId => {
+            const channel = allChannels.find(ch => ch.id === channelId);
+            if (channel) {
+                selectedChannelIds.push(channelId);
+                const tag = document.createElement('span');
+                tag.className = 'badge bg-primary me-1 mb-1';
+                tag.style.cursor = 'pointer';
+                tag.dataset.channelId = channelId;
+                tag.innerHTML = `${channel.name || 'Channel #' + channelId} <i class="fas fa-times ms-1"></i>`;
+                tag.onclick = function() {
+                    removeChannelTag(channelId);
+                };
+                document.getElementById('selectedChannelTags').appendChild(tag);
+            }
         });
         
         // Clear and add conditions
