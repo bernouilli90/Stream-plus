@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Stream Plus{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="display-4">
+                <i class="fas fa-stream text-primary"></i> Stream Plus
+            </h1>
+            <div class="badge bg-success fs-6">
+                <i class="fas fa-circle"></i> Connected to Dispatcharr
+            </div>
+        </div>
+        
+        <p class="lead">Manage your Dispatcharr channels and streams from a modern and easy-to-use web interface.</p>
+    </div>
+</div>
+
+<!-- Cards de resumen -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card border-primary">
+            <div class="card-body text-center">
+                <i class="fas fa-tv fa-3x text-primary mb-3"></i>
+                <h5 class="card-title">Channels</h5>
+                <p class="card-text display-6 text-primary">{{ channels|length if channels else 0 }}</p>
+                <a href="{{ url_for('channels') }}" class="btn btn-primary">
+                    <i class="fas fa-cog"></i> Manage Channels
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card border-success">
+            <div class="card-body text-center">
+                <i class="fas fa-play-circle fa-3x text-success mb-3"></i>
+                <h5 class="card-title">Streams</h5>
+                <p class="card-text display-6 text-success" id="streams-count">0</p>
+                <a href="{{ url_for('streams') }}" class="btn btn-success">
+                    <i class="fas fa-play"></i> Manage Streams
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lista de canales recientes -->
+{% if channels %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-list"></i> Available Channels
+                </h5>
+                <a href="{{ url_for('channels') }}" class="btn btn-sm btn-outline-primary">
+                    View all <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for channel in channels[:6] %}
+                    <div class="col-md-4 mb-3">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-body">
+                                <h6 class="card-title">
+                                    <i class="fas fa-tv text-primary"></i> 
+                                    {{ channel.name if channel.name else 'Canal #' + channel.id|string }}
+                                </h6>
+                                <p class="card-text text-muted small">
+                                    ID: {{ channel.id }}
+                                </p>
+                                {% if channel.status %}
+                                <span class="badge bg-{% if channel.status == 'active' %}success{% elif channel.status == 'inactive' %}secondary{% else %}warning{% endif %}">
+                                    {{ channel.status|title }}
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div class="card-footer bg-transparent">
+                                <small class="text-muted">
+                                    <i class="fas fa-clock"></i> 
+                                    {% if channel.created_at %}
+                                        {{ channel.created_at }}
+                                    {% else %}
+                                        Date not available
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="row">
+    <div class="col-12">
+        <div class="alert alert-info text-center" role="alert">
+            <i class="fas fa-info-circle fa-2x mb-3"></i>
+            <h4>No channels available</h4>
+            <p>It seems there are no channels configured in Dispatcharr or there is a connection problem.</p>
+            <a href="{{ url_for('channels') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Create Channel
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Loading indicator -->
+<div id="loading" class="text-center mt-4" style="display: none;">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="mt-2">Loading streams information...</p>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Load streams count on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadStreamsCount();
+});
+
+function loadStreamsCount() {
+    document.getElementById('loading').style.display = 'block';
+    
+    fetch('/api/streams')
+        .then(response => response.json())
+        .then(data => {
+            if (Array.isArray(data)) {
+                document.getElementById('streams-count').textContent = data.length;
+            } else {
+                document.getElementById('streams-count').textContent = '0';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading streams count:', error);
+            document.getElementById('streams-count').textContent = 'Error';
+        })
+        .finally(() => {
+            document.getElementById('loading').style.display = 'none';
+        });
+}
+</script>
+{% endblock %}

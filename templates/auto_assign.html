@@ -1,0 +1,353 @@
+{% extends "base.html" %}
+
+{% block title %}Auto-Assignment - Stream Plus{% endblock %}
+
+{% block extra_css %}
+<style>
+    #channelDropdown {
+        position: absolute;
+        z-index: 1050;
+        background-color: white;
+        border: 1px solid #dee2e6;
+        border-radius: 0.25rem;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+    
+    #channelDropdown .dropdown-item {
+        padding: 0.5rem 1rem;
+        transition: background-color 0.15s ease-in-out;
+    }
+    
+    #channelDropdown .dropdown-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    #channelSearch {
+        position: relative;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>
+        <i class="fas fa-magic text-primary"></i> Stream Auto-Assignment
+    </h1>
+    <button class="btn btn-primary" onclick="showCreateRuleModal()">
+        <i class="fas fa-plus"></i> New Rule
+    </button>
+</div>
+
+<!-- Description -->
+<div class="alert alert-info mb-4">
+    <i class="fas fa-info-circle"></i>
+    <strong>Automatically assign streams to channels</strong> based on configurable conditions like name (regex), M3U source, bitrate, codecs, resolution, and FPS.
+</div>
+
+<!-- Rule list -->
+<div id="rulesContainer">
+    {% if rules %}
+        <div class="row" id="rulesList">
+            {% for rule in rules %}
+            <div class="col-12 mb-3">
+                <div class="card shadow-sm">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <div class="form-check form-switch me-3">
+                                <input class="form-check-input" type="checkbox" id="enableRule{{ rule.id }}" 
+                                       {% if rule.enabled %}checked{% endif %} 
+                                       onchange="toggleRule({{ rule.id }})"
+                                       style="cursor: pointer;">
+                            </div>
+                            <h6 class="mb-0">
+                                <i class="fas fa-filter"></i> 
+                                {{ rule.name }}
+                                {% if not rule.enabled %}
+                                <span class="badge bg-secondary ms-2">Disabled</span>
+                                {% else %}
+                                <span class="badge bg-success ms-2">Enabled</span>
+                                {% endif %}
+                            </h6>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-outline-info" onclick="previewRule({{ rule.id }})">
+                                <i class="fas fa-eye"></i> Preview
+                            </button>
+                            <button class="btn btn-sm btn-success" onclick="executeRule({{ rule.id }})" {% if not rule.enabled %}disabled{% endif %}>
+                                <i class="fas fa-play"></i> Execute
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary" onclick="editRule({{ rule.id }})">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteRule({{ rule.id }})">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                {% set channel = channels.get(rule.channel_id) %}
+                                {% if channel %}
+                                <p class="mb-2">
+                                    <strong>Channel:</strong> 
+                                    {% if channel.logo %}
+                                    <img src="{{ channel.logo }}" alt="{{ channel.name }}" style="height: 20px; margin-right: 5px; vertical-align: middle;">
+                                    {% else %}
+                                    <i class="fas fa-tv text-muted"></i>
+                                    {% endif %}
+                                    {{ channel.name or 'Channel #' + rule.channel_id|string }}
+                                    <small class="text-muted">(ID: {{ rule.channel_id }})</small>
+                                </p>
+                                {% else %}
+                                <p class="mb-2"><strong>Channel ID:</strong> {{ rule.channel_id }}</p>
+                                {% endif %}
+                                {% if rule.regex_pattern %}
+                                <p class="mb-2"><strong>Regex Pattern:</strong> <code>{{ rule.regex_pattern }}</code></p>
+                                {% endif %}
+                                {% if rule.m3u_account_id %}
+                                <p class="mb-2"><strong>M3U Account ID:</strong> {{ rule.m3u_account_id }}</p>
+                                {% endif %}
+                                {% if rule.replace_existing_streams %}
+                                <p class="mb-2"><span class="badge bg-warning">Replace existing streams</span></p>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                {% if rule.video_bitrate_operator and rule.video_bitrate_value %}
+                                <p class="mb-2"><strong>Bitrate:</strong> {{ rule.video_bitrate_operator }} {{ rule.video_bitrate_value }}</p>
+                                {% endif %}
+                                {% if rule.video_codec %}
+                                <p class="mb-2"><strong>Video Codec:</strong> {{ rule.video_codec }}</p>
+                                {% endif %}
+                                {% if rule.video_resolution_operator and rule.video_resolution_width and rule.video_resolution_height %}
+                                <p class="mb-2"><strong>Resolution:</strong> {{ rule.video_resolution_operator }} {{ rule.video_resolution_width }}x{{ rule.video_resolution_height }}</p>
+                                {% endif %}
+                                {% if rule.video_fps %}
+                                <p class="mb-2"><strong>FPS:</strong> {{ rule.video_fps }}</p>
+                                {% endif %}
+                                {% if rule.audio_codec %}
+                                <p class="mb-2"><strong>Audio Codec:</strong> {{ rule.audio_codec }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info text-center" role="alert">
+            <i class="fas fa-info-circle fa-2x mb-3"></i>
+            <h4>No auto-assignment rules</h4>
+            <p>Create a new rule to start automatically assigning streams to channels.</p>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Modal for creating/editing rule -->
+<div class="modal fade" id="ruleModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="ruleModalTitle">New Rule</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="ruleForm">
+                    <input type="hidden" id="ruleId">
+                    
+                    <!-- Name and Channel -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="ruleName" class="form-label">Rule Name *</label>
+                            <input type="text" class="form-control" id="ruleName" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="channelSearch" class="form-label">Channel *</label>
+                            <input type="text" class="form-control" id="channelSearch" 
+                                   placeholder="Search channel by name or ID..." 
+                                   autocomplete="off" required>
+                            <input type="hidden" id="channelId" required>
+                            <div id="channelDropdown" class="dropdown-menu" style="max-height: 300px; overflow-y: auto; width: 100%;">
+                                <!-- Channels will be loaded dynamically -->
+                            </div>
+                            <small class="form-text text-muted">Type to search or click to see all</small>
+                        </div>
+                    </div>
+
+                    <!-- Status and Replace -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="ruleEnabled" checked>
+                                <label class="form-check-label" for="ruleEnabled">
+                                    Rule enabled
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="replaceExisting">
+                                <label class="form-check-label" for="replaceExisting">
+                                    Replace existing streams
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Filters -->
+                    <h6 class="border-bottom pb-2 mb-3">Search Filters</h6>
+
+                    <!-- Regex Pattern -->
+                    <div class="mb-3">
+                        <label for="regexPattern" class="form-label">
+                            Regex Pattern (stream name)
+                            <small class="text-muted">Example: ^ESPN.*HD$</small>
+                        </label>
+                        <input type="text" class="form-control" id="regexPattern" placeholder="Regex pattern...">
+                    </div>
+
+                    <!-- M3U Account -->
+                    <div class="mb-3">
+                        <label for="m3uAccountId" class="form-label">M3U Account</label>
+                        <select class="form-select" id="m3uAccountId">
+                            <option value="">All accounts...</option>
+                        </select>
+                    </div>
+
+                    <!-- Video Conditions -->
+                    <h6 class="border-bottom pb-2 mb-3">Video Conditions</h6>
+
+                    <!-- Bitrate -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="bitrateOperator" class="form-label">Bitrate Operator</label>
+                            <select class="form-select" id="bitrateOperator">
+                                <option value="">No restriction...</option>
+                                <option value=">">Greater than (>)</option>
+                                <option value=">=">Greater or equal (>=)</option>
+                                <option value="<">Less than (<)</option>
+                                <option value="<=">Less or equal (<=)</option>
+                                <option value="==">Equal (==)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="bitrateValue" class="form-label">Bitrate Value (Kbps)</label>
+                            <input type="number" class="form-control" id="bitrateValue" placeholder="Ex: 5000">
+                        </div>
+                    </div>
+
+                    <!-- Video Codec -->
+                    <div class="mb-3">
+                        <label for="videoCodec" class="form-label">Video Codec</label>
+                        <select class="form-select" id="videoCodec">
+                            <option value="">No restriction...</option>
+                            <option value="h264">H.264</option>
+                            <option value="h265">H.265 (HEVC)</option>
+                            <option value="mpeg2">MPEG-2</option>
+                            <option value="vp9">VP9</option>
+                            <option value="av1">AV1</option>
+                        </select>
+                    </div>
+
+                    <!-- Resolution -->
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="resolutionOperator" class="form-label">Resolution Operator</label>
+                            <select class="form-select" id="resolutionOperator">
+                                <option value="">No restriction...</option>
+                                <option value=">">Greater than (>)</option>
+                                <option value=">=">Greater or equal (>=)</option>
+                                <option value="<">Less than (<)</option>
+                                <option value="<=">Less or equal (<=)</option>
+                                <option value="==">Equal (==)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="resolutionWidth" class="form-label">Width (pixels)</label>
+                            <input type="number" class="form-control" id="resolutionWidth" placeholder="Ex: 1920">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="resolutionHeight" class="form-label">Height (pixels)</label>
+                            <input type="number" class="form-control" id="resolutionHeight" placeholder="Ex: 1080">
+                        </div>
+                    </div>
+
+                    <!-- FPS -->
+                    <div class="mb-3">
+                        <label for="videoFps" class="form-label">FPS (Frames per second)</label>
+                        <select class="form-select" id="videoFps">
+                            <option value="">No restriction...</option>
+                            <option value="24">24</option>
+                            <option value="25">25</option>
+                            <option value="30">30</option>
+                            <option value="50">50</option>
+                            <option value="60">60</option>
+                        </select>
+                    </div>
+
+                    <!-- Audio Conditions -->
+                    <h6 class="border-bottom pb-2 mb-3">Audio Conditions</h6>
+
+                    <!-- Audio Codec -->
+                    <div class="mb-3">
+                        <label for="audioCodec" class="form-label">Audio Codec</label>
+                        <select class="form-select" id="audioCodec">
+                            <option value="">No restriction...</option>
+                            <option value="aac">AAC</option>
+                            <option value="ac3">AC3 (Dolby Digital)</option>
+                            <option value="eac3">E-AC3 (Dolby Digital Plus)</option>
+                            <option value="mp3">MP3</option>
+                            <option value="opus">Opus</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-info" onclick="previewRuleFromForm()">
+                    <i class="fas fa-eye"></i> Preview
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveRule()">
+                    <i class="fas fa-save"></i> Save
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Preview modal -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Matches Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="previewContent">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading indicator -->
+<div id="loading" class="text-center mt-4" style="display: none;">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Cargando...</span>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/auto_assign.js') }}"></script>
+{% endblock %}

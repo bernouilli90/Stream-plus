@@ -1,0 +1,635 @@
+{% extends "base.html" %}
+
+{% block title %}Streams - Stream Plus{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>
+        <i class="fas fa-play-circle text-success"></i> Stream Management
+    </h1>
+    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createStreamModal">
+        <i class="fas fa-plus"></i> New Stream
+    </button>
+</div>
+
+<!-- Filters and controls -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" class="form-control" id="searchInput" placeholder="Search streams...">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select" id="statusFilter">
+                    <option value="">All</option>
+                    <option value="running">Running</option>
+                    <option value="stopped">Stopped</option>
+                    <option value="error">With errors</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select" id="channelFilter">
+                    <option value="">All channels</option>
+                    <!-- Will be filled dynamically -->
+                </select>
+            </div>
+            <div class="col-md-4">
+                <div class="btn-group" role="group">
+                    <button class="btn btn-outline-secondary" onclick="refreshStreams()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                    <button class="btn btn-outline-success" onclick="startAllStreams()">
+                        <i class="fas fa-play"></i> Start All
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="stopAllStreams()">
+                        <i class="fas fa-stop"></i> Stop All
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stream list -->
+<div id="streamsContainer">
+    {% if streams %}
+        <div class="row" id="streamsList">
+            {% for stream in streams %}
+            <div class="col-md-6 col-lg-4 mb-4 stream-card" 
+                 data-name="{{ stream.name|lower if stream.name else '' }}" 
+                 data-status="{{ stream.status if stream.status else '' }}"
+                 data-channel="{{ stream.channel_id if stream.channel_id else '' }}">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">
+                            <i class="fas fa-play-circle"></i> 
+                            {{ stream.name if stream.name else 'Stream #' + stream.id|string }}
+                        </h6>
+                        <span class="badge bg-{% if stream.status == 'running' %}success{% elif stream.status == 'stopped' %}secondary{% elif stream.status == 'error' %}danger{% else %}warning{% endif %}">
+                            {% if stream.status %}
+                                {{ stream.status|title }}
+                            {% else %}
+                                Unknown
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">
+                            <strong>ID:</strong> {{ stream.id }}<br>
+                            {% if stream.channel_id %}
+                            <strong>Channel:</strong> {{ stream.channel_id }}<br>
+                            {% endif %}
+                            {% if stream.url %}
+                            <strong>URL:</strong> <small>{{ stream.url[:50] }}...</small><br>
+                            {% endif %}
+                            {% if stream.created_at %}
+                            <strong>Created:</strong> {{ stream.created_at }}
+                            {% endif %}
+                        </p>
+                        
+                        <!-- Stream Stats Section -->
+                        {% if stream.stream_stats %}
+                        <div class="mt-2 p-2 bg-light rounded">
+                            <h6 class="mb-2"><i class="fas fa-chart-bar"></i> Statistics:</h6>
+                            <small class="d-block text-muted">
+                                {% if stream.stream_stats.video_codec %}
+                                <i class="fas fa-video"></i> {{ stream.stream_stats.video_codec }}
+                                {% endif %}
+                                {% if stream.stream_stats.resolution %}
+                                | <i class="fas fa-tv"></i> {{ stream.stream_stats.resolution }}
+                                {% endif %}
+                                {% if stream.stream_stats.bitrate %}
+                                | <i class="fas fa-tachometer-alt"></i> {{ (stream.stream_stats.bitrate / 1000) | int }} kbps
+                                {% endif %}
+                            </small>
+                            {% if stream.stream_stats_updated_at %}
+                            <small class="d-block text-muted mt-1">
+                                <i class="fas fa-clock"></i> Updated: {{ stream.stream_stats_updated_at }}
+                            </small>
+                            {% endif %}
+                            <button class="btn btn-sm btn-outline-info mt-2 w-100" onclick="viewStreamStats({{ stream.id }})">
+                                <i class="fas fa-info-circle"></i> View details
+                            </button>
+                        </div>
+                        {% else %}
+                        <div class="mt-2 p-2 bg-light rounded text-center">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle"></i> No statistics available
+                            </small>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Progress bar for running streams -->
+                        {% if stream.status == 'running' %}
+                        <div class="mt-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">Status:</small>
+                                <div class="spinner-border spinner-border-sm text-success" role="status">
+                                    <span class="visually-hidden">Running...</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <div class="btn-group w-100 mb-2" role="group">
+                            {% if stream.status != 'running' %}
+                            <button type="button" class="btn btn-sm btn-success" onclick="startStream('{{ stream.id }}')">
+                                <i class="fas fa-play"></i> Start
+                            </button>
+                            {% else %}
+                            <button type="button" class="btn btn-sm btn-danger" onclick="stopStream('{{ stream.id }}')">
+                                <i class="fas fa-stop"></i> Stop
+                            </button>
+                            {% endif %}
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="editStream('{{ stream.id }}')">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-info" onclick="viewLogs('{{ stream.id }}')">
+                                <i class="fas fa-file-alt"></i> Logs
+                            </button>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-danger w-100" onclick="deleteStream('{{ stream.id }}')">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info text-center" role="alert">
+            <i class="fas fa-info-circle fa-2x mb-3"></i>
+            <h4>No streams available</h4>
+            <p>No streams were found in Dispatcharr. You can create a new one using the "New Stream" button.</p>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Loading indicator -->
+<div id="loading" class="text-center mt-4" style="display: none;">
+    <div class="spinner-border text-success" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+</div>
+
+<!-- Modal for creating/editing stream -->
+<div class="modal fade" id="createStreamModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus"></i> <span id="modalTitle">New Stream</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="streamForm">
+                    <input type="hidden" id="streamId">
+                    <div class="mb-3">
+                        <label for="streamName" class="form-label">Stream Name</label>
+                        <input type="text" class="form-control" id="streamName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="streamDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="streamDescription" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="streamChannel" class="form-label">Channel</label>
+                        <select class="form-select" id="streamChannel">
+                            <option value="">Select channel...</option>
+                            <!-- Will be filled dynamically -->
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="streamUrl" class="form-label">Source URL</label>
+                        <input type="url" class="form-control" id="streamUrl">
+                    </div>
+                    <div class="mb-3">
+                        <label for="streamStatus" class="form-label">Status</label>
+                        <select class="form-select" id="streamStatus">
+                            <option value="stopped">Stopped</option>
+                            <option value="running">Running</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="saveStream()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for statistics -->
+<div class="modal fade" id="streamStatsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-chart-bar"></i> Stream Statistics
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="streamStatsContent">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for logs -->
+<div class="modal fade" id="logsModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-file-alt"></i> Stream Logs
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <button class="btn btn-sm btn-outline-primary" onclick="refreshLogs()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="clearLogsDisplay()">
+                        <i class="fas fa-eraser"></i> Clear View
+                    </button>
+                </div>
+                <pre id="logsContent" style="height: 400px; overflow-y: auto; background-color: #f8f9fa; padding: 15px; border-radius: 5px;">
+Loading logs...
+                </pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let currentStreamId = null;
+let currentLogsStreamId = null;
+
+// Initialization
+document.addEventListener('DOMContentLoaded', function() {
+    loadChannelsForFilters();
+    
+    // Filter events
+    document.getElementById('searchInput').addEventListener('input', filterStreams);
+    document.getElementById('statusFilter').addEventListener('change', filterStreams);
+    document.getElementById('channelFilter').addEventListener('change', filterStreams);
+});
+
+function loadChannelsForFilters() {
+    fetch('/api/channels')
+        .then(response => response.json())
+        .then(channels => {
+            const channelFilter = document.getElementById('channelFilter');
+            const streamChannel = document.getElementById('streamChannel');
+            
+            if (Array.isArray(channels)) {
+                channels.forEach(channel => {
+                    const option1 = new Option(channel.name || `Canal #${channel.id}`, channel.id);
+                    const option2 = new Option(channel.name || `Canal #${channel.id}`, channel.id);
+                    channelFilter.add(option1);
+                    streamChannel.add(option2);
+                });
+            }
+        })
+        .catch(error => console.error('Error loading channels:', error));
+}
+
+function filterStreams() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const statusFilter = document.getElementById('statusFilter').value;
+    const channelFilter = document.getElementById('channelFilter').value;
+    const streamCards = document.querySelectorAll('.stream-card');
+    
+    streamCards.forEach(card => {
+        const name = card.dataset.name;
+        const status = card.dataset.status;
+        const channel = card.dataset.channel;
+        
+        const matchesSearch = name.includes(searchTerm);
+        const matchesStatus = !statusFilter || status === statusFilter;
+        const matchesChannel = !channelFilter || channel === channelFilter;
+        
+        if (matchesSearch && matchesStatus && matchesChannel) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
+function refreshStreams() {
+    document.getElementById('loading').style.display = 'block';
+    location.reload();
+}
+
+function startStream(streamId) {
+    fetch(`/api/streams/${streamId}/start`, { method: 'POST' })
+        .then(response => response.json())
+        .then(result => {
+            if (result.error) {
+                alert('Error: ' + result.error);
+            } else {
+                location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error starting stream:', error);
+            alert('Error starting stream');
+        });
+}
+
+function stopStream(streamId) {
+    fetch(`/api/streams/${streamId}/stop`, { method: 'POST' })
+        .then(response => response.json())
+        .then(result => {
+            if (result.error) {
+                alert('Error: ' + result.error);
+            } else {
+                location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error stopping stream:', error);
+            alert('Error stopping stream');
+        });
+}
+
+function startAllStreams() {
+    if (confirm('Start all stopped streams?')) {
+        const stoppedStreams = document.querySelectorAll('.stream-card[data-status="stopped"]');
+        stoppedStreams.forEach(card => {
+            const streamId = card.querySelector('[onclick*="startStream"]').onclick.toString().match(/'([^']+)'/)[1];
+            startStream(streamId);
+        });
+    }
+}
+
+function stopAllStreams() {
+    if (confirm('Stop all running streams?')) {
+        const runningStreams = document.querySelectorAll('.stream-card[data-status="running"]');
+        runningStreams.forEach(card => {
+            const streamId = card.querySelector('[onclick*="stopStream"]').onclick.toString().match(/'([^']+)'/)[1];
+            stopStream(streamId);
+        });
+    }
+}
+
+function editStream(streamId) {
+    currentStreamId = streamId;
+    document.getElementById('modalTitle').textContent = 'Edit Stream';
+    
+    fetch(`/api/streams/${streamId}`)
+        .then(response => response.json())
+        .then(stream => {
+            document.getElementById('streamId').value = stream.id;
+            document.getElementById('streamName').value = stream.name || '';
+            document.getElementById('streamDescription').value = stream.description || '';
+            document.getElementById('streamChannel').value = stream.channel_id || '';
+            document.getElementById('streamUrl').value = stream.url || '';
+            document.getElementById('streamStatus').value = stream.status || 'stopped';
+            
+            new bootstrap.Modal(document.getElementById('createStreamModal')).show();
+        })
+        .catch(error => {
+            console.error('Error loading stream:', error);
+            alert('Error loading stream data');
+        });
+}
+
+function saveStream() {
+    const streamId = document.getElementById('streamId').value;
+    const streamData = {
+        name: document.getElementById('streamName').value,
+        description: document.getElementById('streamDescription').value,
+        channel_id: document.getElementById('streamChannel').value,
+        url: document.getElementById('streamUrl').value,
+        status: document.getElementById('streamStatus').value
+    };
+    
+    const url = streamId ? `/api/streams/${streamId}` : '/api/streams';
+    const method = streamId ? 'PUT' : 'POST';
+    
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(streamData)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.error) {
+            alert('Error: ' + result.error);
+        } else {
+            bootstrap.Modal.getInstance(document.getElementById('createStreamModal')).hide();
+            location.reload();
+        }
+    })
+    .catch(error => {
+        console.error('Error saving stream:', error);
+        alert('Error saving stream');
+    });
+}
+
+function deleteStream(streamId) {
+    if (confirm('Are you sure you want to delete this stream?')) {
+        fetch(`/api/streams/${streamId}`, { method: 'DELETE' })
+            .then(response => response.json())
+            .then(result => {
+                if (result.error) {
+                    alert('Error: ' + result.error);
+                } else {
+                    location.reload();
+                }
+            })
+            .catch(error => {
+                console.error('Error deleting stream:', error);
+                alert('Error deleting stream');
+            });
+    }
+}
+
+function viewLogs(streamId) {
+    currentLogsStreamId = streamId;
+    const modal = new bootstrap.Modal(document.getElementById('logsModal'));
+    modal.show();
+    refreshLogs();
+}
+
+function viewStreamStats(streamId) {
+    const modal = new bootstrap.Modal(document.getElementById('streamStatsModal'));
+    modal.show();
+    
+    // Load stream statistics
+    fetch(`/api/streams/${streamId}`)
+        .then(response => response.json())
+        .then(stream => {
+            const statsContent = document.getElementById('streamStatsContent');
+            
+            if (!stream.stream_stats) {
+                statsContent.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        No statistics available for this stream.
+                    </div>
+                `;
+                return;
+            }
+            
+            const stats = stream.stream_stats;
+            let html = `
+                <div class="mb-3">
+                    <h6><i class="fas fa-info-circle"></i> General Information</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Name:</strong> ${stream.name || 'N/A'}<br>
+                            <strong>ID:</strong> ${stream.id}<br>
+                            ${stream.url ? `<strong>URL:</strong> <small>${stream.url}</small><br>` : ''}
+                        </div>
+                        <div class="col-md-6">
+                            ${stream.stream_stats_updated_at ? `<strong>Last updated:</strong> ${stream.stream_stats_updated_at}<br>` : ''}
+                            ${stream.current_viewers ? `<strong>Viewers:</strong> ${stream.current_viewers}<br>` : ''}
+                            ${stream.last_seen ? `<strong>Last seen:</strong> ${stream.last_seen}` : ''}
+                        </div>
+                    </div>
+                </div>
+                <hr>
+                <div class="mb-3">
+                    <h6><i class="fas fa-video"></i> Video Statistics</h6>
+                    <table class="table table-sm table-striped">
+                        <tbody>
+            `;
+            
+            // Video stats
+            if (stats.video_codec) html += `<tr><td><strong>Video Codec</strong></td><td>${stats.video_codec}</td></tr>`;
+            if (stats.resolution) html += `<tr><td><strong>Resolution</strong></td><td>${stats.resolution}</td></tr>`;
+            if (stats.width && stats.height) html += `<tr><td><strong>Dimensions</strong></td><td>${stats.width}x${stats.height}</td></tr>`;
+            if (stats.fps) html += `<tr><td><strong>FPS</strong></td><td>${stats.fps}</td></tr>`;
+            if (stats.video_bitrate) html += `<tr><td><strong>Video Bitrate</strong></td><td>${(stats.video_bitrate / 1000).toFixed(2)} kbps</td></tr>`;
+            if (stats.aspect_ratio) html += `<tr><td><strong>Aspect Ratio</strong></td><td>${stats.aspect_ratio}</td></tr>`;
+            if (stats.pixel_format) html += `<tr><td><strong>Pixel Format</strong></td><td>${stats.pixel_format}</td></tr>`;
+            
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+                <hr>
+                <div class="mb-3">
+                    <h6><i class="fas fa-volume-up"></i> Audio Statistics</h6>
+                    <table class="table table-sm table-striped">
+                        <tbody>
+            `;
+            
+            // Audio stats
+            if (stats.audio_codec) html += `<tr><td><strong>Audio Codec</strong></td><td>${stats.audio_codec}</td></tr>`;
+            if (stats.audio_bitrate) html += `<tr><td><strong>Audio Bitrate</strong></td><td>${(stats.audio_bitrate / 1000).toFixed(2)} kbps</td></tr>`;
+            if (stats.sample_rate) html += `<tr><td><strong>Sample Rate</strong></td><td>${stats.sample_rate} Hz</td></tr>`;
+            if (stats.channels) html += `<tr><td><strong>Channels</strong></td><td>${stats.channels}</td></tr>`;
+            if (stats.channel_layout) html += `<tr><td><strong>Layout</strong></td><td>${stats.channel_layout}</td></tr>`;
+            
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+                <hr>
+                <div class="mb-3">
+                    <h6><i class="fas fa-tachometer-alt"></i> General Statistics</h6>
+                    <table class="table table-sm table-striped">
+                        <tbody>
+            `;
+            
+            // General stats
+            if (stats.bitrate) html += `<tr><td><strong>Total Bitrate</strong></td><td>${(stats.bitrate / 1000).toFixed(2)} kbps</td></tr>`;
+            if (stats.format) html += `<tr><td><strong>Format</strong></td><td>${stats.format}</td></tr>`;
+            if (stats.duration) html += `<tr><td><strong>Duration</strong></td><td>${stats.duration} s</td></tr>`;
+            if (stats.size) html += `<tr><td><strong>Size</strong></td><td>${(stats.size / 1024 / 1024).toFixed(2)} MB</td></tr>`;
+            if (stats.container) html += `<tr><td><strong>Container</strong></td><td>${stats.container}</td></tr>`;
+            
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            // Raw JSON data (collapsible)
+            html += `
+                <hr>
+                <div class="mb-3">
+                    <h6>
+                        <a class="text-decoration-none" data-bs-toggle="collapse" href="#rawStatsCollapse" role="button">
+                            <i class="fas fa-code"></i> JSON Data (click to expand)
+                        </a>
+                    </h6>
+                    <div class="collapse" id="rawStatsCollapse">
+                        <pre class="bg-light p-3 rounded"><code>${JSON.stringify(stats, null, 2)}</code></pre>
+                    </div>
+                </div>
+            `;
+            
+            statsContent.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading stream stats:', error);
+            document.getElementById('streamStatsContent').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle"></i> 
+                    Error loading stream statistics
+                </div>
+            `;
+        });
+}
+
+function refreshLogs() {
+    if (!currentLogsStreamId) return;
+    
+    document.getElementById('logsContent').textContent = 'Loading logs...';
+    
+    fetch(`/api/streams/${currentLogsStreamId}/logs`)
+        .then(response => response.json())
+        .then(result => {
+            if (result.error) {
+                document.getElementById('logsContent').textContent = 'Error: ' + result.error;
+            } else if (result.logs) {
+                document.getElementById('logsContent').textContent = result.logs;
+            } else {
+                document.getElementById('logsContent').textContent = 'No logs available';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading logs:', error);
+            document.getElementById('logsContent').textContent = 'Error loading logs';
+        });
+}
+
+function clearLogsDisplay() {
+    document.getElementById('logsContent').textContent = 'Logs cleared from view. Use "Refresh" to reload.';
+}
+
+// Clear form when closing modal
+document.getElementById('createStreamModal').addEventListener('hidden.bs.modal', function () {
+    document.getElementById('streamForm').reset();
+    document.getElementById('streamId').value = '';
+    document.getElementById('modalTitle').textContent = 'New Stream';
+    currentStreamId = null;
+});
+</script>
+{% endblock %}
