@@ -3,6 +3,12 @@
 {% block title %}Stream Sorter - Stream Plus{% endblock %}
 
 {% block content %}
+{# Create a dictionary of channels for easy lookup #}
+{% set channels_dict = {} %}
+{% for channel in channels %}
+    {% set _ = channels_dict.update({channel.id: channel}) %}
+{% endfor %}
+
 <div class="container-fluid mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>
@@ -58,7 +64,7 @@
                                 {% if rule.channel_ids %}
                                     {% for channel_id in rule.channel_ids %}
                                     <span class="badge bg-primary">
-                                        Channel #{{ channel_id }}
+                                        {{ channels_dict.get(channel_id).name if channels_dict.get(channel_id) else 'Channel #' + channel_id|string }}
                                         <i class="fas fa-times ms-1" style="cursor: pointer;" 
                                            onclick="removeChannelFromRule({{ rule.id }}, {{ channel_id }})"></i>
                                     </span>
@@ -170,6 +176,36 @@
                         <div id="selectedChannelTags" class="mt-2"></div>
                     </div>
 
+                    <!-- Test Streams Option -->
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="testStreamsBeforeSorting">
+                            <label class="form-check-label" for="testStreamsBeforeSorting">
+                                <i class="fas fa-flask"></i> Test streams before sorting (obtains stats via ffmpeg)
+                            </label>
+                        </div>
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> Each stream will be started for 10 seconds to obtain stats (bitrate, codec, resolution, etc.). 
+                            <strong>This may take time if there are many streams.</strong>
+                        </small>
+                        
+                        <!-- Force Retest Old Streams Sub-option -->
+                        <div class="mt-2 ms-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="forceRetestOldStreams" disabled>
+                                <label class="form-check-label" for="forceRetestOldStreams">
+                                    <i class="fas fa-redo"></i> Force retest of streams tested more than
+                                    <input type="number" id="retestDaysThreshold" class="form-control form-control-sm d-inline-block" 
+                                           style="width: 70px;" min="1" value="7" disabled>
+                                    days ago
+                                </label>
+                            </div>
+                            <small class="form-text text-muted">
+                                <i class="fas fa-clock"></i> Only re-test streams whose stats are older than the specified days. Fresh streams will be skipped.
+                            </small>
+                        </div>
+                    </div>
+
                     <!-- Conditions Section -->
                     <div class="mb-3">
                         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -272,11 +308,63 @@
     </div>
 </div>
 
+<!-- Execution Progress Modal -->
+<div class="modal fade" id="executionProgressModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-cog fa-spin"></i> Executing Sorting Rule
+                </h5>
+            </div>
+            <div class="modal-body">
+                <!-- Progress bar -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="small text-muted" id="progressLabel">Initializing...</span>
+                        <span class="small text-muted" id="progressPercent">0%</span>
+                    </div>
+                    <div class="progress" style="height: 25px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" 
+                             id="executionProgressBar"
+                             style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Log output -->
+                <div class="card bg-dark text-light">
+                    <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-terminal"></i> Execution Log</span>
+                        <button type="button" class="btn btn-sm btn-outline-light" onclick="clearExecutionLog()">
+                            <i class="fas fa-eraser"></i> Clear
+                        </button>
+                    </div>
+                    <div class="card-body p-2" style="max-height: 400px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 12px;">
+                        <div id="executionLog"></div>
+                    </div>
+                </div>
+
+                <!-- Summary (shown on completion) -->
+                <div id="executionSummary" class="mt-3" style="display: none;">
+                    <div class="alert" id="executionResult"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="closeProgressBtn" data-bs-dismiss="modal" disabled>
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- M3U Accounts and other data for JavaScript -->
 <script>
     const m3uAccounts = {{ m3u_accounts|tojson|safe }};
     const allChannels = {{ channels|tojson|safe }};
 </script>
 
+<script src="{{ url_for('static', filename='js/stream_sorter_progress.js') }}"></script>
 <script src="{{ url_for('static', filename='js/stream_sorter.js') }}"></script>
 {% endblock %}

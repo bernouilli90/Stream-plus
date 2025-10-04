@@ -70,3 +70,29 @@ sorting_rules.json
 
 # API artifacts
 api.json
+
+# Node modules (if any)
+node_modules/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.bak
+*.backup
+
+# FFmpeg tools (large binary files)
+tools/ffmpeg/
+
+# Cache directories
+.cache/
+*.cache
+
+# Python compiled
+*.pyc
+
+# Test files
+test_*.py
+*_test.py

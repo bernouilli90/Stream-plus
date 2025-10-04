@@ -379,6 +379,8 @@ class DispatcharrClient:
         """
         return self._make_request('POST', f'/api/streams/{stream_id}/stop')
     
+
+    
     def get_stream_status(self, stream_id: str) -> Dict[str, Any]:
         """
         Get stream status
@@ -429,3 +431,253 @@ class DispatcharrClient:
         if isinstance(result, list):
             return result
         return result.get('results', [])
+    
+    def test_stream(self, stream_id: int, test_duration: int = 10) -> Dict[str, Any]:
+        """
+        Test a stream using ffprobe to analyze its properties and quality.
+        Uses the stream's direct URL. Updates the stream in Dispatcharr with the analyzed statistics.
+        
+        Args:
+            stream_id: ID of the stream to test
+            test_duration: How long to analyze the stream (in seconds)
+            
+        Returns:
+            Dict with test results including stream statistics
+        """
+        import subprocess
+        import time
+        
+        try:
+            # Get the stream object from Dispatcharr
+            stream_obj = self.get_stream(stream_id)
+            stream_url = stream_obj.get('url')
+            
+            if not stream_url:
+                return {
+                    'success': False,
+                    'message': f'Stream {stream_id} does not have a URL'
+                }
+            
+            # Try to find ffprobe executable
+            import os as os_module
+            ffprobe_executable = 'ffprobe'
+            
+            # Check for local installations
+            local_ffprobe = os_module.path.join(
+                os_module.path.dirname(os_module.path.dirname(os_module.path.abspath(__file__))),
+                'tools', 'ffmpeg', 'ffmpeg-7.1-essentials_build', 'bin', 'ffprobe.exe'
+            )
+            local_ffmpeg = os_module.path.join(
+                os_module.path.dirname(os_module.path.dirname(os_module.path.abspath(__file__))),
+                'tools', 'ffmpeg', 'ffmpeg-7.1-essentials_build', 'bin', 'ffmpeg.exe'
+            )
+            
+            if os_module.path.exists(local_ffprobe):
+                ffprobe_executable = local_ffprobe
+            if os_module.path.exists(local_ffmpeg):
+                ffmpeg_executable = local_ffmpeg
+            else:
+                ffmpeg_executable = 'ffmpeg'
+            
+            # Step 1: Use ffmpeg to read the stream and get bitrate info
+            # We'll run it for the specified duration and capture the output
+            print(f"Reading stream for {test_duration} seconds to calculate bitrate...")
+            ffmpeg_cmd = [
+                ffmpeg_executable,
+                '-t', str(test_duration),  # Read for test_duration seconds
+                '-i', stream_url,
+                '-c', 'copy',  # Copy without re-encoding
+                '-f', 'null',  # Discard output
+                '-'
+            ]
+            
+            ffmpeg_result = subprocess.run(
+                ffmpeg_cmd,
+                capture_output=True,
+                text=True,
+                timeout=test_duration + 20
+            )
+            
+            # Parse bitrate from ffmpeg stderr output
+            # Look for output size line like: "video:5607KiB audio:125KiB"
+            calculated_bitrate = None
+            calculated_bitrate_kbps = None
+            
+            for line in ffmpeg_result.stderr.split('\n'):
+                # Look for the final summary line with data sizes
+                if 'video:' in line and 'audio:' in line and 'KiB' in line:
+                    try:
+                        # Extract video and audio sizes
+                        video_size_kb = 0
+                        audio_size_kb = 0
+                        
+                        # Parse video size
+                        if 'video:' in line:
+                            video_part = line.split('video:')[1].split('KiB')[0].strip()
+                            video_size_kb = float(video_part)
+                        
+                        # Parse audio size
+                        if 'audio:' in line:
+                            audio_part = line.split('audio:')[1].split('KiB')[0].strip()
+                            audio_size_kb = float(audio_part)
+                        
+                        # Calculate total bitrate: (total_KB * 8) / duration_seconds = kbits/s
+                        total_size_kb = video_size_kb + audio_size_kb
+                        calculated_bitrate_kbps = (total_size_kb * 8) / test_duration
+                        calculated_bitrate = calculated_bitrate_kbps * 1000  # Convert to bits/s
+                        
+                        print(f"Calculated bitrate: {calculated_bitrate_kbps:.2f} kbits/s ({total_size_kb:.2f} KB in {test_duration}s)")
+                        
+                    except (ValueError, IndexError) as e:
+                        print(f"Error calculating bitrate: {e}")
+                        pass
+            
+            # Fallback: try to parse from progress line
+            if not calculated_bitrate:
+                for line in ffmpeg_result.stderr.split('\n'):
+                    if 'bitrate=' in line and 'kbits/s' in line:
+                        try:
+                            bitrate_part = line.split('bitrate=')[1].split('kbits/s')[0].strip()
+                            if bitrate_part and bitrate_part != 'N/A':
+                                calculated_bitrate_kbps = float(bitrate_part)
+                                calculated_bitrate = calculated_bitrate_kbps * 1000
+                        except (ValueError, IndexError):
+                            pass
+            
+            # Step 2: Use ffprobe to get codec information
+            print(f"Analyzing stream metadata with ffprobe...")
+            ffprobe_cmd = [
+                ffprobe_executable,
+                '-analyzeduration', str(test_duration * 1000000),  # Convert to microseconds
+                '-probesize', str(test_duration * 5000000),  # Large probesize
+                '-v', 'error',
+                '-print_format', 'json',
+                '-show_format',
+                '-show_streams',
+                stream_url
+            ]
+            
+            # Run ffprobe
+            result = subprocess.run(
+                ffprobe_cmd,
+                capture_output=True,
+                text=True,
+                timeout=test_duration + 10
+            )
+            
+            if result.returncode != 0:
+                error_msg = result.stderr if result.stderr else "Unknown error"
+                return {
+                    'success': False,
+                    'message': f'ffprobe failed: {error_msg}',
+                    'stdout': result.stdout,
+                    'stderr': result.stderr
+                }
+            
+            # Parse ffprobe output
+            import json as json_lib
+            probe_data = json_lib.loads(result.stdout)
+            
+            # Extract video and audio stream info
+            video_stream = None
+            audio_stream = None
+            
+            for stream in probe_data.get('streams', []):
+                if stream.get('codec_type') == 'video' and not video_stream:
+                    video_stream = stream
+                elif stream.get('codec_type') == 'audio' and not audio_stream:
+                    audio_stream = stream
+            
+            # Build statistics object using Dispatcharr's original format
+            # Based on stream 556 format (10 fields)
+            stats = {}
+            
+            # Video fields
+            if video_stream:
+                width = video_stream.get('width')
+                height = video_stream.get('height')
+                if width and height:
+                    stats['resolution'] = f"{width}x{height}"
+                
+                # Convert fps fraction (e.g., "25/1") to float
+                fps_str = video_stream.get('avg_frame_rate', '0/1')
+                try:
+                    numerator, denominator = fps_str.split('/')
+                    stats['source_fps'] = float(numerator) / float(denominator)
+                except (ValueError, ZeroDivisionError):
+                    stats['source_fps'] = 0.0
+                
+                stats['video_codec'] = video_stream.get('codec_name')
+                stats['pixel_format'] = video_stream.get('pix_fmt')
+            
+            # Audio fields
+            if audio_stream:
+                stats['audio_codec'] = audio_stream.get('codec_name')
+                
+                # Sample rate as integer
+                sample_rate = audio_stream.get('sample_rate')
+                if sample_rate:
+                    stats['sample_rate'] = int(sample_rate)
+                
+                # Audio bitrate in kbps (from bps)
+                audio_bitrate_bps = audio_stream.get('bit_rate')
+                if audio_bitrate_bps:
+                    stats['audio_bitrate'] = float(audio_bitrate_bps) / 1000.0
+                
+                # Audio channels as string: "stereo" or "mono"
+                channels = audio_stream.get('channels')
+                if channels:
+                    stats['audio_channels'] = 'stereo' if int(channels) == 2 else 'mono'
+            
+            # Stream type (format name)
+            format_name = probe_data.get('format', {}).get('format_name')
+            if format_name:
+                stats['stream_type'] = format_name
+            
+            # ffmpeg_output_bitrate - the KEY field for sorting
+            if calculated_bitrate_kbps:
+                stats['ffmpeg_output_bitrate'] = calculated_bitrate_kbps
+            
+            # Update the stream object with the new statistics
+            stream_obj['stream_stats'] = stats
+            
+            # Update the stats timestamp to current UTC time
+            from datetime import datetime, timezone
+            stream_obj['stream_stats_updated_at'] = datetime.now(timezone.utc).isoformat()
+            
+            # Save the updated stream back to Dispatcharr
+            try:
+                updated_stream = self.update_stream(stream_id, stream_obj)
+                
+                return {
+                    'success': True,
+                    'message': f'Stream {stream_id} analyzed successfully and statistics saved to Dispatcharr',
+                    'stream_id': stream_id,
+                    'stream_url': stream_url,
+                    'statistics': stats,
+                    'raw_probe_data': probe_data,
+                    'updated_stream': updated_stream
+                }
+            except Exception as e:
+                # Even if we can't save, return the statistics
+                return {
+                    'success': True,
+                    'message': f'Stream {stream_id} analyzed successfully but failed to save to Dispatcharr: {str(e)}',
+                    'stream_id': stream_id,
+                    'stream_url': stream_url,
+                    'statistics': stats,
+                    'raw_probe_data': probe_data,
+                    'save_error': str(e)
+                }
+            
+        except subprocess.TimeoutExpired:
+            return {
+                'success': False,
+                'message': f'ffprobe timeout after {test_duration} seconds'
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'Error testing stream {stream_id}: {str(e)}'
+            }

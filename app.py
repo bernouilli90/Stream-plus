@@ -1,5 +1,9 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, Response, stream_with_context
 import os
+import json
+import time
+from queue import Queue
+from threading import Thread
 from dotenv import load_dotenv
 from api.dispatcharr_client import DispatcharrClient
 from models import RulesManager, AutoAssignmentRule, StreamMatcher
@@ -28,6 +32,9 @@ rules_manager = RulesManager()
 
 # Initialize sorting rules manager
 sorting_rules_manager = SortingRulesManager()
+
+# Dictionary to store progress queues for active executions
+execution_queues = {}
 
 @app.route('/')
 def index():
@@ -501,7 +508,10 @@ def api_sorting_rules():
                 channel_ids=data.get('channel_ids', []),
                 channel_group_ids=data.get('channel_group_ids', []),
                 conditions=conditions,
-                description=data.get('description')
+                description=data.get('description'),
+                test_streams_before_sorting=data.get('test_streams_before_sorting', False),
+                force_retest_old_streams=data.get('force_retest_old_streams', False),
+                retest_days_threshold=data.get('retest_days_threshold', 7)
             )
             
             # Save rule
@@ -548,7 +558,10 @@ def api_sorting_rule(rule_id):
                 channel_ids=data.get('channel_ids', []),
                 channel_group_ids=data.get('channel_group_ids', []),
                 conditions=conditions,
-                description=data.get('description')
+                description=data.get('description'),
+                test_streams_before_sorting=data.get('test_streams_before_sorting', False),
+                force_retest_old_streams=data.get('force_retest_old_streams', False),
+                retest_days_threshold=data.get('retest_days_threshold', 7)
             )
             
             # Update rule
@@ -569,16 +582,278 @@ def api_sorting_rule(rule_id):
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/sorting-rules/<int:rule_id>/execute-stream')
+def execute_sorting_rule_stream(rule_id):
+    """SSE endpoint to stream execution progress"""
+    execution_id = request.args.get('execution_id')
+    
+    if not execution_id or execution_id not in execution_queues:
+        return jsonify({'error': 'Invalid execution ID'}), 400
+    
+    def generate():
+        queue = execution_queues[execution_id]
+        
+        try:
+            while True:
+                # Get message from queue (block for max 30 seconds)
+                try:
+                    message = queue.get(timeout=30)
+                    
+                    if message is None:  # Signal to stop
+                        break
+                    
+                    # Send SSE message
+                    yield f"data: {json.dumps(message)}\n\n"
+                    
+                except Exception as e:
+                    # Timeout or error, send keepalive
+                    yield f"data: {json.dumps({'type': 'keepalive'})}\n\n"
+        finally:
+            # Clean up queue when client disconnects
+            if execution_id in execution_queues:
+                del execution_queues[execution_id]
+    
+    return Response(
+        stream_with_context(generate()),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no'
+        }
+    )
+
+
+def execute_sorting_in_background(rule_id, channel_ids, queue):
+    """Execute sorting rule in background thread and send progress updates"""
+    try:
+        # Get the rule
+        rule = sorting_rules_manager.get_rule(rule_id)
+        if not rule:
+            queue.put({'type': 'error', 'message': 'Rule not found'})
+            queue.put(None)
+            return
+        
+        total_sorted = 0
+        total_tested = 0
+        total_failed = 0
+        total_skipped = 0
+        processed_channels = []
+        errors = []
+        
+        queue.put({
+            'type': 'start',
+            'message': f'Starting execution of rule: {rule.name}',
+            'total_channels': len(channel_ids)
+        })
+        
+        for idx, channel_id in enumerate(channel_ids, 1):
+            tested_count = 0
+            failed_tests = 0
+            skipped_count = 0
+            
+            try:
+                # Get channel
+                queue.put({
+                    'type': 'channel_start',
+                    'channel_id': channel_id,
+                    'channel_index': idx,
+                    'total_channels': len(channel_ids),
+                    'message': f'Processing channel {channel_id}...'
+                })
+                
+                channel = None
+                try:
+                    channel = dispatcharr_client.get_channel(channel_id)
+                except Exception as e:
+                    if '404' in str(e):
+                        error_msg = f'Channel {channel_id} not found'
+                        errors.append(error_msg)
+                        queue.put({'type': 'error', 'message': error_msg})
+                        continue
+                    raise
+                
+                if not channel or not isinstance(channel, dict):
+                    error_msg = f'Channel {channel_id} not found or invalid'
+                    errors.append(error_msg)
+                    queue.put({'type': 'error', 'message': error_msg})
+                    continue
+
+                # Get streams
+                streams = dispatcharr_client.get_channel_streams(channel_id)
+                if not streams:
+                    queue.put({
+                        'type': 'info',
+                        'message': f'Channel {channel_id} has no streams'
+                    })
+                    continue
+                
+                streams = [s for s in streams if s is not None and isinstance(s, dict)]
+                if not streams:
+                    continue
+
+                queue.put({
+                    'type': 'info',
+                    'message': f'Found {len(streams)} streams in channel {channel.get("name", channel_id)}'
+                })
+
+                # Test streams if needed
+                if rule.test_streams_before_sorting:
+                    from datetime import datetime, timedelta, timezone
+                    
+                    streams_to_test = []
+                    
+                    if rule.force_retest_old_streams:
+                        threshold = datetime.now(timezone.utc) - timedelta(days=rule.retest_days_threshold)
+                        
+                        for stream in streams:
+                            has_stats = stream.get('stream_stats') and isinstance(stream.get('stream_stats'), dict)
+                            stream_stats_date_str = stream.get('stream_stats_updated_at')
+                            
+                            if not has_stats or not stream_stats_date_str:
+                                streams_to_test.append(stream['id'])
+                            else:
+                                try:
+                                    stream_stats_date = datetime.fromisoformat(stream_stats_date_str.replace('Z', '+00:00'))
+                                    
+                                    if stream_stats_date <= threshold:
+                                        streams_to_test.append(stream['id'])
+                                    else:
+                                        skipped_count += 1
+                                except (ValueError, AttributeError) as e:
+                                    streams_to_test.append(stream['id'])
+                    else:
+                        streams_to_test = [s['id'] for s in streams]
+                    
+                    queue.put({
+                        'type': 'test_start',
+                        'total_streams': len(streams_to_test),
+                        'message': f'Testing {len(streams_to_test)} stream(s)...'
+                    })
+                    
+                    # Test streams
+                    for stream_idx, stream_id in enumerate(streams_to_test, 1):
+                        try:
+                            stream_name = next((s.get('name', f'Stream {stream_id}') for s in streams if s['id'] == stream_id), f'Stream {stream_id}')
+                            
+                            queue.put({
+                                'type': 'test_progress',
+                                'stream_id': stream_id,
+                                'stream_name': stream_name,
+                                'current': stream_idx,
+                                'total': len(streams_to_test),
+                                'message': f'Testing stream {stream_idx}/{len(streams_to_test)}: {stream_name}'
+                            })
+                            
+                            result = dispatcharr_client.test_stream(stream_id, test_duration=10)
+                            if result.get('success'):
+                                tested_count += 1
+                                queue.put({
+                                    'type': 'test_success',
+                                    'stream_id': stream_id,
+                                    'message': f'✓ Stream {stream_name} tested successfully'
+                                })
+                            else:
+                                failed_tests += 1
+                                queue.put({
+                                    'type': 'test_fail',
+                                    'stream_id': stream_id,
+                                    'message': f'✗ Failed to test stream {stream_name}: {result.get("message", "Unknown error")}'
+                                })
+                        except Exception as e:
+                            failed_tests += 1
+                            queue.put({
+                                'type': 'test_fail',
+                                'stream_id': stream_id,
+                                'message': f'✗ Error testing stream {stream_id}: {str(e)}'
+                            })
+                    
+                    # Reload streams
+                    queue.put({
+                        'type': 'info',
+                        'message': 'Reloading streams with updated stats...'
+                    })
+                    streams = dispatcharr_client.get_channel_streams(channel_id)
+                    streams = [s for s in streams if s is not None and isinstance(s, dict)]
+
+                # Sort streams
+                queue.put({
+                    'type': 'sorting',
+                    'message': 'Sorting streams...'
+                })
+                
+                sorted_streams = StreamSorter.sort_streams(rule, streams)
+
+                # Update channel
+                queue.put({
+                    'type': 'updating',
+                    'message': f'Updating channel order...'
+                })
+                
+                sorted_stream_ids = [s['id'] for s in sorted_streams]
+                channel['streams'] = sorted_stream_ids
+                dispatcharr_client.update_channel(channel_id, channel)
+
+                # Accumulate results
+                total_sorted += len(sorted_streams)
+                total_tested += tested_count
+                total_failed += failed_tests
+                total_skipped += skipped_count
+                
+                processed_channels.append({
+                    'channel_id': channel_id,
+                    'channel_name': channel.get('name', f'Channel {channel_id}'),
+                    'sorted_count': len(sorted_streams),
+                    'tested_count': tested_count,
+                    'failed_tests': failed_tests,
+                    'skipped_count': skipped_count
+                })
+                
+                queue.put({
+                    'type': 'channel_complete',
+                    'channel_id': channel_id,
+                    'message': f'✓ Channel {channel.get("name", channel_id)} processed successfully ({len(sorted_streams)} streams sorted)'
+                })
+                
+            except Exception as e:
+                error_msg = f'Error processing channel {channel_id}: {str(e)}'
+                errors.append(error_msg)
+                queue.put({'type': 'error', 'message': error_msg})
+                continue
+        
+        # Send final summary
+        message = f'Successfully sorted {total_sorted} streams in {len(processed_channels)} channel(s)'
+        if rule.test_streams_before_sorting:
+            message += f' (tested: {total_tested}, failed: {total_failed}'
+            if rule.force_retest_old_streams:
+                message += f', skipped: {total_skipped}'
+            message += ')'
+        
+        queue.put({
+            'type': 'complete',
+            'success': len(processed_channels) > 0,
+            'message': message,
+            'total_sorted': total_sorted,
+            'total_tested': total_tested,
+            'total_failed': total_failed,
+            'total_skipped': total_skipped,
+            'processed_channels': processed_channels,
+            'errors': errors
+        })
+        
+    except Exception as e:
+        queue.put({
+            'type': 'error',
+            'message': f'Fatal error: {str(e)}'
+        })
+    finally:
+        # Signal end of stream
+        queue.put(None)
+
+
 @app.route('/api/sorting-rules/<int:rule_id>/execute', methods=['POST'])
 def execute_sorting_rule(rule_id):
-    """API endpoint to execute a sorting rule on specific channel(s)"""
+    """API endpoint to execute a sorting rule on its assigned channel(s)"""
     try:
-        data = request.get_json() or {}
-        channel_id = data.get('channel_id')
-        
-        if not channel_id:
-            return jsonify({'error': 'channel_id is required'}), 400
-        
         # Get the rule
         rule = sorting_rules_manager.get_rule(rule_id)
         if not rule:
@@ -587,41 +862,194 @@ def execute_sorting_rule(rule_id):
         if not rule.enabled:
             return jsonify({'error': 'Rule is disabled'}), 400
         
-        # Comprobar que el canal existe
-        try:
-            channel = dispatcharr_client.get_channel(channel_id)
-            if not channel:
-                return jsonify({'error': 'Channel not found'}), 404
-        except Exception as e:
-            # Si el canal no existe, Dispatcharr devuelve 404
-            if '404' in str(e):
-                return jsonify({'error': f'Channel {channel_id} not found'}), 404
-            raise  # Re-lanzar si es otro tipo de error
-
-        # Obtener streams del canal
-        streams = dispatcharr_client.get_channel_streams(channel_id)
-        if not streams:
+        # Determinar los canales a procesar
+        data = request.get_json() or {}
+        manual_channel_id = data.get('channel_id')
+        use_stream = data.get('stream', False)  # If true, use SSE streaming
+        
+        if manual_channel_id:
+            # Si se proporciona un canal manualmente, usar ese
+            channel_ids = [manual_channel_id]
+        elif rule.channel_ids:
+            # Si la regla tiene canales asignados, usar esos
+            channel_ids = rule.channel_ids
+        else:
+            # Si no hay canales asignados ni proporcionados, error
+            return jsonify({'error': 'No channels specified. Rule has no assigned channels.'}), 400
+        
+        # If streaming requested and rule requires testing, use background execution
+        if use_stream and rule.test_streams_before_sorting:
+            import uuid
+            execution_id = str(uuid.uuid4())
+            
+            # Create queue for this execution
+            queue = Queue()
+            execution_queues[execution_id] = queue
+            
+            # Start background thread
+            thread = Thread(
+                target=execute_sorting_in_background,
+                args=(rule_id, channel_ids, queue)
+            )
+            thread.daemon = True
+            thread.start()
+            
             return jsonify({
                 'success': True,
-                'message': 'No streams to sort',
-                'sorted_count': 0
+                'execution_id': execution_id,
+                'stream': True,
+                'message': 'Execution started. Connect to SSE endpoint to monitor progress.'
             })
+        
+        # Otherwise, execute synchronously (original behavior)
+        # Procesar cada canal
+        total_sorted = 0
+        total_tested = 0
+        total_failed = 0
+        total_skipped = 0
+        processed_channels = []
+        errors = []
+        
+        for channel_id in channel_ids:
+            tested_count = 0
+            failed_tests = 0
+            skipped_count = 0
+            
+            try:
+                # Comprobar que el canal existe
+                channel = None
+                try:
+                    channel = dispatcharr_client.get_channel(channel_id)
+                except Exception as e:
+                    if '404' in str(e):
+                        errors.append(f'Channel {channel_id} not found')
+                        continue
+                    raise
+                
+                if not channel or not isinstance(channel, dict):
+                    print(f"DEBUG: Channel {channel_id} is None or not a dict")
+                    errors.append(f'Channel {channel_id} not found or invalid')
+                    continue
 
-        # Ordenar streams usando la regla
-        sorted_streams = StreamSorter.sort_streams(rule, streams)
+                # Obtener streams del canal
+                streams = dispatcharr_client.get_channel_streams(channel_id)
+                if not streams:
+                    continue
+                
+                # Filtrar streams None o inválidos
+                streams = [s for s in streams if s is not None and isinstance(s, dict)]
+                if not streams:
+                    continue
 
-        # Actualizar canal con el nuevo orden
-        sorted_stream_ids = [s['id'] for s in sorted_streams]
-        channel['streams'] = sorted_stream_ids
+                if rule.test_streams_before_sorting:
+                    from datetime import datetime, timedelta, timezone
+                    
+                    # Determinar qué streams testear
+                    streams_to_test = []
+                    
+                    if rule.force_retest_old_streams:
+                        # Solo testear streams con stats antiguas o sin stats
+                        threshold = datetime.now(timezone.utc) - timedelta(days=rule.retest_days_threshold)
+                        
+                        for stream in streams:
+                            # Verificar si el stream tiene stats válidos
+                            has_stats = stream.get('stream_stats') and isinstance(stream.get('stream_stats'), dict)
+                            stream_stats_date_str = stream.get('stream_stats_updated_at')
+                            
+                            if not has_stats or not stream_stats_date_str:
+                                # Sin stats o sin fecha de stats, testear
+                                streams_to_test.append(stream['id'])
+                            else:
+                                try:
+                                    # Parsear la fecha del stat
+                                    stream_stats_date = datetime.fromisoformat(stream_stats_date_str.replace('Z', '+00:00'))
+                                    
+                                    # Si es más antiguo o igual que el threshold, testear
+                                    if stream_stats_date <= threshold:
+                                        streams_to_test.append(stream['id'])
+                                    else:
+                                        # Stats recientes, omitir
+                                        skipped_count += 1
+                                except (ValueError, AttributeError) as e:
+                                    # Error parseando fecha, testear por seguridad
+                                    print(f"Error parsing stats_date for stream {stream['id']}: {e}")
+                                    streams_to_test.append(stream['id'])
+                    else:
+                        # Testear todos los streams
+                        streams_to_test = [s['id'] for s in streams]
+                    
+                    # Testear streams seleccionados
+                    for stream_id in streams_to_test:
+                        try:
+                            result = dispatcharr_client.test_stream(stream_id, test_duration=10)
+                            if result.get('success'):
+                                tested_count += 1
+                                print(f"Stream {stream_id} tested successfully")
+                            else:
+                                failed_tests += 1
+                                print(f"Failed to test stream {stream_id}: {result.get('message', 'Unknown error')}")
+                        except Exception as e:
+                            failed_tests += 1
+                            print(f"Error testing stream {stream_id}: {e}")
+                    
+                    # Recargar streams para obtener stats actualizados
+                    streams = dispatcharr_client.get_channel_streams(channel_id)
+                    # Filtrar streams None o inválidos después de recargar
+                    streams = [s for s in streams if s is not None and isinstance(s, dict)]
 
-        # Guardar canal actualizado
-        dispatcharr_client.update_channel(channel_id, channel)
+                # Ordenar streams usando la regla
+                sorted_streams = StreamSorter.sort_streams(rule, streams)
 
+                # Actualizar canal con el nuevo orden
+                sorted_stream_ids = [s['id'] for s in sorted_streams]
+                channel['streams'] = sorted_stream_ids
+
+                # Guardar canal actualizado
+                dispatcharr_client.update_channel(channel_id, channel)
+
+                # Acumular resultados
+                total_sorted += len(sorted_streams)
+                total_tested += tested_count
+                total_failed += failed_tests
+                total_skipped += skipped_count
+                processed_channels.append({
+                    'channel_id': channel_id,
+                    'channel_name': channel.get('name', f'Channel {channel_id}'),
+                    'sorted_count': len(sorted_streams),
+                    'tested_count': tested_count,
+                    'failed_tests': failed_tests,
+                    'skipped_count': skipped_count
+                })
+                
+            except Exception as e:
+                errors.append(f'Error processing channel {channel_id}: {str(e)}')
+                print(f"Error processing channel {channel_id}: {str(e)}")
+                continue
+        
+        # Preparar mensaje de respuesta
+        if not processed_channels:
+            return jsonify({
+                'success': False,
+                'message': 'No channels were processed successfully',
+                'errors': errors
+            }), 400
+        
+        message = f'Successfully sorted {total_sorted} streams in {len(processed_channels)} channel(s)'
+        if rule.test_streams_before_sorting:
+            message += f' (tested: {total_tested}, failed: {total_failed}'
+            if rule.force_retest_old_streams:
+                message += f', skipped: {total_skipped}'
+            message += ')'
+        
         return jsonify({
             'success': True,
-            'message': f'Successfully sorted {len(sorted_streams)} streams',
-            'sorted_count': len(sorted_streams),
-            'channel_id': channel_id
+            'message': message,
+            'total_sorted': total_sorted,
+            'total_tested': total_tested if rule.test_streams_before_sorting else 0,
+            'total_failed': total_failed if rule.test_streams_before_sorting else 0,
+            'total_skipped': total_skipped if rule.test_streams_before_sorting and rule.force_retest_old_streams else 0,
+            'processed_channels': processed_channels,
+            'errors': errors if errors else None
         })
         
     except Exception as e:
@@ -683,5 +1111,5 @@ def toggle_sorting_rule(rule_id):
 
 
 if __name__ == '__main__':
-    debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
-    app.run(debug=debug_mode, host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
+    # Use watchdog reloader for better Windows compatibility
+    app.run(debug=True, use_reloader=True, reloader_type='stat', host='0.0.0.0', port=int(os.getenv('PORT', 5000)))

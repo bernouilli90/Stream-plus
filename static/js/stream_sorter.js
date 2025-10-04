@@ -62,6 +62,16 @@ function showCreateRuleModal() {
     document.getElementById('conditionsContainer').innerHTML = '';
     document.getElementById('selectedChannelTags').innerHTML = '';
     conditionCounter = 0;
+    
+    // Reset test options
+    document.getElementById('testStreamsBeforeSorting').checked = false;
+    document.getElementById('forceRetestOldStreams').checked = false;
+    document.getElementById('retestDaysThreshold').value = 7;
+    
+    // Setup event listeners for modal
+    setupModalEventListeners();
+    toggleRetestOptions();
+    
     updateMaxPossibleScore();
     
     const modal = new bootstrap.Modal(document.getElementById('sortingRuleModal'));
@@ -312,6 +322,10 @@ async function saveSortingRule() {
     const description = document.getElementById('ruleDescription').value.trim();
     const channelIds = collectSelectedChannels();
     const conditions = collectConditions();
+    const testStreamsBeforeSorting = document.getElementById('testStreamsBeforeSorting').checked;
+    const forceRetestOldStreams = document.getElementById('forceRetestOldStreams').checked;
+    const retestDaysThresholdValue = document.getElementById('retestDaysThreshold').value;
+    const retestDaysThreshold = retestDaysThresholdValue !== '' ? parseInt(retestDaysThresholdValue) : 7;
     
     if (!name) {
         StreamPlus.showNotification('Rule name is required', 'error');
@@ -329,7 +343,10 @@ async function saveSortingRule() {
         enabled: true,
         channel_ids: channelIds,
         channel_group_ids: [],
-        conditions: conditions
+        conditions: conditions,
+        test_streams_before_sorting: testStreamsBeforeSorting,
+        force_retest_old_streams: testStreamsBeforeSorting && forceRetestOldStreams,
+        retest_days_threshold: retestDaysThreshold
     };
     
     try {
@@ -419,6 +436,17 @@ async function editSortingRule(ruleId) {
         rule.conditions.forEach(condition => {
             addCondition(condition);
         });
+        
+        // Set test streams checkbox and retest options
+        document.getElementById('testStreamsBeforeSorting').checked = rule.test_streams_before_sorting || false;
+        document.getElementById('forceRetestOldStreams').checked = rule.force_retest_old_streams || false;
+        document.getElementById('retestDaysThreshold').value = rule.retest_days_threshold || 7;
+        
+        // Setup event listeners for modal
+        setupModalEventListeners();
+        
+        // Update UI state based on loaded values
+        toggleRetestOptions();
         
         updateMaxPossibleScore();
         
@@ -592,30 +620,32 @@ async function loadPreview(ruleId) {
  * Execute sorting rule
  */
 async function executeSortingRule(ruleId) {
-    currentPreviewRuleId = ruleId;
-    const modal = new bootstrap.Modal(document.getElementById('executeModal'));
-    modal.show();
+    if (!confirm('Execute this sorting rule on its assigned channels?')) {
+        return;
+    }
     
-    // Set up event listener for execute button
-    document.getElementById('confirmExecuteBtn').onclick = () => {
-        const channelId = document.getElementById('executeChannelSelect').value;
-        if (channelId) {
-            executeRuleOnChannel(ruleId, parseInt(channelId));
-            modal.hide();
-        }
-    };
-}
-
-async function executeRuleOnChannel(ruleId, channelId) {
     try {
         StreamPlus.showLoading();
         
+        // First, get rule details to check if testing is required
+        const ruleResponse = await fetch(`/api/sorting-rules/${ruleId}`);
+        if (!ruleResponse.ok) {
+            throw new Error('Failed to fetch rule details');
+        }
+        const rule = await ruleResponse.json();
+        
+        // Determine if we should use SSE (streaming) mode
+        const useStream = rule && rule.test_streams_before_sorting === true;
+        
+        // Execute the rule
         const response = await fetch(`/api/sorting-rules/${ruleId}/execute`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ channel_id: channelId })
+            body: JSON.stringify({
+                stream: useStream
+            })
         });
         
         if (!response.ok) {
@@ -624,14 +654,95 @@ async function executeRuleOnChannel(ruleId, channelId) {
         }
         
         const result = await response.json();
-        StreamPlus.showNotification(result.message, 'success');
+        
+        // If result has stream=true and execution_id, use progress modal with SSE
+        if (result.stream && result.execution_id) {
+            StreamPlus.hideLoading();
+            showExecutionProgressModal(ruleId, result.execution_id);
+        } else {
+            // Normal synchronous execution completed - show success message
+            let detailMessage = result.message;
+            if (result.processed_channels && result.processed_channels.length > 0) {
+                detailMessage += '\n\nChannels processed:';
+                result.processed_channels.forEach(ch => {
+                    detailMessage += `\n- ${ch.channel_name}: ${ch.sorted_count} streams sorted`;
+                });
+            }
+            if (result.errors && result.errors.length > 0) {
+                detailMessage += '\n\nErrors:\n' + result.errors.join('\n');
+            }
+            
+            StreamPlus.showNotification(detailMessage, 'success');
+            StreamPlus.hideLoading();
+        }
         
     } catch (error) {
         console.error('Error executing rule:', error);
         StreamPlus.showNotification(error.message, 'error');
-    } finally {
         StreamPlus.hideLoading();
     }
+}
+
+/**
+ * Toggle retest options based on test streams checkbox
+ */
+/**
+ * Toggle retest options based on test streams checkbox
+ */
+function toggleRetestOptions() {
+    const testEnabled = document.getElementById('testStreamsBeforeSorting').checked;
+    const forceRetestCheckbox = document.getElementById('forceRetestOldStreams');
+    const retestDaysInput = document.getElementById('retestDaysThreshold');
+    
+    if (forceRetestCheckbox && retestDaysInput) {
+        forceRetestCheckbox.disabled = !testEnabled;
+        retestDaysInput.disabled = !testEnabled || !forceRetestCheckbox.checked;
+        
+        if (!testEnabled) {
+            forceRetestCheckbox.checked = false;
+        }
+    }
+}
+
+/**
+ * Toggle days threshold input based on force retest checkbox
+ */
+function toggleDaysThreshold() {
+    const testEnabled = document.getElementById('testStreamsBeforeSorting').checked;
+    const forceRetestEnabled = document.getElementById('forceRetestOldStreams').checked;
+    const retestDaysInput = document.getElementById('retestDaysThreshold');
+    
+    if (retestDaysInput) {
+        retestDaysInput.disabled = !testEnabled || !forceRetestEnabled;
+    }
+}
+
+/**
+ * Setup event listeners for modal form controls
+ */
+function setupModalEventListeners() {
+    const testCheckbox = document.getElementById('testStreamsBeforeSorting');
+    const forceRetestCheckbox = document.getElementById('forceRetestOldStreams');
+    
+    if (testCheckbox) {
+        // Remove existing listeners to avoid duplicates
+        testCheckbox.removeEventListener('change', toggleRetestOptions);
+        testCheckbox.addEventListener('change', toggleRetestOptions);
+    }
+    
+    if (forceRetestCheckbox) {
+        // Remove existing listeners to avoid duplicates
+        forceRetestCheckbox.removeEventListener('change', toggleDaysThreshold);
+        forceRetestCheckbox.addEventListener('change', toggleDaysThreshold);
+    }
+}
+
+/**
+ * Initialize the page
+ */
+async function init() {
+    // All data is loaded from the server template
+    // No need to fetch anything here
 }
 
 /**
@@ -673,4 +784,5 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Stream Sorter page loaded');
     console.log('M3U Accounts:', m3uAccounts);
     console.log('Channels:', allChannels);
+    init();
 });

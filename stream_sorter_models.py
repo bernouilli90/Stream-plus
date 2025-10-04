@@ -50,6 +50,7 @@ class SortingRule:
         channel_group_ids: List of channel group IDs where this rule applies
         conditions: List of scoring conditions
         description: Optional description of the rule
+        test_streams_before_sorting: Whether to test streams to obtain stats before sorting
     """
     id: int
     name: str
@@ -58,6 +59,9 @@ class SortingRule:
     channel_group_ids: List[int] = field(default_factory=list)
     conditions: List[SortingCondition] = field(default_factory=list)
     description: Optional[str] = None
+    test_streams_before_sorting: bool = False
+    force_retest_old_streams: bool = False
+    retest_days_threshold: int = 7
     
     def to_dict(self) -> Dict[str, Any]:
         """Converts rule to dictionary"""
@@ -236,7 +240,7 @@ class StreamSorter:
         Evaluates a single condition against a stream
         Returns points if condition is met, 0 otherwise
         """
-        stream_stats = stream.get('stream_stats', {})
+        stream_stats = stream.get('stream_stats') or {}
         
         # M3U Source condition
         if condition.condition_type == 'm3u_source':
@@ -245,14 +249,27 @@ class StreamSorter:
         
         # Video Bitrate condition
         elif condition.condition_type == 'video_bitrate':
-            video_bitrate = stream_stats.get('video_bitrate')
+            # Try multiple fields for bitrate (in kbps)
+            # 1. bitrate_kbps (from our ffprobe analysis)
+            # 2. ffmpeg_output_bitrate (from Dispatcharr)
+            # 3. bit_rate / 1000 (from format, convert to kbps)
+            video_bitrate = None
+            
+            if 'bitrate_kbps' in stream_stats:
+                video_bitrate = stream_stats['bitrate_kbps']
+            elif 'ffmpeg_output_bitrate' in stream_stats:
+                video_bitrate = stream_stats['ffmpeg_output_bitrate']
+            elif 'bit_rate' in stream_stats and stream_stats['bit_rate']:
+                video_bitrate = float(stream_stats['bit_rate']) / 1000  # Convert to kbps
+            
             if video_bitrate and condition.operator and condition.value:
                 if StreamSorter._compare_value(video_bitrate, condition.operator, float(condition.value)):
                     return condition.points
         
         # Video Resolution condition
         elif condition.condition_type == 'video_resolution':
-            video_resolution = stream_stats.get('video_resolution')
+            # Dispatcharr usa 'resolution' en stream_stats
+            video_resolution = stream_stats.get('resolution')
             stream_width, stream_height = StreamSorter._parse_resolution(video_resolution)
             
             if stream_width and condition.operator and condition.value:
@@ -288,7 +305,8 @@ class StreamSorter:
         
         # Video FPS condition
         elif condition.condition_type == 'video_fps':
-            video_fps = stream_stats.get('video_fps')
+            # Dispatcharr usa 'source_fps' en stream_stats
+            video_fps = stream_stats.get('source_fps')
             if video_fps and condition.operator and condition.value:
                 if StreamSorter._compare_value(video_fps, condition.operator, float(condition.value)):
                     return condition.points
