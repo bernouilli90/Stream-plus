@@ -36,13 +36,16 @@ class AutoAssignmentRule:
         video_bitrate_operator: Comparison operator (>, >=, <, <=, ==)
         video_bitrate_value: Value in kbps to compare
         video_codec: Required video codec (h264, h265, etc.)
-        video_resolution_operator: Comparison operator
-        video_resolution_width: Minimum/maximum resolution width
-        video_resolution_height: Minimum/maximum resolution height
+        video_resolution: Required resolution (720p, 1080p, 2160p, SD)
         video_fps: Required exact FPS
         
         # Audio stats conditions:
         audio_codec: Required audio codec (ac3, aac, etc.)
+        
+        # Stream testing options:
+        test_streams_before_sorting: Whether to test streams to obtain stats before applying rule
+        force_retest_old_streams: Whether to force retesting all streams (even with recent stats)
+        retest_days_threshold: Days threshold for considering stats "old" (default 7)
     """
     id: int
     name: str
@@ -58,13 +61,16 @@ class AutoAssignmentRule:
     video_bitrate_operator: Optional[str] = None  # >, >=, <, <=, ==
     video_bitrate_value: Optional[float] = None  # kbps
     video_codec: Optional[str] = None
-    video_resolution_operator: Optional[str] = None
-    video_resolution_width: Optional[int] = None
-    video_resolution_height: Optional[int] = None
+    video_resolution: Optional[str] = None  # 720p, 1080p, 2160p, SD
     video_fps: Optional[float] = None
     
     # Audio conditions
     audio_codec: Optional[str] = None
+    
+    # Stream testing options
+    test_streams_before_sorting: bool = False
+    force_retest_old_streams: bool = False
+    retest_days_threshold: int = 7
     
     def to_dict(self) -> Dict[str, Any]:
         """Converts rule to dictionary"""
@@ -72,7 +78,17 @@ class AutoAssignmentRule:
     
     @staticmethod
     def from_dict(data: Dict[str, Any]) -> 'AutoAssignmentRule':
-        """Creates a rule from a dictionary"""
+        """Creates a rule from a dictionary, with automatic migration from old format"""
+        # Migrate old resolution format to new format
+        if 'video_resolution_operator' in data or 'video_resolution_width' in data or 'video_resolution_height' in data:
+            # Old format detected - remove old fields and don't set video_resolution
+            # (user will need to reconfigure resolution in the new format)
+            data.pop('video_resolution_operator', None)
+            data.pop('video_resolution_width', None)
+            data.pop('video_resolution_height', None)
+            if 'video_resolution' not in data:
+                data['video_resolution'] = None
+        
         return AutoAssignmentRule(**data)
 
 
@@ -201,6 +217,36 @@ class StreamMatcher:
         return None, None
     
     @staticmethod
+    def _normalize_resolution(resolution_str: Optional[str]) -> Optional[str]:
+        """
+        Normalizes a resolution string to standard format (720p, 1080p, 2160p, SD)
+        
+        Args:
+            resolution_str: Resolution string (e.g., '1920x1080', '1280x720', '3840x2160')
+        
+        Returns:
+            Normalized resolution string or None
+        """
+        if not resolution_str:
+            return None
+        
+        # Parse width and height
+        width, height = StreamMatcher._parse_resolution(resolution_str)
+        
+        if height is None:
+            return None
+        
+        # Map height to standard resolutions
+        if height >= 2000:  # 4K (2160p)
+            return '2160p'
+        elif height >= 1000:  # Full HD (1080p)
+            return '1080p'
+        elif height >= 700:  # HD (720p)
+            return '720p'
+        else:  # SD (anything below 720p)
+            return 'SD'
+    
+    @staticmethod
     def _extract_stream_stat(stream_stats: Optional[Dict], key: str, default=None):
         """Extracts a value from stream statistics"""
         if not stream_stats:
@@ -229,9 +275,32 @@ class StreamMatcher:
         return matching_streams
     
     @staticmethod
-    def _stream_matches_rule(rule: AutoAssignmentRule, stream: Dict[str, Any]) -> bool:
-        """Verifies if a stream meets all rule conditions"""
+    def evaluate_basic_conditions(rule: AutoAssignmentRule, streams: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Evaluates ONLY basic conditions that don't require stream stats (regex, m3u_account)
+        This is useful for pre-filtering before testing streams.
         
+        Args:
+            rule: Auto-assignment rule
+            streams: List of streams (dictionaries with stream data)
+        
+        Returns:
+            List of streams that meet basic conditions (regex, m3u_account)
+        """
+        matching_streams = []
+        
+        for stream in streams:
+            if StreamMatcher._stream_matches_basic_conditions(rule, stream):
+                matching_streams.append(stream)
+        
+        return matching_streams
+    
+    @staticmethod
+    def _stream_matches_basic_conditions(rule: AutoAssignmentRule, stream: Dict[str, Any]) -> bool:
+        """
+        Verifies if a stream meets basic conditions that don't require stats
+        (regex pattern, m3u_account_id)
+        """
         # 1. Filter by regex in name
         if rule.regex_pattern:
             stream_name = stream.get('name', '')
@@ -247,12 +316,23 @@ class StreamMatcher:
             if stream.get('m3u_account') != rule.m3u_account_id:
                 return False
         
+        return True
+    
+    @staticmethod
+    def _stream_matches_rule(rule: AutoAssignmentRule, stream: Dict[str, Any]) -> bool:
+        """Verifies if a stream meets all rule conditions"""
+        
+        # First check basic conditions
+        if not StreamMatcher._stream_matches_basic_conditions(rule, stream):
+            return False
+        
         # From here, we need stream statistics
         stream_stats = stream.get('stream_stats')
         
         # 3. Filter by video bitrate
         if rule.video_bitrate_operator and rule.video_bitrate_value is not None:
-            video_bitrate = StreamMatcher._extract_stream_stat(stream_stats, 'video_bitrate')
+            # Dispatcharr uses 'ffmpeg_output_bitrate' key in stream_stats (in kbps)
+            video_bitrate = StreamMatcher._extract_stream_stat(stream_stats, 'ffmpeg_output_bitrate')
             if not StreamMatcher._compare_value(
                 video_bitrate, 
                 rule.video_bitrate_operator, 
@@ -267,35 +347,20 @@ class StreamMatcher:
                 return False
         
         # 5. Filter by video resolution
-        if rule.video_resolution_operator and (
-            rule.video_resolution_width is not None or 
-            rule.video_resolution_height is not None
-        ):
-            # Get stream resolution
-            video_resolution = StreamMatcher._extract_stream_stat(stream_stats, 'video_resolution')
-            stream_width, stream_height = StreamMatcher._parse_resolution(video_resolution)
+        if rule.video_resolution:
+            # Get stream resolution and normalize it to the standard format
+            # Dispatcharr uses 'resolution' key in stream_stats (e.g., "1920x1080")
+            video_resolution = StreamMatcher._extract_stream_stat(stream_stats, 'resolution')
+            normalized_resolution = StreamMatcher._normalize_resolution(video_resolution)
             
-            # Compare width if specified
-            if rule.video_resolution_width is not None:
-                if not StreamMatcher._compare_value(
-                    stream_width,
-                    rule.video_resolution_operator,
-                    rule.video_resolution_width
-                ):
-                    return False
-            
-            # Compare height if specified
-            if rule.video_resolution_height is not None:
-                if not StreamMatcher._compare_value(
-                    stream_height,
-                    rule.video_resolution_operator,
-                    rule.video_resolution_height
-                ):
-                    return False
+            # Compare with the required resolution
+            if normalized_resolution != rule.video_resolution:
+                return False
         
         # 6. Filter by FPS
         if rule.video_fps is not None:
-            video_fps = StreamMatcher._extract_stream_stat(stream_stats, 'video_fps')
+            # Dispatcharr uses 'source_fps' key in stream_stats
+            video_fps = StreamMatcher._extract_stream_stat(stream_stats, 'source_fps')
             # For FPS we use exact comparison
             if video_fps != rule.video_fps:
                 return False
@@ -335,9 +400,8 @@ class StreamMatcher:
             conditions.append(f"Video bitrate {rule.video_bitrate_operator} {rule.video_bitrate_value} kbps")
         if rule.video_codec:
             conditions.append(f"Video codec: {rule.video_codec}")
-        if rule.video_resolution_operator and (rule.video_resolution_width or rule.video_resolution_height):
-            res_desc = f"{rule.video_resolution_width or '?'}x{rule.video_resolution_height or '?'}"
-            conditions.append(f"Resolution {rule.video_resolution_operator} {res_desc}")
+        if rule.video_resolution:
+            conditions.append(f"Resolution: {rule.video_resolution}")
         if rule.video_fps is not None:
             conditions.append(f"FPS: {rule.video_fps}")
         if rule.audio_codec:

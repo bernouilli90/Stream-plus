@@ -241,11 +241,12 @@ def api_auto_assign_rules():
                 video_bitrate_operator=data.get('bitrate_operator'),
                 video_bitrate_value=int(data['bitrate_value']) if data.get('bitrate_value') else None,
                 video_codec=data.get('video_codec'),
-                video_resolution_operator=data.get('resolution_operator'),
-                video_resolution_width=int(data['resolution_width']) if data.get('resolution_width') else None,
-                video_resolution_height=int(data['resolution_height']) if data.get('resolution_height') else None,
+                video_resolution=data.get('video_resolution'),
                 video_fps=int(data['video_fps']) if data.get('video_fps') else None,
-                audio_codec=data.get('audio_codec')
+                audio_codec=data.get('audio_codec'),
+                test_streams_before_sorting=data.get('test_streams_before_sorting', False),
+                force_retest_old_streams=data.get('force_retest_old_streams', False),
+                retest_days_threshold=int(data.get('retest_days_threshold', 7))
             )
             
             # Save rule
@@ -303,11 +304,12 @@ def api_auto_assign_rule(rule_id):
                 video_bitrate_operator=data.get('bitrate_operator'),
                 video_bitrate_value=int(data['bitrate_value']) if data.get('bitrate_value') else None,
                 video_codec=data.get('video_codec'),
-                video_resolution_operator=data.get('resolution_operator'),
-                video_resolution_width=int(data['resolution_width']) if data.get('resolution_width') else None,
-                video_resolution_height=int(data['resolution_height']) if data.get('resolution_height') else None,
+                video_resolution=data.get('video_resolution'),
                 video_fps=int(data['video_fps']) if data.get('video_fps') else None,
-                audio_codec=data.get('audio_codec')
+                audio_codec=data.get('audio_codec'),
+                test_streams_before_sorting=data.get('test_streams_before_sorting', False),
+                force_retest_old_streams=data.get('force_retest_old_streams', False),
+                retest_days_threshold=int(data.get('retest_days_threshold', 7))
             )
             
             # Update rule
@@ -386,6 +388,35 @@ def api_execute_rule(rule_id):
                 'details': str(e)
             }), 404
         
+        # Check if streaming is requested
+        data = request.get_json() or {}
+        use_stream = data.get('stream', False)  # If true, use SSE streaming
+        
+        # If streaming requested and rule requires testing, use background execution
+        if use_stream and rule.test_streams_before_sorting:
+            import uuid
+            execution_id = str(uuid.uuid4())
+            
+            # Create queue for this execution
+            queue = Queue()
+            execution_queues[execution_id] = queue
+            
+            # Start background thread
+            thread = Thread(
+                target=execute_auto_assignment_in_background,
+                args=(rule_id, queue)
+            )
+            thread.daemon = True
+            thread.start()
+            
+            return jsonify({
+                'success': True,
+                'execution_id': execution_id,
+                'stream': True,
+                'message': 'Execution started. Connect to SSE endpoint to monitor progress.'
+            })
+        
+        # Otherwise, execute synchronously (original behavior)
         # Get all streams
         streams = dispatcharr_client.get_streams()
         
@@ -417,6 +448,319 @@ def api_execute_rule(rule_id):
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/auto-assign-rules/<int:rule_id>/execute-stream')
+def execute_auto_assignment_stream(rule_id):
+    """SSE endpoint to stream auto-assignment execution progress"""
+    execution_id = request.args.get('execution_id')
+    
+    if not execution_id or execution_id not in execution_queues:
+        return jsonify({'error': 'Invalid execution ID'}), 400
+    
+    def generate():
+        queue = execution_queues[execution_id]
+        
+        try:
+            while True:
+                # Get message from queue (block for max 30 seconds)
+                try:
+                    message = queue.get(timeout=30)
+                    
+                    if message is None:  # Signal to stop
+                        break
+                    
+                    # Send SSE message
+                    yield f"data: {json.dumps(message)}\n\n"
+                    
+                except Exception as e:
+                    # Timeout or error, send keepalive
+                    yield f"data: {json.dumps({'type': 'keepalive'})}\n\n"
+        finally:
+            # Clean up queue when client disconnects
+            if execution_id in execution_queues:
+                del execution_queues[execution_id]
+    
+    return Response(
+        stream_with_context(generate()),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no'
+        }
+    )
+
+
+def execute_auto_assignment_in_background(rule_id, queue):
+    """Execute auto-assignment rule in background thread and send progress updates"""
+    try:
+        # Get the rule
+        rule = rules_manager.get_rule(rule_id)
+        if not rule:
+            queue.put({'type': 'error', 'message': 'Rule not found'})
+            queue.put(None)
+            return
+        
+        tested_count = 0
+        failed_tests = 0
+        skipped_count = 0
+        errors = []
+        
+        queue.put({
+            'type': 'start',
+            'message': f'Starting execution of rule: {rule.name}'
+        })
+        
+        try:
+            # Verify channel exists
+            channel = None
+            try:
+                channel = dispatcharr_client.get_channel(rule.channel_id)
+            except Exception as e:
+                if '404' in str(e):
+                    error_msg = f'Channel {rule.channel_id} not found'
+                    errors.append(error_msg)
+                    queue.put({'type': 'error', 'message': error_msg})
+                    queue.put({'type': 'complete', 'success': False, 'message': error_msg, 'errors': errors})
+                    queue.put(None)
+                    return
+                raise
+            
+            if not channel or not isinstance(channel, dict):
+                error_msg = f'Channel {rule.channel_id} not found or invalid'
+                errors.append(error_msg)
+                queue.put({'type': 'error', 'message': error_msg})
+                queue.put({'type': 'complete', 'success': False, 'message': error_msg, 'errors': errors})
+                queue.put(None)
+                return
+            
+            queue.put({
+                'type': 'info',
+                'message': f'Target channel: {channel.get("name", rule.channel_id)}'
+            })
+            
+            # Get all streams
+            queue.put({
+                'type': 'info',
+                'message': 'Loading all streams...'
+            })
+            
+            streams = dispatcharr_client.get_streams()
+            if not streams:
+                queue.put({
+                    'type': 'info',
+                    'message': 'No streams found'
+                })
+                queue.put({'type': 'complete', 'success': True, 'message': 'No streams to process', 'matches_found': 0, 'streams_added': 0})
+                queue.put(None)
+                return
+            
+            streams = [s for s in streams if s is not None and isinstance(s, dict)]
+            
+            queue.put({
+                'type': 'info',
+                'message': f'Found {len(streams)} total streams'
+            })
+            
+            # Pre-filter streams by basic conditions (regex, m3u_account) before testing
+            # This avoids testing streams that won't match anyway
+            queue.put({
+                'type': 'info',
+                'message': 'Pre-filtering streams by basic conditions (regex, M3U account)...'
+            })
+            
+            pre_filtered_streams = StreamMatcher.evaluate_basic_conditions(rule, streams)
+            filtered_out_count = len(streams) - len(pre_filtered_streams)
+            
+            if filtered_out_count > 0:
+                queue.put({
+                    'type': 'info',
+                    'message': f'Filtered out {filtered_out_count} stream(s) that don\'t match basic conditions'
+                })
+            
+            queue.put({
+                'type': 'info',
+                'message': f'{len(pre_filtered_streams)} stream(s) passed basic filtering'
+            })
+            
+            if len(pre_filtered_streams) == 0:
+                queue.put({
+                    'type': 'info',
+                    'message': 'No streams match basic conditions. Nothing to test or assign.'
+                })
+                queue.put({'type': 'complete', 'success': True, 'message': 'No streams matched basic conditions', 'matches_found': 0, 'streams_added': 0})
+                queue.put(None)
+                return
+            
+            # Test streams if needed (only the pre-filtered ones)
+            if rule.test_streams_before_sorting:
+                from datetime import datetime, timedelta, timezone
+                
+                streams_to_test = []
+                
+                if not rule.force_retest_old_streams:
+                    # Only test pre-filtered streams without stats or with old stats
+                    threshold = datetime.now(timezone.utc) - timedelta(days=rule.retest_days_threshold)
+                    
+                    for stream in pre_filtered_streams:
+                        has_stats = stream.get('stream_stats') and isinstance(stream.get('stream_stats'), dict)
+                        stream_stats_date_str = stream.get('stream_stats_updated_at')
+                        
+                        if not has_stats or not stream_stats_date_str:
+                            streams_to_test.append(stream)
+                        else:
+                            try:
+                                stream_stats_date = datetime.fromisoformat(stream_stats_date_str.replace('Z', '+00:00'))
+                                
+                                if stream_stats_date <= threshold:
+                                    streams_to_test.append(stream)
+                                else:
+                                    skipped_count += 1
+                            except (ValueError, AttributeError) as e:
+                                streams_to_test.append(stream)
+                else:
+                    # Force retest ALL pre-filtered streams (even with recent stats)
+                    streams_to_test = pre_filtered_streams
+                
+                queue.put({
+                    'type': 'test_start',
+                    'total_streams': len(streams_to_test),
+                    'message': f'Testing {len(streams_to_test)} stream(s) that passed basic filtering...'
+                })
+                
+                # Test streams
+                for stream_idx, stream in enumerate(streams_to_test, 1):
+                    stream_id = stream['id']
+                    stream_name = stream.get('name', f'Stream {stream_id}')
+                    
+                    try:
+                        queue.put({
+                            'type': 'test_progress',
+                            'stream_id': stream_id,
+                            'stream_name': stream_name,
+                            'current': stream_idx,
+                            'total': len(streams_to_test),
+                            'message': f'Testing stream {stream_idx}/{len(streams_to_test)}: {stream_name}'
+                        })
+                        
+                        result = dispatcharr_client.test_stream(stream_id, test_duration=10)
+                        if result.get('success'):
+                            tested_count += 1
+                            queue.put({
+                                'type': 'test_success',
+                                'stream_id': stream_id,
+                                'message': f'✓ Stream {stream_name} tested successfully'
+                            })
+                        else:
+                            failed_tests += 1
+                            queue.put({
+                                'type': 'test_fail',
+                                'stream_id': stream_id,
+                                'message': f'✗ Failed to test stream {stream_name}: {result.get("message", "Unknown error")}'
+                            })
+                    except Exception as e:
+                        failed_tests += 1
+                        queue.put({
+                            'type': 'test_fail',
+                            'stream_id': stream_id,
+                            'message': f'✗ Error testing stream {stream_id}: {str(e)}'
+                        })
+                
+                # Reload streams after testing
+                queue.put({
+                    'type': 'info',
+                    'message': 'Reloading streams with updated stats...'
+                })
+                all_streams = dispatcharr_client.get_streams()
+                all_streams = [s for s in all_streams if s is not None and isinstance(s, dict)]
+                
+                # Re-apply basic filtering to the reloaded streams
+                pre_filtered_streams = StreamMatcher.evaluate_basic_conditions(rule, all_streams)
+            
+            # Find matching streams (evaluate ALL conditions including stats-based ones)
+            queue.put({
+                'type': 'matching',
+                'message': 'Finding matching streams with all conditions (including stats)...'
+            })
+            
+            # Evaluate rule on pre-filtered streams (those that already passed basic conditions)
+            matching_streams = StreamMatcher.evaluate_rule(rule, pre_filtered_streams)
+            
+            queue.put({
+                'type': 'info',
+                'message': f'Found {len(matching_streams)} matching streams'
+            })
+            
+            # If should replace, first remove existing streams from channel
+            if rule.replace_existing_streams:
+                queue.put({
+                    'type': 'info',
+                    'message': 'Removing existing streams from channel...'
+                })
+                existing_streams = dispatcharr_client.get_channel_streams(rule.channel_id)
+                for stream in existing_streams:
+                    dispatcharr_client.remove_stream_from_channel(rule.channel_id, stream['id'])
+            
+            # Add matching streams to channel
+            queue.put({
+                'type': 'assigning',
+                'message': f'Assigning {len(matching_streams)} streams to channel...'
+            })
+            
+            added_count = 0
+            for stream in matching_streams:
+                try:
+                    dispatcharr_client.add_stream_to_channel(rule.channel_id, stream['id'])
+                    added_count += 1
+                except Exception as e:
+                    # Continue even if some stream fails (it may already be assigned)
+                    error_msg = f"Error adding stream {stream['id']}: {str(e)}"
+                    errors.append(error_msg)
+                    queue.put({'type': 'error', 'message': error_msg})
+            
+            # Send final summary
+            message = f'Successfully added {added_count} stream(s) from {len(matching_streams)} matches'
+            if rule.test_streams_before_sorting:
+                message += f' (tested: {tested_count}, failed: {failed_tests}'
+                if not rule.force_retest_old_streams:
+                    message += f', skipped: {skipped_count}'
+                message += ')'
+            
+            queue.put({
+                'type': 'complete',
+                'success': True,
+                'message': message,
+                'matches_found': len(matching_streams),
+                'streams_added': added_count,
+                'tested_count': tested_count,
+                'failed_tests': failed_tests,
+                'skipped_count': skipped_count,
+                'errors': errors
+            })
+            
+        except Exception as e:
+            error_msg = f'Error during execution: {str(e)}'
+            errors.append(error_msg)
+            queue.put({'type': 'error', 'message': error_msg})
+            queue.put({
+                'type': 'complete',
+                'success': False,
+                'message': f'Execution failed: {str(e)}',
+                'errors': errors
+            })
+        
+    except Exception as e:
+        queue.put({
+            'type': 'error',
+            'message': f'Fatal error: {str(e)}'
+        })
+        queue.put({
+            'type': 'complete',
+            'success': False,
+            'message': f'Fatal error: {str(e)}'
+        })
+    finally:
+        # Always send termination signal
+        queue.put(None)
 
 @app.route('/api/m3u-accounts', methods=['GET'])
 def api_get_m3u_accounts():
@@ -702,7 +1046,8 @@ def execute_sorting_in_background(rule_id, channel_ids, queue):
                     
                     streams_to_test = []
                     
-                    if rule.force_retest_old_streams:
+                    if not rule.force_retest_old_streams:
+                        # Only test streams without stats or with old stats
                         threshold = datetime.now(timezone.utc) - timedelta(days=rule.retest_days_threshold)
                         
                         for stream in streams:
@@ -722,6 +1067,7 @@ def execute_sorting_in_background(rule_id, channel_ids, queue):
                                 except (ValueError, AttributeError) as e:
                                     streams_to_test.append(stream['id'])
                     else:
+                        # Force retest ALL streams (even with recent stats)
                         streams_to_test = [s['id'] for s in streams]
                     
                     queue.put({
@@ -824,7 +1170,7 @@ def execute_sorting_in_background(rule_id, channel_ids, queue):
         message = f'Successfully sorted {total_sorted} streams in {len(processed_channels)} channel(s)'
         if rule.test_streams_before_sorting:
             message += f' (tested: {total_tested}, failed: {total_failed}'
-            if rule.force_retest_old_streams:
+            if not rule.force_retest_old_streams:
                 message += f', skipped: {total_skipped}'
             message += ')'
         
@@ -947,8 +1293,8 @@ def execute_sorting_rule(rule_id):
                     # Determinar qué streams testear
                     streams_to_test = []
                     
-                    if rule.force_retest_old_streams:
-                        # Solo testear streams con stats antiguas o sin stats
+                    if not rule.force_retest_old_streams:
+                        # Solo testear streams sin stats o con stats antiguas
                         threshold = datetime.now(timezone.utc) - timedelta(days=rule.retest_days_threshold)
                         
                         for stream in streams:
@@ -975,7 +1321,7 @@ def execute_sorting_rule(rule_id):
                                     print(f"Error parsing stats_date for stream {stream['id']}: {e}")
                                     streams_to_test.append(stream['id'])
                     else:
-                        # Testear todos los streams
+                        # Forzar re-testeo de TODOS los streams (incluso los que tienen stats recientes)
                         streams_to_test = [s['id'] for s in streams]
                     
                     # Testear streams seleccionados
@@ -1037,7 +1383,7 @@ def execute_sorting_rule(rule_id):
         message = f'Successfully sorted {total_sorted} streams in {len(processed_channels)} channel(s)'
         if rule.test_streams_before_sorting:
             message += f' (tested: {total_tested}, failed: {total_failed}'
-            if rule.force_retest_old_streams:
+            if not rule.force_retest_old_streams:
                 message += f', skipped: {total_skipped}'
             message += ')'
         
@@ -1047,7 +1393,7 @@ def execute_sorting_rule(rule_id):
             'total_sorted': total_sorted,
             'total_tested': total_tested if rule.test_streams_before_sorting else 0,
             'total_failed': total_failed if rule.test_streams_before_sorting else 0,
-            'total_skipped': total_skipped if rule.test_streams_before_sorting and rule.force_retest_old_streams else 0,
+            'total_skipped': total_skipped if rule.test_streams_before_sorting and not rule.force_retest_old_streams else 0,
             'processed_channels': processed_channels,
             'errors': errors if errors else None
         })
@@ -1072,14 +1418,25 @@ def preview_sorting_rule(rule_id):
             return jsonify({'error': 'Rule not found'}), 404
         
         # Get streams from the channel
-        streams = dispatcharr_client.get_channel_streams(channel_id)
+        try:
+            streams = dispatcharr_client.get_channel_streams(channel_id)
+        except Exception as e:
+            app.logger.error(f"Error getting streams for channel {channel_id}: {str(e)}")
+            return jsonify({'error': f'Error getting streams: {str(e)}'}), 500
         
         # Generate preview
-        preview = StreamSorter.preview_sorting(rule, streams)
+        try:
+            preview = StreamSorter.preview_sorting(rule, streams)
+        except Exception as e:
+            app.logger.error(f"Error generating preview: {str(e)}")
+            return jsonify({'error': f'Error generating preview: {str(e)}'}), 500
         
         return jsonify(preview)
         
     except Exception as e:
+        app.logger.error(f"Unexpected error in preview: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 

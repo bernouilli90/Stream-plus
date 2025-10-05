@@ -185,24 +185,28 @@
                             </label>
                         </div>
                         <small class="form-text text-muted">
-                            <i class="fas fa-info-circle"></i> Each stream will be started for 10 seconds to obtain stats (bitrate, codec, resolution, etc.). 
-                            <strong>This may take time if there are many streams.</strong>
+                            <i class="fas fa-info-circle"></i> Only tests streams without stats or with outdated stats. Each stream will be started for 10 seconds to obtain stats (bitrate, codec, resolution, etc.).
                         </small>
                         
-                        <!-- Force Retest Old Streams Sub-option -->
+                        <!-- Force Retest All Streams Sub-option -->
                         <div class="mt-2 ms-4">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="forceRetestOldStreams" disabled>
                                 <label class="form-check-label" for="forceRetestOldStreams">
-                                    <i class="fas fa-redo"></i> Force retest of streams tested more than
-                                    <input type="number" id="retestDaysThreshold" class="form-control form-control-sm d-inline-block" 
-                                           style="width: 70px;" min="1" value="7" disabled>
-                                    days ago
+                                    <i class="fas fa-redo"></i> Force retest of ALL streams (even with recent stats)
                                 </label>
                             </div>
                             <small class="form-text text-muted">
-                                <i class="fas fa-clock"></i> Only re-test streams whose stats are older than the specified days. Fresh streams will be skipped.
+                                <i class="fas fa-exclamation-triangle text-warning"></i> <strong>Warning:</strong> This will test ALL streams, even those with recent stats. Only use if you need to refresh all statistics.
                             </small>
+                            <div class="mt-2" id="retestThresholdContainer">
+                                <small class="text-muted">
+                                    <i class="fas fa-clock"></i> By default, only streams without stats or with stats older than 
+                                    <input type="number" id="retestDaysThreshold" class="form-control form-control-sm d-inline-block" 
+                                           style="width: 60px;" min="1" value="7" disabled>
+                                    days will be tested.
+                                </small>
+                            </div>
                         </div>
                     </div>
 
@@ -252,13 +256,8 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label">Select Channel to Preview</label>
-                    <select class="form-select" id="previewChannelSelect">
-                        {% for channel in channels %}
-                        <option value="{{ channel.id }}">{{ channel.name or 'Channel #' ~ channel.id }}</option>
-                        {% endfor %}
-                    </select>
+                <div id="previewChannelSelectContainer">
+                    <!-- Channel selector or info will be dynamically inserted here -->
                 </div>
 
                 <div id="previewResults">

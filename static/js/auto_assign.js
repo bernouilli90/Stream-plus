@@ -154,6 +154,15 @@ function showCreateRuleModal() {
     document.getElementById('channelSearch').value = '';
     document.getElementById('channelId').value = '';
     
+    // Reset test options
+    document.getElementById('testStreamsBeforeSorting').checked = false;
+    document.getElementById('forceRetestOldStreams').checked = false;
+    document.getElementById('retestDaysThreshold').value = 7;
+    
+    // Setup event listeners for modal
+    setupModalEventListeners();
+    toggleRetestOptions();
+    
     const modal = new bootstrap.Modal(document.getElementById('ruleModal'));
     modal.show();
 }
@@ -186,11 +195,18 @@ async function editRule(ruleId) {
         document.getElementById('bitrateOperator').value = rule.video_bitrate_operator || '';
         document.getElementById('bitrateValue').value = rule.video_bitrate_value || '';
         document.getElementById('videoCodec').value = rule.video_codec || '';
-        document.getElementById('resolutionOperator').value = rule.video_resolution_operator || '';
-        document.getElementById('resolutionWidth').value = rule.video_resolution_width || '';
-        document.getElementById('resolutionHeight').value = rule.video_resolution_height || '';
+        document.getElementById('resolution').value = rule.video_resolution || '';
         document.getElementById('videoFps').value = rule.video_fps || '';
         document.getElementById('audioCodec').value = rule.audio_codec || '';
+        
+        // Load stream testing options
+        document.getElementById('testStreamsBeforeSorting').checked = rule.test_streams_before_sorting || false;
+        document.getElementById('forceRetestOldStreams').checked = rule.force_retest_old_streams || false;
+        document.getElementById('retestDaysThreshold').value = rule.retest_days_threshold || 7;
+        
+        // Setup event listeners for modal
+        setupModalEventListeners();
+        toggleRetestOptions();
         
         const modal = new bootstrap.Modal(document.getElementById('ruleModal'));
         modal.show();
@@ -208,6 +224,10 @@ async function saveRule() {
         return;
     }
     
+    const testStreamsBeforeSorting = document.getElementById('testStreamsBeforeSorting').checked;
+    const forceRetestOldStreams = document.getElementById('forceRetestOldStreams').checked;
+    const retestDaysThreshold = parseInt(document.getElementById('retestDaysThreshold').value) || 7;
+    
     const ruleData = {
         name: document.getElementById('ruleName').value,
         channel_id: parseInt(document.getElementById('channelId').value),
@@ -218,11 +238,12 @@ async function saveRule() {
         bitrate_operator: document.getElementById('bitrateOperator').value || null,
         bitrate_value: document.getElementById('bitrateValue').value || null,
         video_codec: document.getElementById('videoCodec').value || null,
-        resolution_operator: document.getElementById('resolutionOperator').value || null,
-        resolution_width: document.getElementById('resolutionWidth').value || null,
-        resolution_height: document.getElementById('resolutionHeight').value || null,
+        video_resolution: document.getElementById('resolution').value || null,
         video_fps: document.getElementById('videoFps').value || null,
-        audio_codec: document.getElementById('audioCodec').value || null
+        audio_codec: document.getElementById('audioCodec').value || null,
+        test_streams_before_sorting: testStreamsBeforeSorting,
+        force_retest_old_streams: testStreamsBeforeSorting && forceRetestOldStreams,
+        retest_days_threshold: retestDaysThreshold
     };
     
     try {
@@ -424,8 +445,24 @@ async function executeRule(ruleId) {
     }
     
     try {
+        // First, get rule details to check if testing is required
+        const ruleResponse = await fetch(`/api/auto-assign-rules/${ruleId}`);
+        if (!ruleResponse.ok) {
+            throw new Error('Failed to fetch rule details');
+        }
+        const rule = await ruleResponse.json();
+        
+        // Determine if we should use SSE (streaming) mode
+        const useStream = rule && rule.test_streams_before_sorting === true;
+        
         const response = await fetch(`/api/auto-assign-rules/${ruleId}/execute`, {
-            method: 'POST'
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                stream: useStream
+            })
         });
         
         if (!response.ok) {
@@ -435,6 +472,13 @@ async function executeRule(ruleId) {
         
         const result = await response.json();
         
+        // If result has stream=true and execution_id, use progress modal with SSE
+        if (result.stream && result.execution_id) {
+            showExecutionProgressModal(ruleId, result.execution_id);
+            return;
+        }
+        
+        // Otherwise, show simple toast notification
         showToast(
             `Rule executed: ${result.streams_added} stream(s) added from ${result.matches_found} matches`,
             'success'
@@ -479,4 +523,37 @@ function showToast(message, type = 'info') {
     toast.addEventListener('hidden.bs.toast', () => {
         toast.remove();
     });
+}
+
+/**
+ * Toggle retest options based on test streams checkbox
+ */
+function toggleRetestOptions() {
+    const testEnabled = document.getElementById('testStreamsBeforeSorting').checked;
+    const forceRetestCheckbox = document.getElementById('forceRetestOldStreams');
+    const retestDaysInput = document.getElementById('retestDaysThreshold');
+    
+    if (forceRetestCheckbox && retestDaysInput) {
+        forceRetestCheckbox.disabled = !testEnabled;
+        // Threshold is always enabled if testing is enabled
+        retestDaysInput.disabled = !testEnabled;
+        
+        if (!testEnabled) {
+            forceRetestCheckbox.checked = false;
+        }
+    }
+}
+
+/**
+ * Setup event listeners for modal form controls
+ */
+function setupModalEventListeners() {
+    const testCheckbox = document.getElementById('testStreamsBeforeSorting');
+    const forceRetestCheckbox = document.getElementById('forceRetestOldStreams');
+    
+    if (testCheckbox) {
+        // Remove existing listeners to avoid duplicates
+        testCheckbox.removeEventListener('change', toggleRetestOptions);
+        testCheckbox.addEventListener('change', toggleRetestOptions);
+    }
 }

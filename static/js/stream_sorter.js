@@ -24,9 +24,9 @@ const conditionTypes = {
     video_resolution: {
         label: 'Video Resolution',
         hasOperator: true,
-        valueType: 'text',
-        operators: ['>', '>=', '<', '<=', '=='],
-        placeholder: '1920 or 1920x1080'
+        valueType: 'select',
+        operators: ['==', '!='],
+        values: ['720p', '1080p', '2160p', 'SD']
     },
     video_codec: {
         label: 'Video Codec',
@@ -518,27 +518,109 @@ let currentPreviewRuleId = null;
 
 async function previewSortingRule(ruleId) {
     currentPreviewRuleId = ruleId;
-    const modal = new bootstrap.Modal(document.getElementById('previewModal'));
-    modal.show();
     
-    // Set up event listener for channel change
-    document.getElementById('previewChannelSelect').addEventListener('change', () => {
-        loadPreview(ruleId);
-    });
-    
-    // Set up event listener for apply button
-    document.getElementById('applyFromPreviewBtn').onclick = () => {
-        const channelId = document.getElementById('previewChannelSelect').value;
-        executeRuleOnChannel(ruleId, parseInt(channelId));
-        modal.hide();
-    };
-    
-    // Load initial preview
-    loadPreview(ruleId);
+    try {
+        // Get the rule details to find assigned channels
+        const ruleResponse = await fetch(`/api/sorting-rules/${ruleId}`);
+        if (!ruleResponse.ok) throw new Error('Error loading rule');
+        const rule = await ruleResponse.json();
+        
+        // Get assigned channel IDs
+        const assignedChannelIds = rule.channel_ids || [];
+        
+        if (assignedChannelIds.length === 0) {
+            showAlert('This rule has no assigned channels. Please assign at least one channel.', 'warning');
+            return;
+        }
+        
+        // Get all channels to find names
+        const channelsResponse = await fetch('/api/channels');
+        if (!channelsResponse.ok) throw new Error('Error loading channels');
+        const allChannels = await channelsResponse.json();
+        
+        // Filter only assigned channels
+        const assignedChannels = allChannels.filter(ch => assignedChannelIds.includes(ch.id));
+        
+        // If only one channel is assigned, load preview directly without showing selector
+        if (assignedChannels.length === 1) {
+            const channelId = assignedChannels[0].id;
+            const channelName = assignedChannels[0].name || `Channel #${channelId}`;
+            
+            // Show modal with fixed channel
+            const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+            const channelSelectContainer = document.getElementById('previewChannelSelectContainer');
+            channelSelectContainer.innerHTML = `
+                <div class="alert alert-info mb-3">
+                    <strong>Channel:</strong> ${channelName}
+                </div>
+            `;
+            
+            // Set up apply button
+            document.getElementById('applyFromPreviewBtn').onclick = () => {
+                executeRuleOnChannel(ruleId, channelId);
+                modal.hide();
+            };
+            
+            modal.show();
+            
+            // Load preview immediately
+            loadPreviewForChannel(ruleId, channelId);
+        } else {
+            // Multiple channels - show selector
+            const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+            const channelSelectContainer = document.getElementById('previewChannelSelectContainer');
+            
+            // Build channel selector with only assigned channels
+            let selectHtml = `
+                <div class="mb-3">
+                    <label class="form-label">Select Channel to Preview</label>
+                    <select class="form-select" id="previewChannelSelect">
+                        <option value="">Choose a channel...</option>
+            `;
+            
+            assignedChannels.forEach(channel => {
+                selectHtml += `<option value="${channel.id}">${channel.name || 'Channel #' + channel.id}</option>`;
+            });
+            
+            selectHtml += `
+                    </select>
+                </div>
+            `;
+            
+            channelSelectContainer.innerHTML = selectHtml;
+            
+            // Set up event listener for channel change
+            document.getElementById('previewChannelSelect').addEventListener('change', () => {
+                const channelId = document.getElementById('previewChannelSelect').value;
+                if (channelId) {
+                    loadPreviewForChannel(ruleId, parseInt(channelId));
+                }
+            });
+            
+            // Set up apply button
+            document.getElementById('applyFromPreviewBtn').onclick = () => {
+                const channelId = document.getElementById('previewChannelSelect').value;
+                if (channelId) {
+                    executeRuleOnChannel(ruleId, parseInt(channelId));
+                    modal.hide();
+                } else {
+                    showAlert('Please select a channel first', 'warning');
+                }
+            };
+            
+            modal.show();
+            
+            // Clear previous results
+            document.getElementById('previewResults').innerHTML = '<p class="text-muted">Please select a channel</p>';
+        }
+        
+    } catch (error) {
+        console.error('Error loading preview:', error);
+        showAlert('Error loading preview: ' + error.message, 'danger');
+    }
 }
 
-async function loadPreview(ruleId) {
-    const channelId = document.getElementById('previewChannelSelect').value;
+async function loadPreviewForChannel(ruleId, channelId) {
     const resultsDiv = document.getElementById('previewResults');
     
     if (!channelId) {
@@ -684,6 +766,68 @@ async function executeSortingRule(ruleId) {
 }
 
 /**
+ * Execute sorting rule on a specific channel
+ */
+async function executeRuleOnChannel(ruleId, channelId) {
+    if (!confirm(`Execute this sorting rule on channel ${channelId}?`)) {
+        return;
+    }
+    
+    try {
+        StreamPlus.showLoading();
+        
+        // First, get rule details to check if testing is required
+        const ruleResponse = await fetch(`/api/sorting-rules/${ruleId}`);
+        if (!ruleResponse.ok) {
+            throw new Error('Failed to fetch rule details');
+        }
+        const rule = await ruleResponse.json();
+        
+        // Determine if we should use SSE (streaming) mode
+        const useStream = rule && rule.test_streams_before_sorting === true;
+        
+        // Execute the rule on the specific channel
+        const response = await fetch(`/api/sorting-rules/${ruleId}/execute`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                channel_id: channelId,
+                stream: useStream
+            })
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Error executing rule');
+        }
+        
+        const result = await response.json();
+        
+        // If result has stream=true and execution_id, use progress modal with SSE
+        if (result.stream && result.execution_id) {
+            StreamPlus.hideLoading();
+            showExecutionProgressModal(ruleId, result.execution_id);
+        } else {
+            // Normal synchronous execution completed - show success message
+            StreamPlus.hideLoading();
+            StreamPlus.showNotification(result.message, 'success');
+            
+            // Reload the page to reflect changes
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        }
+        
+    } catch (error) {
+        console.error('Error executing rule on channel:', error);
+        StreamPlus.showNotification(error.message, 'error');
+        StreamPlus.hideLoading();
+    }
+}
+
+/**
  * Toggle retest options based on test streams checkbox
  */
 /**
@@ -696,7 +840,8 @@ function toggleRetestOptions() {
     
     if (forceRetestCheckbox && retestDaysInput) {
         forceRetestCheckbox.disabled = !testEnabled;
-        retestDaysInput.disabled = !testEnabled || !forceRetestCheckbox.checked;
+        // El threshold siempre está habilitado si el testeo está habilitado
+        retestDaysInput.disabled = !testEnabled;
         
         if (!testEnabled) {
             forceRetestCheckbox.checked = false;
@@ -709,11 +854,11 @@ function toggleRetestOptions() {
  */
 function toggleDaysThreshold() {
     const testEnabled = document.getElementById('testStreamsBeforeSorting').checked;
-    const forceRetestEnabled = document.getElementById('forceRetestOldStreams').checked;
     const retestDaysInput = document.getElementById('retestDaysThreshold');
     
     if (retestDaysInput) {
-        retestDaysInput.disabled = !testEnabled || !forceRetestEnabled;
+        // El threshold siempre está habilitado si el testeo está habilitado
+        retestDaysInput.disabled = !testEnabled;
     }
 }
 

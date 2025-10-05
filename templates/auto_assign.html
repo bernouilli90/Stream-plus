@@ -195,6 +195,40 @@
                         </div>
                     </div>
 
+                    <!-- Test Streams Option -->
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="testStreamsBeforeSorting">
+                            <label class="form-check-label" for="testStreamsBeforeSorting">
+                                <i class="fas fa-flask"></i> Test streams before assigning (obtains stats via ffmpeg)
+                            </label>
+                        </div>
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> Only tests streams without stats or with outdated stats. Each stream will be started for 10 seconds to obtain stats (bitrate, codec, resolution, etc.).
+                        </small>
+                        
+                        <!-- Force Retest All Streams Sub-option -->
+                        <div class="mt-2 ms-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="forceRetestOldStreams" disabled>
+                                <label class="form-check-label" for="forceRetestOldStreams">
+                                    <i class="fas fa-redo"></i> Force retest of ALL streams (even with recent stats)
+                                </label>
+                            </div>
+                            <small class="form-text text-muted">
+                                <i class="fas fa-exclamation-triangle text-warning"></i> <strong>Warning:</strong> This will test ALL streams, even those with recent stats. Only use if you need to refresh all statistics.
+                            </small>
+                            <div class="mt-2" id="retestThresholdContainer">
+                                <small class="text-muted">
+                                    <i class="fas fa-clock"></i> By default, only streams without stats or with stats older than 
+                                    <input type="number" id="retestDaysThreshold" class="form-control form-control-sm d-inline-block" 
+                                           style="width: 60px;" min="1" value="7" disabled>
+                                    days will be tested.
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Filters -->
                     <h6 class="border-bottom pb-2 mb-3">Search Filters</h6>
 
@@ -251,26 +285,15 @@
                     </div>
 
                     <!-- Resolution -->
-                    <div class="row mb-3">
-                        <div class="col-md-4">
-                            <label for="resolutionOperator" class="form-label">Resolution Operator</label>
-                            <select class="form-select" id="resolutionOperator">
-                                <option value="">No restriction...</option>
-                                <option value=">">Greater than (>)</option>
-                                <option value=">=">Greater or equal (>=)</option>
-                                <option value="<">Less than (<)</option>
-                                <option value="<=">Less or equal (<=)</option>
-                                <option value="==">Equal (==)</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <label for="resolutionWidth" class="form-label">Width (pixels)</label>
-                            <input type="number" class="form-control" id="resolutionWidth" placeholder="Ex: 1920">
-                        </div>
-                        <div class="col-md-4">
-                            <label for="resolutionHeight" class="form-label">Height (pixels)</label>
-                            <input type="number" class="form-control" id="resolutionHeight" placeholder="Ex: 1080">
-                        </div>
+                    <div class="mb-3">
+                        <label for="resolution" class="form-label">Video Resolution</label>
+                        <select class="form-select" id="resolution">
+                            <option value="">No restriction...</option>
+                            <option value="720p">720p (HD)</option>
+                            <option value="1080p">1080p (Full HD)</option>
+                            <option value="2160p">2160p (4K)</option>
+                            <option value="SD">SD (Standard Definition)</option>
+                        </select>
                     </div>
 
                     <!-- FPS -->
@@ -340,6 +363,57 @@
     </div>
 </div>
 
+<!-- Execution Progress Modal -->
+<div class="modal fade" id="executionProgressModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-cog fa-spin"></i> Executing Auto-Assignment Rule
+                </h5>
+            </div>
+            <div class="modal-body">
+                <!-- Progress bar -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="small text-muted" id="progressLabel">Initializing...</span>
+                        <span class="small text-muted" id="progressPercent">0%</span>
+                    </div>
+                    <div class="progress" style="height: 25px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" 
+                             id="executionProgressBar"
+                             style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Log output -->
+                <div class="card bg-dark text-light">
+                    <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-terminal"></i> Execution Log</span>
+                        <button type="button" class="btn btn-sm btn-outline-light" onclick="clearExecutionLog()">
+                            <i class="fas fa-eraser"></i> Clear
+                        </button>
+                    </div>
+                    <div class="card-body p-2" style="max-height: 400px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 12px;">
+                        <div id="executionLog"></div>
+                    </div>
+                </div>
+
+                <!-- Summary (shown on completion) -->
+                <div id="executionSummary" class="mt-3" style="display: none;">
+                    <div class="alert" id="executionResult"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="closeProgressBtn" data-bs-dismiss="modal" disabled>
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Loading indicator -->
 <div id="loading" class="text-center mt-4" style="display: none;">
     <div class="spinner-border text-primary" role="status">
@@ -349,5 +423,6 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/auto_assign_progress.js') }}"></script>
 <script src="{{ url_for('static', filename='js/auto_assign.js') }}"></script>
 {% endblock %}

@@ -214,6 +214,35 @@ class StreamSorter:
         return None, None
     
     @staticmethod
+    def _normalize_resolution(resolution_str: Optional[str]) -> Optional[str]:
+        """
+        Normalizes a resolution string to standard format (720p, 1080p, 2160p, SD)
+        
+        Args:
+            resolution_str: Resolution string (e.g., '1920x1080', '1280x720')
+        
+        Returns:
+            Normalized resolution: '720p', '1080p', '2160p', or 'SD'
+        """
+        if not resolution_str:
+            return None
+        
+        width, height = StreamSorter._parse_resolution(resolution_str)
+        
+        if height is None:
+            return None
+        
+        # Classify based on height
+        if height >= 2000:
+            return '2160p'
+        elif height >= 1000:
+            return '1080p'
+        elif height >= 700:
+            return '720p'
+        else:
+            return 'SD'
+    
+    @staticmethod
     def _compare_value(actual: Optional[float], operator: str, expected: float) -> bool:
         """Compares two values according to operator"""
         if actual is None:
@@ -270,16 +299,19 @@ class StreamSorter:
         elif condition.condition_type == 'video_resolution':
             # Dispatcharr usa 'resolution' en stream_stats
             video_resolution = stream_stats.get('resolution')
-            stream_width, stream_height = StreamSorter._parse_resolution(video_resolution)
             
-            if stream_width and condition.operator and condition.value:
-                # Assume value is width (could be "1920" or "1920x1080")
-                target_width, target_height = StreamSorter._parse_resolution(str(condition.value))
-                if not target_width:
-                    target_width = int(condition.value)
+            if video_resolution and condition.value:
+                # Normalize the stream resolution to standard format (720p, 1080p, 2160p, SD)
+                normalized_resolution = StreamSorter._normalize_resolution(video_resolution)
                 
-                if StreamSorter._compare_value(stream_width, condition.operator, target_width):
-                    return condition.points
+                if normalized_resolution:
+                    # Compare normalized resolution with condition value
+                    if condition.operator == '==':
+                        if normalized_resolution == condition.value:
+                            return condition.points
+                    elif condition.operator == '!=':
+                        if normalized_resolution != condition.value:
+                            return condition.points
         
         # Video Codec condition
         elif condition.condition_type == 'video_codec':

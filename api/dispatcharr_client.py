@@ -44,6 +44,34 @@ class DispatcharrClient:
             'Authorization': f'Bearer {self.token}'
         })
     
+    def refresh_access_token(self):
+        """
+        Refresh the access token using the refresh token
+        """
+        if not self.refresh_token:
+            # If no refresh token, do a full login
+            self.login()
+            return
+        
+        url = f"{self.base_url}/api/accounts/token/refresh/"
+        data = {"refresh": self.refresh_token}
+        try:
+            response = self.session.post(url, json=data)
+            response.raise_for_status()
+            result = response.json()
+            token = result.get('access')
+            if not token:
+                # If refresh fails, do a full login
+                self.login()
+                return
+            self.token = token
+            self.session.headers.update({
+                'Authorization': f'Bearer {self.token}'
+            })
+        except requests.RequestException:
+            # If refresh fails, do a full login
+            self.login()
+    
     def _make_request(self, method: str, endpoint: str, data: Optional[Dict] = None, params: Optional[Dict] = None) -> Dict[str, Any]:
         """
         Make an HTTP request to the API
@@ -62,17 +90,26 @@ class DispatcharrClient:
         """
         url = f"{self.base_url}{endpoint}"
         
-        try:
+        def make_http_request():
+            """Internal function to make the actual HTTP request"""
             if method.upper() == 'GET':
-                response = self.session.get(url, params=params)
+                return self.session.get(url, params=params)
             elif method.upper() == 'POST':
-                response = self.session.post(url, json=data, params=params)
+                return self.session.post(url, json=data, params=params)
             elif method.upper() == 'PUT':
-                response = self.session.put(url, json=data, params=params)
+                return self.session.put(url, json=data, params=params)
             elif method.upper() == 'DELETE':
-                response = self.session.delete(url, params=params)
+                return self.session.delete(url, params=params)
             else:
                 raise ValueError(f"Unsupported HTTP method: {method}")
+        
+        try:
+            response = make_http_request()
+            
+            # If we get 401, try to refresh the token and retry once
+            if response.status_code == 401 and self.username and self.password:
+                self.refresh_access_token()
+                response = make_http_request()
             
             response.raise_for_status()
             
