@@ -1,0 +1,38 @@
+[
+  {
+    "id": 1,
+    "name": "M+ LaLiga 1080",
+    "channel_id": 634,
+    "enabled": true,
+    "replace_existing_streams": true,
+    "regex_pattern": "(?i)M\\+\\s*Laliga(?!\\s*\\d)",
+    "m3u_account_id": null,
+    "video_bitrate_operator": null,
+    "video_bitrate_value": null,
+    "video_codec": null,
+    "video_resolution": ["1080p"],
+    "video_fps": null,
+    "audio_codec": null,
+    "test_streams_before_sorting": true,
+    "force_retest_old_streams": false,
+    "retest_days_threshold": 7
+  },
+  {
+    "id": 2,
+    "name": "M+ LaLiga 720p/SD",
+    "channel_id": 635,
+    "enabled": true,
+    "replace_existing_streams": false,
+    "regex_pattern": "(?i)M\\+\\s*Laliga(?!\\s*\\d)",
+    "m3u_account_id": null,
+    "video_bitrate_operator": null,
+    "video_bitrate_value": null,
+    "video_codec": null,
+    "video_resolution": ["720p", "SD"],
+    "video_fps": null,
+    "audio_codec": null,
+    "test_streams_before_sorting": true,
+    "force_retest_old_streams": false,
+    "retest_days_threshold": 7
+  }
+]

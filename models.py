@@ -60,12 +60,12 @@ class AutoAssignmentRule:
     # Video conditions
     video_bitrate_operator: Optional[str] = None  # >, >=, <, <=, ==
     video_bitrate_value: Optional[float] = None  # kbps
-    video_codec: Optional[str] = None
-    video_resolution: Optional[str] = None  # 720p, 1080p, 2160p, SD
-    video_fps: Optional[float] = None
+    video_codec: Optional[List[str]] = None  # Can be a list: ["h264", "h265"]
+    video_resolution: Optional[List[str]] = None  # Can be a list: ["720p", "1080p", "SD"]
+    video_fps: Optional[List[float]] = None  # Can be a list: [25.0, 30.0, 50.0]
     
     # Audio conditions
-    audio_codec: Optional[str] = None
+    audio_codec: Optional[List[str]] = None  # Can be a list: ["aac", "ac3"]
     
     # Stream testing options
     test_streams_before_sorting: bool = False
@@ -88,6 +88,14 @@ class AutoAssignmentRule:
             data.pop('video_resolution_height', None)
             if 'video_resolution' not in data:
                 data['video_resolution'] = None
+        
+        # Normalize single values to lists for multi-value fields
+        multi_value_fields = ['video_codec', 'video_resolution', 'video_fps', 'audio_codec']
+        for field in multi_value_fields:
+            if field in data and data[field] is not None:
+                # If it's a string or number, convert to list
+                if not isinstance(data[field], list):
+                    data[field] = [data[field]]
         
         return AutoAssignmentRule(**data)
 
@@ -255,6 +263,38 @@ class StreamMatcher:
         return stream_stats.get(key, default)
     
     @staticmethod
+    def _needs_stream_testing(stream_stats: Optional[Dict], 
+                             force_retest: bool = False, 
+                             retest_days_threshold: int = 7) -> bool:
+        """
+        Determines if a stream needs to be tested
+        
+        Args:
+            stream_stats: Stream statistics dictionary
+            force_retest: If True, always needs testing
+            retest_days_threshold: Number of days after which stats are considered old
+            
+        Returns:
+            True if stream needs testing, False otherwise
+        """
+        if force_retest:
+            return True
+        
+        # No stats at all
+        if not stream_stats or not isinstance(stream_stats, dict):
+            return True
+        
+        # Check if stats are recent enough
+        from datetime import datetime, timedelta, timezone
+        
+        threshold = datetime.now(timezone.utc) - timedelta(days=retest_days_threshold)
+        
+        # stream_stats should have a 'last_tested' or similar field
+        # In Dispatcharr, check stream_stats_updated_at
+        # For now, if we have stats, assume they're recent unless we can check the date
+        return False
+    
+    @staticmethod
     def evaluate_rule(rule: AutoAssignmentRule, streams: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
         Evaluates a rule against a list of streams and returns matching ones
@@ -343,7 +383,8 @@ class StreamMatcher:
         # 4. Filter by video codec
         if rule.video_codec:
             video_codec = StreamMatcher._extract_stream_stat(stream_stats, 'video_codec')
-            if video_codec != rule.video_codec:
+            # video_codec is now a list, check if stream's codec is in the list
+            if video_codec not in rule.video_codec:
                 return False
         
         # 5. Filter by video resolution
@@ -353,22 +394,28 @@ class StreamMatcher:
             video_resolution = StreamMatcher._extract_stream_stat(stream_stats, 'resolution')
             normalized_resolution = StreamMatcher._normalize_resolution(video_resolution)
             
-            # Compare with the required resolution
-            if normalized_resolution != rule.video_resolution:
+            # DEBUG: Print resolution comparison
+            print(f"DEBUG - Stream '{stream.get('name', 'unknown')}': raw_resolution={video_resolution}, normalized={normalized_resolution}, required={rule.video_resolution}, has_stats={bool(stream_stats)}")
+            
+            # video_resolution is now a list, check if normalized resolution is in the list
+            if normalized_resolution not in rule.video_resolution:
+                print(f"  ❌ Resolution mismatch: {normalized_resolution} not in {rule.video_resolution}")
                 return False
+            print(f"  ✓ Resolution matches!")
         
         # 6. Filter by FPS
         if rule.video_fps is not None:
             # Dispatcharr uses 'source_fps' key in stream_stats
             video_fps = StreamMatcher._extract_stream_stat(stream_stats, 'source_fps')
-            # For FPS we use exact comparison
-            if video_fps != rule.video_fps:
+            # video_fps is now a list, check if stream's fps is in the list
+            if video_fps not in rule.video_fps:
                 return False
         
         # 7. Filter by audio codec
         if rule.audio_codec:
             audio_codec = StreamMatcher._extract_stream_stat(stream_stats, 'audio_codec')
-            if audio_codec != rule.audio_codec:
+            # audio_codec is now a list, check if stream's codec is in the list
+            if audio_codec not in rule.audio_codec:
                 return False
         
         # If it passed all filters, the stream matches

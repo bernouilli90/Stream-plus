@@ -4,6 +4,8 @@ stream_plus.log
 
 # Environment variables
 .env
+.env.local
+.env.*.local
 
 # Python
 __pycache__/
@@ -45,6 +47,7 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Flask
 instance/
@@ -59,17 +62,16 @@ htmlcov/
 *.tmp
 temp/
 
-# Auto-assignment rules data
-auto_assignment_rules.json
-
-# Sorting rules data
-sorting_rules.json
+# Rules directory (for Docker volumes - do not version production data)
+rules/
+!rules/.gitkeep
 
 # Playwright MCP
 .playwright-mcp/
 
 # API artifacts
 api.json
+swagger_docs.json
 
 # Node modules (if any)
 node_modules/
@@ -93,6 +95,14 @@ tools/ffmpeg/
 # Python compiled
 *.pyc
 
-# Test files
-test_*.py
-*_test.py
+# M3U8 test files
+*.m3u8
+channel_*.m3u8
+
+# Development and testing scripts (not needed for production)
+check_*.py
+find_*.py
+show_*.py
+clean_*.py
+debug_*.py
+start.py

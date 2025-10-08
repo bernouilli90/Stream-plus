@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# Entorno local
+.env
+.env.local
+.env.*.local
+
+# Datos temporales
+*.log
+*.m3u8
+channel_*.m3u8
+
+# Documentación de desarrollo
+*.md
+!README.md
+
+# Archivos de Windows
+Thumbs.db
+desktop.ini
+
+# Archivos de testing específicos
+STREAM_TESTING_TODO.md
+PRUEBAS_CLI.md
+CLI_EXECUTION_GUIDE.md
+
+# Scripts de PowerShell específicos de Windows
+*.ps1
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore

@@ -1,0 +1,84 @@
+version: '3.8'
+
+# Docker Compose para DESARROLLO/PRUEBAS
+# Para producción, usa docker-compose.prod.yml
+
+services:
+  stream-plus:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Personalizar UID/GID para que coincida con el usuario del host
+        # Linux/Mac: usa $(id -u) e $(id -g)
+        # Windows con WSL: wsl id -u
+        # Windows nativo: normalmente 1000
+        USER_UID: 1000
+        USER_GID: 1000
+    
+    container_name: stream-plus
+    restart: unless-stopped
+    
+    # Variables de entorno - ⚠️ PERSONALIZAR ESTOS VALORES ⚠️
+    environment:
+      # ============================================
+      # CONFIGURACIÓN DE DISPATCHARR (REQUERIDO)
+      # ============================================
+      - DISPATCHARR_API_URL=http://dispatcharr:8080
+      - DISPATCHARR_API_USER=admin
+      - DISPATCHARR_API_PASSWORD=changeme
+      
+      # ============================================
+      # CONFIGURACIÓN DE FLASK (OPCIONAL)
+      # ============================================
+      - PORT=5000
+      - FLASK_DEBUG=False
+      - SECRET_KEY=change-this-secret-key-in-production
+      
+      # ============================================
+      # ZONA HORARIA (OPCIONAL)
+      # ============================================
+      - TZ=Europe/Madrid
+    
+    # Puertos
+    ports:
+      - "5000:5000"
+    
+    # Volúmenes para persistencia
+    volumes:
+      # ⚠️ IMPORTANTE: Mapear carpeta de reglas para persistencia
+      # Los archivos se crearán automáticamente si no existen
+      - ./rules:/app/rules
+      
+      # OPCIONAL: Mapear logs si se implementan en el futuro
+      # - ./logs:/app/logs
+    
+    # Healthcheck - Verifica que la aplicación está funcionando
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Red (útil si Dispatcharr está en Docker)
+    networks:
+      - stream-plus-network
+    
+    # Recursos (opcional, limitar uso de CPU/RAM)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '1.0'
+    #       memory: 512M
+    #     reservations:
+    #       cpus: '0.25'
+    #       memory: 256M
+
+networks:
+  stream-plus-network:
+    driver: bridge
+
+# Volúmenes nombrados (alternativa a bind mounts)
+# volumes:
+#   stream-plus-rules:

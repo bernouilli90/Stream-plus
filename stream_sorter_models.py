@@ -264,6 +264,36 @@ class StreamSorter:
         return False
     
     @staticmethod
+    def _needs_stream_testing(stream_stats: Optional[Dict], 
+                             force_retest: bool = False, 
+                             retest_days_threshold: int = 7) -> bool:
+        """
+        Determines if a stream needs to be tested
+        
+        Args:
+            stream_stats: Stream statistics dictionary
+            force_retest: If True, always needs testing
+            retest_days_threshold: Number of days after which stats are considered old
+            
+        Returns:
+            True if stream needs testing, False otherwise
+        """
+        if force_retest:
+            return True
+        
+        # No stats at all
+        if not stream_stats or not isinstance(stream_stats, dict):
+            return True
+        
+        # Check if stats are recent enough
+        from datetime import datetime, timedelta, timezone
+        
+        threshold = datetime.now(timezone.utc) - timedelta(days=retest_days_threshold)
+        
+        # If we have stats, assume they're recent unless we can check the date
+        return False
+    
+    @staticmethod
     def _evaluate_condition(condition: SortingCondition, stream: Dict[str, Any]) -> int:
         """
         Evaluates a single condition against a stream
