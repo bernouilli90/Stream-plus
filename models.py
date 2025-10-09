@@ -118,14 +118,17 @@ class RulesManager:
         try:
             with open(self.rules_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                return [AutoAssignmentRule.from_dict(rule_data) for rule_data in data]
+                # Support both formats: {"rules": [...]} and [...]
+                rules_data = data.get('rules', data) if isinstance(data, dict) else data
+                return [AutoAssignmentRule.from_dict(rule_data) for rule_data in rules_data]
         except (json.JSONDecodeError, FileNotFoundError):
             return []
     
     def save_rules(self, rules: List[AutoAssignmentRule]):
         """Saves all rules to the file"""
         with open(self.rules_file, 'w', encoding='utf-8') as f:
-            json.dump([rule.to_dict() for rule in rules], f, indent=2, ensure_ascii=False)
+            # Save in {"rules": [...]} format for consistency
+            json.dump({"rules": [rule.to_dict() for rule in rules]}, f, indent=2, ensure_ascii=False)
     
     def get_rule(self, rule_id: int) -> Optional[AutoAssignmentRule]:
         """Gets a rule by its ID"""
