@@ -1,77 +1,74 @@
-# Usar Alpine Linux como base (imagen ligera)
+# Use Alpine Linux as base (lightweight image)
 FROM python:3.11-alpine
 
-# Metadatos
+# Metadata
 LABEL maintainer="Stream Plus"
-LABEL description="Stream Plus - Gestión y ordenación de streams para Dispatcharr"
+LABEL description="Stream Plus - Stream management and sorting for Dispatcharr"
 
-# Variables de entorno por defecto
+# Default environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Argumentos para UID/GID (se pueden personalizar al construir)
+# Arguments for UID/GID (customizable at build time)
 ARG USER_UID=1000
 ARG USER_GID=1000
 
-# Instalar dependencias del sistema (ffmpeg y ffprobe)
+# Install system dependencies (ffmpeg and ffprobe)
 RUN apk add --no-cache \
     ffmpeg \
     ffmpeg-libs \
     su-exec \
     && rm -rf /var/cache/apk/*
 
-# Crear usuario no root con UID/GID personalizables
+# Create non-root user with customizable UID/GID
 RUN addgroup -g ${USER_GID} streamplus && \
     adduser -D -u ${USER_UID} -G streamplus streamplus
 
-# Crear directorios necesarios
+# Create necessary directories
 RUN mkdir -p /app /app/rules /app/tools && \
     chown -R streamplus:streamplus /app
 
-# Establecer directorio de trabajo
+# Set working directory
 WORKDIR /app
 
-# Copiar requirements.txt primero (para aprovechar cache de Docker)
+# Copy requirements.txt first (to leverage Docker cache)
 COPY --chown=streamplus:streamplus requirements.txt .
 
-# Instalar dependencias de Python
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar el código de la aplicación
-COPY --chown=streamplus:streamplus app.py start.py models.py stream_sorter_models.py execute_rules.py ./
+# Copy application code
+COPY --chown=streamplus:streamplus app.py models.py stream_sorter_models.py execute_rules.py ./
 COPY --chown=streamplus:streamplus api/ ./api/
 COPY --chown=streamplus:streamplus static/ ./static/
 COPY --chown=streamplus:streamplus templates/ ./templates/
 
-# Copiar scripts auxiliares (si existen)
-COPY --chown=streamplus:streamplus check_*.py find_*.py show_*.py clean_*.py debug_*.py ./ 2>/dev/null || true
-
-# Crear archivo para ffprobe path
+# Create file for ffprobe path
 RUN mkdir -p /app/tools && \
     echo "/usr/bin/ffprobe" > /app/tools/ffprobe_path.txt && \
     chown -R streamplus:streamplus /app/tools
 
-# Volumen para reglas (persistencia)
+# Volume for rules (persistence)
 VOLUME ["/app/rules"]
 
-# Exponer puerto de Flask (configurable via variable de entorno)
+# Expose Flask port (configurable via environment variable)
 EXPOSE 5000
 
-# Script de entrada personalizado
+# Custom entry point script
 COPY --chown=streamplus:streamplus docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Cambiar a usuario no root
+# Switch to non-root user
 USER streamplus
 
-# Healthcheck para verificar que la aplicación está funcionando
+# Healthcheck to verify application is running
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:5000/ || exit 1
 
-# Punto de entrada
+# Entry point
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
-# Comando por defecto (iniciar la aplicación)
-CMD ["python", "start.py"]
+# Default command (start application)
+CMD ["python", "app.py"]

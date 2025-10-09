@@ -1,5 +1,3 @@
-version: '3.8'
-
 # Production configuration with resource limits and security options
 
 services:
