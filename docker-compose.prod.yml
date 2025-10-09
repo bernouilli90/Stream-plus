@@ -1,7 +1,6 @@
 version: '3.8'
 
-# Docker Compose para PRODUCCIÓN
-# Usa este archivo para despliegues en producción con mayor seguridad
+# Production configuration with resource limits and security options
 
 services:
   stream-plus:
@@ -16,32 +15,20 @@ services:
     container_name: stream-plus
     restart: always
     
-    # Variables de entorno desde archivo .env (NO versionar .env)
     env_file:
       - .env
     
     environment:
-      # Sobrescribir para producción
-      - FLASK_DEBUG=False
+      - FLASK_DEBUG=false
       - PORT=${PORT:-5000}
       - TZ=${TZ:-UTC}
     
-    # Puertos - Considerar usar reverse proxy (nginx, traefik)
     ports:
       - "${HOST_PORT:-5000}:5000"
     
-    # Volúmenes
     volumes:
-      # Reglas (persistencia)
-      - ./rules:/app/rules:rw
-      
-      # Logs (opcional)
-      - ./logs:/app/logs:rw
-      
-      # FFprobe config (solo lectura)
-      - ./tools/ffprobe_path.txt:/app/tools/ffprobe_path.txt:ro
+      - ./rules:/app/rules
     
-    # Healthcheck
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/"]
       interval: 30s
@@ -49,7 +36,6 @@ services:
       retries: 3
       start_period: 40s
     
-    # Límites de recursos
     deploy:
       resources:
         limits:
@@ -59,42 +45,12 @@ services:
           cpus: '0.25'
           memory: 256M
     
-    # Red
     networks:
       - stream-plus-network
     
-    # Seguridad adicional
     security_opt:
       - no-new-privileges:true
-    
-    # Modo de solo lectura (excepto volúmenes montados)
-    # read_only: true
-    # tmpfs:
-    #   - /tmp
-    #   - /app/.cache
 
 networks:
   stream-plus-network:
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.25.0.0/16
-
-# Ejemplo de integración con reverse proxy (nginx)
-# Descomentar si usas nginx como proxy
-#
-# services:
-#   nginx:
-#     image: nginx:alpine
-#     container_name: nginx-proxy
-#     restart: always
-#     ports:
-#       - "80:80"
-#       - "443:443"
-#     volumes:
-#       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-#       - ./nginx/ssl:/etc/nginx/ssl:ro
-#     networks:
-#       - stream-plus-network
-#     depends_on:
-#       - stream-plus
