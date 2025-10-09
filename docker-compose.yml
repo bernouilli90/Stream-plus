@@ -14,10 +14,9 @@ services:
     
     environment:
       # Dispatcharr API configuration (required)
-      - DISPATCHARR_API_URL=http://dispatcharr:8080
-      - DISPATCHARR_API_USER=admin
-      - DISPATCHARR_API_PASSWORD=changeme
-      
+      - DISPATCHARR_API_URL=http://127.0.0.1:9191
+      - DISPATCHARR_API_USER=user
+      - DISPATCHARR_API_PASSWORD=password
       # Flask configuration (optional)
       - PORT=5000
       - FLASK_DEBUG=false
@@ -38,10 +37,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    
-    networks:
-      - stream-plus-network
-
-networks:
-  stream-plus-network:
-    driver: bridge

@@ -15,14 +15,14 @@ services:
     container_name: stream-plus
     restart: always
     
-    env_file:
-      - .env
-    
     environment:
       - FLASK_DEBUG=false
       - PORT=${PORT:-5000}
       - TZ=${TZ:-UTC}
-    
+      - DISPATCHARR_API_URL=http://127.0.0.1:9191
+      - DISPATCHARR_API_USER=user
+      - DISPATCHARR_API_PASSWORD=password
+
     ports:
       - "${HOST_PORT:-5000}:5000"
     
@@ -35,22 +35,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 512M
-        reservations:
-          cpus: '0.25'
-          memory: 256M
-    
-    networks:
-      - stream-plus-network
-    
-    security_opt:
-      - no-new-privileges:true
-
-networks:
-  stream-plus-network:
-    driver: bridge
