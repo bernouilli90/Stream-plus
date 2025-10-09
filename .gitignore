@@ -106,3 +106,7 @@ show_*.py
 clean_*.py
 debug_*.py
 start.py
+
+# Rule files (contain test configuration, created at runtime)
+auto_assignment_rules.json
+sorting_rules.json
