@@ -671,9 +671,11 @@ class DispatcharrClient:
             if format_name:
                 stats['stream_type'] = format_name
             
-            # ffmpeg_output_bitrate - the KEY field for sorting
+            # Output bitrate - the KEY field for sorting
+            # Save with both names for compatibility
             if calculated_bitrate_kbps:
-                stats['ffmpeg_output_bitrate'] = calculated_bitrate_kbps
+                stats['output_bitrate'] = calculated_bitrate_kbps  # Dispatcharr native field
+                stats['ffmpeg_output_bitrate'] = calculated_bitrate_kbps  # Legacy field
             
             # Update the stream object with the new statistics
             stream_obj['stream_stats'] = stats

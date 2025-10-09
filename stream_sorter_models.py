@@ -312,15 +312,18 @@ class StreamSorter:
         # Video Bitrate condition
         elif condition.condition_type == 'video_bitrate':
             # Try multiple fields for bitrate (in kbps)
-            # 1. bitrate_kbps (from our ffprobe analysis)
-            # 2. ffmpeg_output_bitrate (from Dispatcharr)
-            # 3. bit_rate / 1000 (from format, convert to kbps)
+            # 1. output_bitrate (Dispatcharr native field)
+            # 2. ffmpeg_output_bitrate (legacy field)
+            # 3. bitrate_kbps (old format)
+            # 4. bit_rate / 1000 (from format, convert to kbps)
             video_bitrate = None
             
-            if 'bitrate_kbps' in stream_stats:
-                video_bitrate = stream_stats['bitrate_kbps']
+            if 'output_bitrate' in stream_stats:
+                video_bitrate = stream_stats['output_bitrate']
             elif 'ffmpeg_output_bitrate' in stream_stats:
                 video_bitrate = stream_stats['ffmpeg_output_bitrate']
+            elif 'bitrate_kbps' in stream_stats:
+                video_bitrate = stream_stats['bitrate_kbps']
             elif 'bit_rate' in stream_stats and stream_stats['bit_rate']:
                 video_bitrate = float(stream_stats['bit_rate']) / 1000  # Convert to kbps
             
