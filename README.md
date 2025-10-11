@@ -9,6 +9,32 @@ Web application for managing Dispatcharr channels and streams with intelligent a
 - 🏆 **Stream Sorter**: Score-based stream ordering with multi-condition rules
 - 🎨 **Modern UI**: Responsive Bootstrap 5 interface
 
+## Screenshots
+
+### Dashboard
+![Dashboard](1.png)
+
+### Channels Management
+![Channels](2.png)
+
+### Channel Details
+![Channel Details](3.png)
+
+### Auto-Assignment Rules
+![Auto-Assignment Rules](4.png)
+
+### Rule Configuration
+![Rule Configuration](5.png)
+
+### Stream Testing Progress
+![Stream Testing](6.png)
+
+### Streams Management
+![Streams](7.png)
+
+### Stream Details
+![Stream Details](8.png)
+
 ## Quick Start (Docker)
 
 ### Production (Recommended)
