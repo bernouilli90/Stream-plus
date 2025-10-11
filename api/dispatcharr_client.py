@@ -594,7 +594,7 @@ class DispatcharrClient:
 
             for line in ffmpeg_result.stderr.split('\n'):
                 # Look for the final summary line with data sizes
-                if 'video:' in line and 'audio:' in line and 'KiB' in line:
+                if 'video:' in line and 'audio:' in line and ('KiB' in line or 'kB' in line):
                     try:
                         # Extract video and audio sizes
                         video_size_kb = 0
@@ -602,13 +602,29 @@ class DispatcharrClient:
 
                         # Parse video size
                         if 'video:' in line:
-                            video_part = line.split('video:')[1].split('KiB')[0].strip()
-                            video_size_kb = float(video_part)
+                            # Handle both KiB and kB formats
+                            if 'KiB' in line:
+                                video_part = line.split('video:')[1].split('KiB')[0].strip()
+                            elif 'kB' in line:
+                                video_part = line.split('video:')[1].split('kB')[0].strip()
+                            else:
+                                video_part = None
+                            
+                            if video_part:
+                                video_size_kb = float(video_part)
 
                         # Parse audio size
                         if 'audio:' in line:
-                            audio_part = line.split('audio:')[1].split('KiB')[0].strip()
-                            audio_size_kb = float(audio_part)
+                            # Handle both KiB and kB formats
+                            if 'KiB' in line:
+                                audio_part = line.split('audio:')[1].split('KiB')[0].strip()
+                            elif 'kB' in line:
+                                audio_part = line.split('audio:')[1].split('kB')[0].strip()
+                            else:
+                                audio_part = None
+                            
+                            if audio_part:
+                                audio_size_kb = float(audio_part)
 
                         # Calculate total bitrate: (total_KB * 8) / duration_seconds = kbits/s
                         total_size_kb = video_size_kb + audio_size_kb
