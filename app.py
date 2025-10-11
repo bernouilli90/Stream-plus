@@ -633,16 +633,24 @@ def execute_auto_assignment_in_background(rule_id, queue):
                     stream_name = stream.get('name', f'Stream {stream_id}')
                     
                     try:
+                        # Send message BEFORE testing starts
+                        queue.put({
+                            'type': 'info',
+                            'message': f'Testing stream {stream_idx}/{len(streams_to_test)}: {stream_name}...'
+                        })
+                        
+                        result = dispatcharr_client.test_stream(stream_id, test_duration=10)
+                        
+                        # Send progress update AFTER test completes
                         queue.put({
                             'type': 'test_progress',
                             'stream_id': stream_id,
                             'stream_name': stream_name,
                             'current': stream_idx,
                             'total': len(streams_to_test),
-                            'message': f'Testing stream {stream_idx}/{len(streams_to_test)}: {stream_name}'
+                            'message': f'Completed {stream_idx}/{len(streams_to_test)} tests'
                         })
                         
-                        result = dispatcharr_client.test_stream(stream_id, test_duration=10)
                         if result.get('success'):
                             tested_count += 1
                             queue.put({
@@ -659,6 +667,14 @@ def execute_auto_assignment_in_background(rule_id, queue):
                             })
                     except Exception as e:
                         failed_tests += 1
+                        # Send progress even on error
+                        queue.put({
+                            'type': 'test_progress',
+                            'stream_id': stream_id,
+                            'current': stream_idx,
+                            'total': len(streams_to_test),
+                            'message': f'Completed {stream_idx}/{len(streams_to_test)} tests'
+                        })
                         queue.put({
                             'type': 'test_fail',
                             'stream_id': stream_id,

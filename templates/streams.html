@@ -524,7 +524,13 @@ function viewStreamStats(streamId) {
             if (stats.resolution) html += `<tr><td><strong>Resolution</strong></td><td>${stats.resolution}</td></tr>`;
             if (stats.width && stats.height) html += `<tr><td><strong>Dimensions</strong></td><td>${stats.width}x${stats.height}</td></tr>`;
             if (stats.fps) html += `<tr><td><strong>FPS</strong></td><td>${stats.fps}</td></tr>`;
-            if (stats.video_bitrate) html += `<tr><td><strong>Video Bitrate</strong></td><td>${(stats.video_bitrate / 1000).toFixed(2)} kbps</td></tr>`;
+            if (stats.source_fps) html += `<tr><td><strong>Source FPS</strong></td><td>${stats.source_fps}</td></tr>`;
+            // Show bitrate - prioritize output_bitrate, then ffmpeg_output_bitrate, then video_bitrate
+            const bitrate = stats.output_bitrate || stats.ffmpeg_output_bitrate || stats.video_bitrate;
+            if (bitrate) {
+                const bitrateValue = stats.video_bitrate ? (bitrate / 1000).toFixed(2) : bitrate.toFixed(2);
+                html += `<tr><td><strong>Video Bitrate</strong></td><td>${bitrateValue} kbps</td></tr>`;
+            }
             if (stats.aspect_ratio) html += `<tr><td><strong>Aspect Ratio</strong></td><td>${stats.aspect_ratio}</td></tr>`;
             if (stats.pixel_format) html += `<tr><td><strong>Pixel Format</strong></td><td>${stats.pixel_format}</td></tr>`;
             
@@ -541,8 +547,9 @@ function viewStreamStats(streamId) {
             
             // Audio stats
             if (stats.audio_codec) html += `<tr><td><strong>Audio Codec</strong></td><td>${stats.audio_codec}</td></tr>`;
-            if (stats.audio_bitrate) html += `<tr><td><strong>Audio Bitrate</strong></td><td>${(stats.audio_bitrate / 1000).toFixed(2)} kbps</td></tr>`;
+            if (stats.audio_bitrate) html += `<tr><td><strong>Audio Bitrate</strong></td><td>${stats.audio_bitrate} kbps</td></tr>`;
             if (stats.sample_rate) html += `<tr><td><strong>Sample Rate</strong></td><td>${stats.sample_rate} Hz</td></tr>`;
+            if (stats.audio_channels) html += `<tr><td><strong>Channels</strong></td><td>${stats.audio_channels}</td></tr>`;
             if (stats.channels) html += `<tr><td><strong>Channels</strong></td><td>${stats.channels}</td></tr>`;
             if (stats.channel_layout) html += `<tr><td><strong>Layout</strong></td><td>${stats.channel_layout}</td></tr>`;
             
@@ -559,6 +566,7 @@ function viewStreamStats(streamId) {
             
             // General stats
             if (stats.bitrate) html += `<tr><td><strong>Total Bitrate</strong></td><td>${(stats.bitrate / 1000).toFixed(2)} kbps</td></tr>`;
+            if (stats.stream_type) html += `<tr><td><strong>Stream Type</strong></td><td>${stats.stream_type}</td></tr>`;
             if (stats.format) html += `<tr><td><strong>Format</strong></td><td>${stats.format}</td></tr>`;
             if (stats.duration) html += `<tr><td><strong>Duration</strong></td><td>${stats.duration} s</td></tr>`;
             if (stats.size) html += `<tr><td><strong>Size</strong></td><td>${(stats.size / 1024 / 1024).toFixed(2)} MB</td></tr>`;

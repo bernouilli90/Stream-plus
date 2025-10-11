@@ -563,10 +563,7 @@ class DispatcharrClient:
                         calculated_bitrate_kbps = (total_size_kb * 8) / test_duration
                         calculated_bitrate = calculated_bitrate_kbps * 1000  # Convert to bits/s
                         
-                        print(f"Calculated bitrate: {calculated_bitrate_kbps:.2f} kbits/s ({total_size_kb:.2f} KB in {test_duration}s)")
-                        
                     except (ValueError, IndexError) as e:
-                        print(f"Error calculating bitrate: {e}")
                         pass
             
             # Fallback: try to parse from progress line
@@ -614,6 +611,16 @@ class DispatcharrClient:
             # Parse ffprobe output
             import json as json_lib
             probe_data = json_lib.loads(result.stdout)
+            
+            # Second fallback: try to get bitrate from format bitrate in ffprobe
+            if not calculated_bitrate_kbps:
+                format_bitrate = probe_data.get('format', {}).get('bit_rate')
+                if format_bitrate:
+                    try:
+                        calculated_bitrate_kbps = float(format_bitrate) / 1000.0  # Convert from bps to kbps
+                        calculated_bitrate = float(format_bitrate)
+                    except (ValueError, TypeError) as e:
+                        pass
             
             # Extract video and audio stream info
             video_stream = None

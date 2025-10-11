@@ -89,11 +89,13 @@ function handleExecutionMessage(data) {
             currentStreamsTested = data.current || 0;
             addLogLine(data.message, 'test');
             
-            // Calculate progress
-            const testProgress = (currentStreamsTested / totalStreamsToTest) * 50; // 50% for testing
+            // Calculate progress (0-100% based only on testing)
+            const testProgress = totalStreamsToTest > 0 
+                ? (currentStreamsTested / totalStreamsToTest) * 100 
+                : 0;
             updateProgress(
                 testProgress,
-                `Testing ${currentStreamsTested}/${totalStreamsToTest}`
+                `Tested ${currentStreamsTested}/${totalStreamsToTest} streams`
             );
             break;
             
@@ -107,12 +109,12 @@ function handleExecutionMessage(data) {
             
         case 'matching':
             addLogLine(`\n🔍 ${data.message}`, 'info');
-            updateProgress(50, 'Finding matching streams...');
+            // Don't update progress bar, just log
             break;
             
         case 'assigning':
             addLogLine(`\n💾 ${data.message}`, 'info');
-            updateProgress(75, 'Assigning streams to channel...');
+            // Don't update progress bar, just log
             break;
             
         case 'error':
@@ -142,8 +144,13 @@ function handleExecutionComplete(data) {
         currentEventSource = null;
     }
     
-    // Update progress bar to 100%
-    updateProgress(100, 'Complete');
+    // Update progress bar to 100% only if there were streams to test
+    if (totalStreamsToTest > 0) {
+        updateProgress(100, 'Complete');
+    } else {
+        // No testing was done, set to 100% anyway to show completion
+        updateProgress(100, 'Complete (no testing required)');
+    }
     
     // Add final log message
     addLogLine(`\n${'='.repeat(60)}`, 'info');
