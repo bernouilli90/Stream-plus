@@ -194,10 +194,33 @@ async function editRule(ruleId) {
         document.getElementById('m3uAccountId').value = rule.m3u_account_id || '';
         document.getElementById('bitrateOperator').value = rule.video_bitrate_operator || '';
         document.getElementById('bitrateValue').value = rule.video_bitrate_value || '';
-        document.getElementById('videoCodec').value = rule.video_codec || '';
-        document.getElementById('resolution').value = rule.video_resolution || '';
-        document.getElementById('videoFps').value = rule.video_fps || '';
-        document.getElementById('audioCodec').value = rule.audio_codec || '';
+        
+        // Helper function to set selected values in multiple select
+        const setMultipleSelectValues = (selectId, values) => {
+            const select = document.getElementById(selectId);
+            // Clear all selections first
+            Array.from(select.options).forEach(opt => opt.selected = false);
+            
+            if (values) {
+                // Handle both array and single value
+                const valueArray = Array.isArray(values) ? values : [values];
+                valueArray.forEach(value => {
+                    // Convert to string for comparison
+                    const strValue = String(value);
+                    Array.from(select.options).forEach(opt => {
+                        if (opt.value === strValue) {
+                            opt.selected = true;
+                        }
+                    });
+                });
+            }
+        };
+        
+        // Set multiple select fields
+        setMultipleSelectValues('videoCodec', rule.video_codec);
+        setMultipleSelectValues('resolution', rule.video_resolution);
+        setMultipleSelectValues('videoFps', rule.video_fps);
+        setMultipleSelectValues('audioCodec', rule.audio_codec);
         
         // Load stream testing options
         document.getElementById('testStreamsBeforeSorting').checked = rule.test_streams_before_sorting || false;
@@ -228,6 +251,20 @@ async function saveRule() {
     const forceRetestOldStreams = document.getElementById('forceRetestOldStreams').checked;
     const retestDaysThreshold = parseInt(document.getElementById('retestDaysThreshold').value) || 7;
     
+    // Get selected values from multiple select fields
+    const getSelectedValues = (selectId) => {
+        const select = document.getElementById(selectId);
+        const selected = Array.from(select.selectedOptions).map(opt => opt.value);
+        return selected.length > 0 ? selected : null;
+    };
+    
+    // Get numeric values for FPS
+    const getFpsValues = () => {
+        const select = document.getElementById('videoFps');
+        const selected = Array.from(select.selectedOptions).map(opt => parseFloat(opt.value));
+        return selected.length > 0 ? selected : null;
+    };
+    
     const ruleData = {
         name: document.getElementById('ruleName').value,
         channel_id: parseInt(document.getElementById('channelId').value),
@@ -235,12 +272,12 @@ async function saveRule() {
         replace_existing_streams: document.getElementById('replaceExisting').checked,
         regex_pattern: document.getElementById('regexPattern').value || null,
         m3u_account_id: document.getElementById('m3uAccountId').value || null,
-        bitrate_operator: document.getElementById('bitrateOperator').value || null,
-        bitrate_value: document.getElementById('bitrateValue').value || null,
-        video_codec: document.getElementById('videoCodec').value || null,
-        video_resolution: document.getElementById('resolution').value || null,
-        video_fps: document.getElementById('videoFps').value || null,
-        audio_codec: document.getElementById('audioCodec').value || null,
+        video_bitrate_operator: document.getElementById('bitrateOperator').value || null,
+        video_bitrate_value: document.getElementById('bitrateValue').value ? parseFloat(document.getElementById('bitrateValue').value) : null,
+        video_codec: getSelectedValues('videoCodec'),
+        video_resolution: getSelectedValues('resolution'),
+        video_fps: getFpsValues(),
+        audio_codec: getSelectedValues('audioCodec'),
         test_streams_before_sorting: testStreamsBeforeSorting,
         force_retest_old_streams: testStreamsBeforeSorting && forceRetestOldStreams,
         retest_days_threshold: retestDaysThreshold

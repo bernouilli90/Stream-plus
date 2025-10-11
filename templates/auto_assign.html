@@ -114,19 +114,55 @@
                             </div>
                             <div class="col-md-6">
                                 {% if rule.video_bitrate_operator and rule.video_bitrate_value %}
-                                <p class="mb-2"><strong>Bitrate:</strong> {{ rule.video_bitrate_operator }} {{ rule.video_bitrate_value }}</p>
+                                <p class="mb-2"><strong>Bitrate:</strong> {{ rule.video_bitrate_operator }} {{ rule.video_bitrate_value }} kbps</p>
                                 {% endif %}
                                 {% if rule.video_codec %}
-                                <p class="mb-2"><strong>Video Codec:</strong> {{ rule.video_codec }}</p>
+                                <p class="mb-2">
+                                    <strong>Video Codec:</strong> 
+                                    {% if rule.video_codec is iterable and rule.video_codec is not string %}
+                                        {% for codec in rule.video_codec %}
+                                            <span class="badge bg-info">{{ codec }}</span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="badge bg-info">{{ rule.video_codec }}</span>
+                                    {% endif %}
+                                </p>
                                 {% endif %}
-                                {% if rule.video_resolution_operator and rule.video_resolution_width and rule.video_resolution_height %}
-                                <p class="mb-2"><strong>Resolution:</strong> {{ rule.video_resolution_operator }} {{ rule.video_resolution_width }}x{{ rule.video_resolution_height }}</p>
+                                {% if rule.video_resolution %}
+                                <p class="mb-2">
+                                    <strong>Resolution:</strong> 
+                                    {% if rule.video_resolution is iterable and rule.video_resolution is not string %}
+                                        {% for res in rule.video_resolution %}
+                                            <span class="badge bg-success">{{ res }}</span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="badge bg-success">{{ rule.video_resolution }}</span>
+                                    {% endif %}
+                                </p>
                                 {% endif %}
                                 {% if rule.video_fps %}
-                                <p class="mb-2"><strong>FPS:</strong> {{ rule.video_fps }}</p>
+                                <p class="mb-2">
+                                    <strong>FPS:</strong> 
+                                    {% if rule.video_fps is iterable and rule.video_fps is not string %}
+                                        {% for fps in rule.video_fps %}
+                                            <span class="badge bg-primary">{{ fps }}</span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="badge bg-primary">{{ rule.video_fps }}</span>
+                                    {% endif %}
+                                </p>
                                 {% endif %}
                                 {% if rule.audio_codec %}
-                                <p class="mb-2"><strong>Audio Codec:</strong> {{ rule.audio_codec }}</p>
+                                <p class="mb-2">
+                                    <strong>Audio Codec:</strong> 
+                                    {% if rule.audio_codec is iterable and rule.audio_codec is not string %}
+                                        {% for codec in rule.audio_codec %}
+                                            <span class="badge bg-warning text-dark">{{ codec }}</span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark">{{ rule.audio_codec }}</span>
+                                    {% endif %}
+                                </p>
                                 {% endif %}
                             </div>
                         </div>
@@ -273,40 +309,49 @@
 
                     <!-- Video Codec -->
                     <div class="mb-3">
-                        <label for="videoCodec" class="form-label">Video Codec</label>
-                        <select class="form-select" id="videoCodec">
-                            <option value="">No restriction...</option>
+                        <label for="videoCodec" class="form-label">
+                            Video Codec 
+                            <small class="text-muted">(hold Ctrl/Cmd to select multiple)</small>
+                        </label>
+                        <select class="form-select" id="videoCodec" multiple size="6">
                             <option value="h264">H.264</option>
                             <option value="h265">H.265 (HEVC)</option>
                             <option value="mpeg2">MPEG-2</option>
                             <option value="vp9">VP9</option>
                             <option value="av1">AV1</option>
                         </select>
+                        <small class="form-text text-muted">Leave empty for no restriction</small>
                     </div>
 
                     <!-- Resolution -->
                     <div class="mb-3">
-                        <label for="resolution" class="form-label">Video Resolution</label>
-                        <select class="form-select" id="resolution">
-                            <option value="">No restriction...</option>
+                        <label for="resolution" class="form-label">
+                            Video Resolution 
+                            <small class="text-muted">(hold Ctrl/Cmd to select multiple)</small>
+                        </label>
+                        <select class="form-select" id="resolution" multiple size="4">
                             <option value="720p">720p (HD)</option>
                             <option value="1080p">1080p (Full HD)</option>
                             <option value="2160p">2160p (4K)</option>
                             <option value="SD">SD (Standard Definition)</option>
                         </select>
+                        <small class="form-text text-muted">Leave empty for no restriction</small>
                     </div>
 
                     <!-- FPS -->
                     <div class="mb-3">
-                        <label for="videoFps" class="form-label">FPS (Frames per second)</label>
-                        <select class="form-select" id="videoFps">
-                            <option value="">No restriction...</option>
+                        <label for="videoFps" class="form-label">
+                            FPS (Frames per second) 
+                            <small class="text-muted">(hold Ctrl/Cmd to select multiple)</small>
+                        </label>
+                        <select class="form-select" id="videoFps" multiple size="5">
                             <option value="24">24</option>
                             <option value="25">25</option>
                             <option value="30">30</option>
                             <option value="50">50</option>
                             <option value="60">60</option>
                         </select>
+                        <small class="form-text text-muted">Leave empty for no restriction</small>
                     </div>
 
                     <!-- Audio Conditions -->
@@ -314,15 +359,18 @@
 
                     <!-- Audio Codec -->
                     <div class="mb-3">
-                        <label for="audioCodec" class="form-label">Audio Codec</label>
-                        <select class="form-select" id="audioCodec">
-                            <option value="">No restriction...</option>
+                        <label for="audioCodec" class="form-label">
+                            Audio Codec 
+                            <small class="text-muted">(hold Ctrl/Cmd to select multiple)</small>
+                        </label>
+                        <select class="form-select" id="audioCodec" multiple size="5">
                             <option value="aac">AAC</option>
                             <option value="ac3">AC3 (Dolby Digital)</option>
                             <option value="eac3">E-AC3 (Dolby Digital Plus)</option>
                             <option value="mp3">MP3</option>
                             <option value="opus">Opus</option>
                         </select>
+                        <small class="form-text text-muted">Leave empty for no restriction</small>
                     </div>
                 </form>
             </div>
