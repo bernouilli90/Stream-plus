@@ -164,14 +164,14 @@
                     <!-- Channel Assignment -->
                     <div class="mb-3">
                         <label class="form-label">Apply to Channels</label>
-                        <select class="form-select" id="channelSelect" onchange="addChannelTag()">
-                            <option value="">Select a channel to add...</option>
-                            {% for channel in channels %}
-                            <option value="{{ channel.id }}" data-name="{{ channel.name or 'Channel #' ~ channel.id }}">{{ channel.name or 'Channel #' ~ channel.id }}</option>
-                            {% endfor %}
-                        </select>
+                        <input type="text" class="form-control" id="channelSearch"
+                               placeholder="Search channel by name or ID..."
+                               autocomplete="off">
+                        <div id="channelDropdown" class="dropdown-menu" style="max-height: 300px; overflow-y: auto; width: 100%;">
+                            <!-- Channels will be loaded dynamically -->
+                        </div>
                         <small class="form-text text-muted">
-                            Select channels from the dropdown. Click on tags to remove them. Leave empty to apply to all channels.
+                            Type to search or click to see all channels. Click on tags to remove them. Leave empty to apply to all channels.
                         </small>
                         <div id="selectedChannelTags" class="mt-2"></div>
                     </div>

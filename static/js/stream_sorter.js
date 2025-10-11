@@ -256,11 +256,7 @@ function collectConditions() {
 /**
  * Add channel as tag
  */
-function addChannelTag() {
-    const select = document.getElementById('channelSelect');
-    const channelId = select.value;
-    const channelName = select.options[select.selectedIndex].dataset.name;
-    
+function addChannelTag(channelId, channelName) {
     if (!channelId || channelId === '') {
         return;
     }
@@ -269,7 +265,6 @@ function addChannelTag() {
     
     // Check if already added
     if (selectedChannelIds.includes(channelIdInt)) {
-        select.value = '';
         return;
     }
     
@@ -287,9 +282,6 @@ function addChannelTag() {
     };
     
     document.getElementById('selectedChannelTags').appendChild(tag);
-    
-    // Reset select
-    select.value = '';
 }
 
 /**
@@ -880,54 +872,108 @@ function setupModalEventListeners() {
         forceRetestCheckbox.removeEventListener('change', toggleDaysThreshold);
         forceRetestCheckbox.addEventListener('change', toggleDaysThreshold);
     }
+    
+    // Setup channel search functionality
+    setupChannelSearch();
 }
 
 /**
- * Initialize the page
+ * Setup channel search functionality
  */
-async function init() {
-    // All data is loaded from the server template
-    // No need to fetch anything here
+function setupChannelSearch() {
+    const searchInput = document.getElementById('channelSearch');
+    const dropdown = document.getElementById('channelDropdown');
+    
+    if (!searchInput || !dropdown) return;
+    
+    // Show dropdown on focus
+    searchInput.addEventListener('focus', function() {
+        filterChannels('');
+        dropdown.classList.add('show');
+    });
+    
+    // Filter channels on input
+    searchInput.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        filterChannels(searchTerm);
+        dropdown.classList.add('show');
+    });
+    
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.classList.remove('show');
+        }
+    });
+    
+    // Handle Enter key to add channel
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const firstItem = dropdown.querySelector('.dropdown-item:not(.text-muted)');
+            if (firstItem) {
+                firstItem.click();
+            }
+        }
+    });
 }
 
 /**
- * Remove channel from rule
+ * Filter and display channels in dropdown
  */
-async function removeChannelFromRule(ruleId, channelId) {
-    try {
-        // Get current rule
-        const response = await fetch(`/api/sorting-rules/${ruleId}`);
-        if (!response.ok) throw new Error('Error loading rule');
+function filterChannels(searchTerm) {
+    const dropdown = document.getElementById('channelDropdown');
+    const searchInput = document.getElementById('channelSearch');
+    
+    if (!dropdown) return;
+    
+    // Filter channels
+    const filtered = allChannels.filter(channel => {
+        const name = (channel.name || '').toLowerCase();
+        const id = String(channel.id).toLowerCase();
+        return name.includes(searchTerm) || id.includes(searchTerm);
+    });
+    
+    // Clear dropdown
+    dropdown.innerHTML = '';
+    
+    if (filtered.length === 0) {
+        const noResults = document.createElement('div');
+        noResults.className = 'dropdown-item text-muted';
+        noResults.textContent = 'No channels found';
+        dropdown.appendChild(noResults);
+        return;
+    }
+    
+    // Add filtered channels
+    filtered.forEach(channel => {
+        const item = document.createElement('a');
+        item.className = 'dropdown-item';
+        item.href = '#';
+        item.style.cursor = 'pointer';
         
-        const rule = await response.json();
+        // Create channel display with logo if available
+        const displayHtml = `
+            <div class="d-flex align-items-center">
+                ${channel.logo ? 
+                    `<img src="${channel.logo}" alt="${channel.name}" style="height: 20px; margin-right: 8px;">` : 
+                    '<i class="fas fa-tv text-muted me-2"></i>'
+                }
+                <span>${channel.name || 'Channel #' + channel.id}</span>
+                <small class="text-muted ms-2">(ID: ${channel.id})</small>
+            </div>
+        `;
         
-        // Remove channel from list
-        rule.channel_ids = rule.channel_ids.filter(id => id !== channelId);
+        item.innerHTML = displayHtml;
         
-        // Update rule
-        const updateResponse = await fetch(`/api/sorting-rules/${ruleId}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(rule)
+        // Handle channel selection
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            addChannelTag(channel.id, channel.name || `Channel #${channel.id}`);
+            searchInput.value = '';
+            dropdown.classList.remove('show');
         });
         
-        if (!updateResponse.ok) throw new Error('Error updating rule');
-        
-        // Reload page to reflect changes
-        location.reload();
-        
-    } catch (error) {
-        console.error('Error removing channel:', error);
-        StreamPlus.showNotification('Error removing channel', 'error');
-    }
+        dropdown.appendChild(item);
+    });
 }
-
-// Initialize page
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Stream Sorter page loaded');
-    console.log('M3U Accounts:', m3uAccounts);
-    console.log('Channels:', allChannels);
-    init();
-});
