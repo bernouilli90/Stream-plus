@@ -100,7 +100,20 @@ function handleExecutionMessage(data) {
             break;
             
         case 'test_success':
-            addLogLine(data.message, 'success');
+            // Show stream statistics if available
+            let message = data.message;
+            if (data.statistics) {
+                const stats = data.statistics;
+                const bitrate = stats.output_bitrate || stats.ffmpeg_output_bitrate;
+                const resolution = stats.resolution || 'Unknown';
+                const codec = stats.video_codec || 'Unknown';
+                const fps = stats.source_fps ? `${stats.source_fps.toFixed(1)}fps` : 'Unknown';
+                
+                if (bitrate) {
+                    message += `\n    📊 Stats: ${resolution} | ${codec} | ${bitrate.toFixed(0)}kbps | ${fps}`;
+                }
+            }
+            addLogLine(message, 'success');
             break;
             
         case 'test_fail':

@@ -653,10 +653,22 @@ def execute_auto_assignment_in_background(rule_id, queue):
                         
                         if result.get('success') and not result.get('save_error'):
                             tested_count += 1
+                            # Get stream stats for display
+                            stats = result.get('statistics', {})
+                            stats_message = ""
+                            if stats:
+                                bitrate = stats.get('output_bitrate') or stats.get('ffmpeg_output_bitrate')
+                                resolution = stats.get('resolution', 'Unknown')
+                                codec = stats.get('video_codec', 'Unknown')
+                                if bitrate:
+                                    stats_message = f" ({resolution}, {codec}, {bitrate:.0f}kbps)"
+                            
                             queue.put({
                                 'type': 'test_success',
                                 'stream_id': stream_id,
-                                'message': f'✓ Stream {stream_name} tested successfully'
+                                'stream_name': stream_name,
+                                'statistics': stats,
+                                'message': f'✓ Stream {stream_name} tested successfully{stats_message}'
                             })
                         else:
                             failed_tests += 1
