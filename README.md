@@ -11,29 +11,29 @@ Web application for managing Dispatcharr channels and streams with intelligent a
 
 ## Screenshots
 
-### Dashboard
-![Dashboard](1.png)
+### Auto-Assignment Rule Creation Form
+![Auto-Assignment Rule Creation](1.png)
 
-### Channels Management
-![Channels](2.png)
+### Auto-Assignment Rules View
+![Auto-Assignment Rules](2.png)
 
-### Channel Details
-![Channel Details](3.png)
+### Executing Auto-Assignment Rule
+![Executing Auto-Assignment](3.png)
 
-### Auto-Assignment Rules
-![Auto-Assignment Rules](4.png)
+### Stream Sorting Rule Form
+![Stream Sorting Rule Form](4.png)
 
-### Rule Configuration
-![Rule Configuration](5.png)
+### Stream Sorting Rules View
+![Stream Sorting Rules](5.png)
 
-### Stream Testing Progress
-![Stream Testing](6.png)
+### Stream Sorting Rule Preview
+![Stream Sorting Preview](6.png)
 
-### Streams Management
-![Streams](7.png)
+### Executing Stream Sorting Rule
+![Executing Stream Sorting](7.png)
 
-### Stream Details
-![Stream Details](8.png)
+### Result in Dispatcharr
+![Dispatcharr Result](8.png)
 
 ## Quick Start (Docker)
 
