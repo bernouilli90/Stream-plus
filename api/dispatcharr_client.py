@@ -498,7 +498,7 @@ class DispatcharrClient:
             # Try to find ffprobe executable
             import os as os_module
             ffprobe_executable = 'ffprobe'
-            
+
             # Check for local installations
             local_ffprobe = os_module.path.join(
                 os_module.path.dirname(os_module.path.dirname(os_module.path.abspath(__file__))),
@@ -508,17 +508,57 @@ class DispatcharrClient:
                 os_module.path.dirname(os_module.path.dirname(os_module.path.abspath(__file__))),
                 'tools', 'ffmpeg', 'ffmpeg-7.1-essentials_build', 'bin', 'ffmpeg.exe'
             )
-            
+
             if os_module.path.exists(local_ffprobe):
                 ffprobe_executable = local_ffprobe
+                print(f"Using local ffprobe: {local_ffprobe}")
+            else:
+                print(f"Local ffprobe not found at {local_ffprobe}, using system ffprobe")
+
             if os_module.path.exists(local_ffmpeg):
                 ffmpeg_executable = local_ffmpeg
+                print(f"Using local ffmpeg: {local_ffmpeg}")
             else:
                 ffmpeg_executable = 'ffmpeg'
+                print("Local ffmpeg not found, using system ffmpeg")
+
+            # Verify executables exist and are executable
+            import shutil
+            if not shutil.which(ffprobe_executable):
+                return {
+                    'success': False,
+                    'message': f'ffprobe executable not found: {ffprobe_executable}'
+                }
+            if not shutil.which(ffmpeg_executable):
+                return {
+                    'success': False,
+                    'message': f'ffmpeg executable not found: {ffmpeg_executable}'
+                }
+
+            print(f"FFmpeg version check:")
+            try:
+                ffmpeg_version = subprocess.run([ffmpeg_executable, '-version'], capture_output=True, text=True, timeout=10)
+                print(f"FFmpeg available: {ffmpeg_executable}")
+                if ffmpeg_version.returncode != 0:
+                    print(f"Warning: ffmpeg version check failed: {ffmpeg_version.stderr[:200]}")
+            except Exception as e:
+                print(f"Error checking ffmpeg version: {e}")
+
+            print(f"FFprobe version check:")
+            try:
+                ffprobe_version = subprocess.run([ffprobe_executable, '-version'], capture_output=True, text=True, timeout=10)
+                print(f"FFprobe available: {ffprobe_executable}")
+                if ffprobe_version.returncode != 0:
+                    print(f"Warning: ffprobe version check failed: {ffprobe_version.stderr[:200]}")
+            except Exception as e:
+                print(f"Error checking ffprobe version: {e}")
             
             # Step 1: Use ffmpeg to read the stream and get bitrate info
             # We'll run it for the specified duration and capture the output
             print(f"Reading stream for {test_duration} seconds to calculate bitrate...")
+            print(f"Using ffmpeg executable: {ffmpeg_executable}")
+            print(f"Stream URL: {stream_url}")
+
             ffmpeg_cmd = [
                 ffmpeg_executable,
                 '-t', str(test_duration),  # Read for test_duration seconds
@@ -527,19 +567,31 @@ class DispatcharrClient:
                 '-f', 'null',  # Discard output
                 '-'
             ]
-            
+
+            print(f"FFmpeg command: {' '.join(ffmpeg_cmd)}")
+
             ffmpeg_result = subprocess.run(
                 ffmpeg_cmd,
                 capture_output=True,
                 text=True,
                 timeout=test_duration + 20
             )
-            
+
+            print(f"FFmpeg return code: {ffmpeg_result.returncode}")
+            print(f"FFmpeg stdout length: {len(ffmpeg_result.stdout)}")
+            print(f"FFmpeg stderr length: {len(ffmpeg_result.stderr)}")
+
+            # Log the complete ffmpeg output for debugging
+            if ffmpeg_result.stdout:
+                print(f"FFmpeg stdout:\n{ffmpeg_result.stdout}")
+            if ffmpeg_result.stderr:
+                print(f"FFmpeg stderr:\n{ffmpeg_result.stderr}")
+
             # Parse bitrate from ffmpeg stderr output
             # Look for output size line like: "video:5607KiB audio:125KiB"
             calculated_bitrate = None
             calculated_bitrate_kbps = None
-            
+
             for line in ffmpeg_result.stderr.split('\n'):
                 # Look for the final summary line with data sizes
                 if 'video:' in line and 'audio:' in line and 'KiB' in line:
@@ -547,25 +599,28 @@ class DispatcharrClient:
                         # Extract video and audio sizes
                         video_size_kb = 0
                         audio_size_kb = 0
-                        
+
                         # Parse video size
                         if 'video:' in line:
                             video_part = line.split('video:')[1].split('KiB')[0].strip()
                             video_size_kb = float(video_part)
-                        
+
                         # Parse audio size
                         if 'audio:' in line:
                             audio_part = line.split('audio:')[1].split('KiB')[0].strip()
                             audio_size_kb = float(audio_part)
-                        
+
                         # Calculate total bitrate: (total_KB * 8) / duration_seconds = kbits/s
                         total_size_kb = video_size_kb + audio_size_kb
                         calculated_bitrate_kbps = (total_size_kb * 8) / test_duration
                         calculated_bitrate = calculated_bitrate_kbps * 1000  # Convert to bits/s
-                        
+
+                        print(f"Calculated bitrate from data sizes: {calculated_bitrate_kbps} kbps (video: {video_size_kb}KB, audio: {audio_size_kb}KB)")
+
                     except (ValueError, IndexError) as e:
+                        print(f"Error parsing data sizes from line '{line}': {e}")
                         pass
-            
+
             # Fallback: try to parse from progress line
             if not calculated_bitrate:
                 for line in ffmpeg_result.stderr.split('\n'):
@@ -575,11 +630,14 @@ class DispatcharrClient:
                             if bitrate_part and bitrate_part != 'N/A':
                                 calculated_bitrate_kbps = float(bitrate_part)
                                 calculated_bitrate = calculated_bitrate_kbps * 1000
+                                print(f"Calculated bitrate from progress line: {calculated_bitrate_kbps} kbps")
                         except (ValueError, IndexError):
                             pass
             
             # Step 2: Use ffprobe to get codec information
             print(f"Analyzing stream metadata with ffprobe...")
+            print(f"Using ffprobe executable: {ffprobe_executable}")
+
             ffprobe_cmd = [
                 ffprobe_executable,
                 '-analyzeduration', str(test_duration * 1000000),  # Convert to microseconds
@@ -590,7 +648,9 @@ class DispatcharrClient:
                 '-show_streams',
                 stream_url
             ]
-            
+
+            print(f"FFprobe command: {' '.join(ffprobe_cmd)}")
+
             # Run ffprobe
             result = subprocess.run(
                 ffprobe_cmd,
@@ -598,9 +658,20 @@ class DispatcharrClient:
                 text=True,
                 timeout=test_duration + 10
             )
-            
+
+            print(f"FFprobe return code: {result.returncode}")
+            print(f"FFprobe stdout length: {len(result.stdout)}")
+            print(f"FFprobe stderr length: {len(result.stderr)}")
+
+            # Log the complete ffprobe output for debugging
+            if result.stdout:
+                print(f"FFprobe stdout:\n{result.stdout}")
+            if result.stderr:
+                print(f"FFprobe stderr:\n{result.stderr}")
+
             if result.returncode != 0:
                 error_msg = result.stderr if result.stderr else "Unknown error"
+                print(f"FFprobe failed with error: {error_msg}")
                 return {
                     'success': False,
                     'message': f'ffprobe failed: {error_msg}',
@@ -619,8 +690,12 @@ class DispatcharrClient:
                     try:
                         calculated_bitrate_kbps = float(format_bitrate) / 1000.0  # Convert from bps to kbps
                         calculated_bitrate = float(format_bitrate)
+                        print(f"Using ffprobe format bitrate as fallback: {calculated_bitrate_kbps} kbps")
                     except (ValueError, TypeError) as e:
+                        print(f"Error parsing ffprobe format bitrate '{format_bitrate}': {e}")
                         pass
+                else:
+                    print("No bitrate available from ffprobe format either")
             
             # Extract video and audio stream info
             video_stream = None
@@ -683,18 +758,26 @@ class DispatcharrClient:
             if calculated_bitrate_kbps:
                 stats['output_bitrate'] = calculated_bitrate_kbps  # Dispatcharr native field
                 stats['ffmpeg_output_bitrate'] = calculated_bitrate_kbps  # Legacy field
-            
+                print(f"Final calculated bitrate: {calculated_bitrate_kbps} kbps")
+            else:
+                print("Warning: No bitrate could be calculated from ffmpeg output")
+
+            print(f"Collected statistics: {stats}")
+
             # Update the stream object with the new statistics
             stream_obj['stream_stats'] = stats
-            
+
             # Update the stats timestamp to current UTC time
             from datetime import datetime, timezone
             stream_obj['stream_stats_updated_at'] = datetime.now(timezone.utc).isoformat()
-            
+
+            print(f"Attempting to save statistics to Dispatcharr for stream {stream_id}...")
+
             # Save the updated stream back to Dispatcharr
             try:
                 updated_stream = self.update_stream(stream_id, stream_obj)
-                
+
+                print(f"Successfully saved statistics to Dispatcharr for stream {stream_id}")
                 return {
                     'success': True,
                     'message': f'Stream {stream_id} analyzed successfully and statistics saved to Dispatcharr',
@@ -706,6 +789,7 @@ class DispatcharrClient:
                 }
             except Exception as e:
                 # Even if we can't save, return the statistics
+                print(f"Failed to save statistics to Dispatcharr: {str(e)}")
                 return {
                     'success': True,
                     'message': f'Stream {stream_id} analyzed successfully but failed to save to Dispatcharr: {str(e)}',
