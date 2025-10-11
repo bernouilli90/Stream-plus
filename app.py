@@ -651,7 +651,7 @@ def execute_auto_assignment_in_background(rule_id, queue):
                             'message': f'Completed {stream_idx}/{len(streams_to_test)} tests'
                         })
                         
-                        if result.get('success'):
+                        if result.get('success') and not result.get('save_error'):
                             tested_count += 1
                             queue.put({
                                 'type': 'test_success',
@@ -660,10 +660,11 @@ def execute_auto_assignment_in_background(rule_id, queue):
                             })
                         else:
                             failed_tests += 1
+                            error_msg = result.get('save_error', result.get('message', 'Unknown error'))
                             queue.put({
                                 'type': 'test_fail',
                                 'stream_id': stream_id,
-                                'message': f'✗ Failed to test stream {stream_name}: {result.get("message", "Unknown error")}'
+                                'message': f'✗ Failed to test stream {stream_name}: {error_msg}'
                             })
                     except Exception as e:
                         failed_tests += 1
@@ -1107,7 +1108,7 @@ def execute_sorting_in_background(rule_id, channel_ids, queue):
                             })
                             
                             result = dispatcharr_client.test_stream(stream_id, test_duration=10)
-                            if result.get('success'):
+                            if result.get('success') and not result.get('save_error'):
                                 tested_count += 1
                                 queue.put({
                                     'type': 'test_success',
@@ -1116,10 +1117,11 @@ def execute_sorting_in_background(rule_id, channel_ids, queue):
                                 })
                             else:
                                 failed_tests += 1
+                                error_msg = result.get('save_error', result.get('message', 'Unknown error'))
                                 queue.put({
                                     'type': 'test_fail',
                                     'stream_id': stream_id,
-                                    'message': f'✗ Failed to test stream {stream_name}: {result.get("message", "Unknown error")}'
+                                    'message': f'✗ Failed to test stream {stream_name}: {error_msg}'
                                 })
                         except Exception as e:
                             failed_tests += 1
@@ -1224,19 +1226,19 @@ def execute_sorting_rule(rule_id):
         if not rule.enabled:
             return jsonify({'error': 'Rule is disabled'}), 400
         
-        # Determinar los canales a procesar
+        # Determine the channels to process
         data = request.get_json() or {}
         manual_channel_id = data.get('channel_id')
         use_stream = data.get('stream', False)  # If true, use SSE streaming
         
         if manual_channel_id:
-            # Si se proporciona un canal manualmente, usar ese
+            # If a channel is provided manually, use that
             channel_ids = [manual_channel_id]
         elif rule.channel_ids:
-            # Si la regla tiene canales asignados, usar esos
+            # If the rule has assigned channels, use those
             channel_ids = rule.channel_ids
         else:
-            # Si no hay canales asignados ni proporcionados, error
+            # If no channels assigned or provided, error
             return jsonify({'error': 'No channels specified. Rule has no assigned channels.'}), 400
         
         # If streaming requested and rule requires testing, use background execution
@@ -1264,7 +1266,7 @@ def execute_sorting_rule(rule_id):
             })
         
         # Otherwise, execute synchronously (original behavior)
-        # Procesar cada canal
+        # Process each channel
         total_sorted = 0
         total_tested = 0
         total_failed = 0
@@ -1278,7 +1280,7 @@ def execute_sorting_rule(rule_id):
             skipped_count = 0
             
             try:
-                # Comprobar que el canal existe
+                # Check that the channel exists
                 channel = None
                 try:
                     channel = dispatcharr_client.get_channel(channel_id)
@@ -1293,7 +1295,7 @@ def execute_sorting_rule(rule_id):
                     errors.append(f'Channel {channel_id} not found or invalid')
                     continue
 
-                # Obtener streams del canal
+                # Get streams from the channel
                 streams = dispatcharr_client.get_channel_streams(channel_id)
                 if not streams:
                     continue
@@ -1314,26 +1316,26 @@ def execute_sorting_rule(rule_id):
                         threshold = datetime.now(timezone.utc) - timedelta(days=rule.retest_days_threshold)
                         
                         for stream in streams:
-                            # Verificar si el stream tiene stats válidos
+                            # Check if the stream has valid stats
                             has_stats = stream.get('stream_stats') and isinstance(stream.get('stream_stats'), dict)
                             stream_stats_date_str = stream.get('stream_stats_updated_at')
                             
                             if not has_stats or not stream_stats_date_str:
-                                # Sin stats o sin fecha de stats, testear
+                                # No stats or no stats date, test
                                 streams_to_test.append(stream['id'])
                             else:
                                 try:
-                                    # Parsear la fecha del stat
+                                    # Parse the stat date
                                     stream_stats_date = datetime.fromisoformat(stream_stats_date_str.replace('Z', '+00:00'))
                                     
-                                    # Si es más antiguo o igual que el threshold, testear
+                                    # If older or equal to threshold, test
                                     if stream_stats_date <= threshold:
                                         streams_to_test.append(stream['id'])
                                     else:
-                                        # Stats recientes, omitir
+                                        # Recent stats, skip
                                         skipped_count += 1
                                 except (ValueError, AttributeError) as e:
-                                    # Error parseando fecha, testear por seguridad
+                                    # Error parsing date, test for safety
                                     print(f"Error parsing stats_date for stream {stream['id']}: {e}")
                                     streams_to_test.append(stream['id'])
                     else:
@@ -1344,29 +1346,30 @@ def execute_sorting_rule(rule_id):
                     for stream_id in streams_to_test:
                         try:
                             result = dispatcharr_client.test_stream(stream_id, test_duration=10)
-                            if result.get('success'):
+                            if result.get('success') and not result.get('save_error'):
                                 tested_count += 1
                                 print(f"Stream {stream_id} tested successfully")
                             else:
                                 failed_tests += 1
-                                print(f"Failed to test stream {stream_id}: {result.get('message', 'Unknown error')}")
+                                error_msg = result.get('save_error', result.get('message', 'Unknown error'))
+                                print(f"Failed to test stream {stream_id}: {error_msg}")
                         except Exception as e:
                             failed_tests += 1
                             print(f"Error testing stream {stream_id}: {e}")
                     
-                    # Recargar streams para obtener stats actualizados
+                    # Reload streams to get updated stats
                     streams = dispatcharr_client.get_channel_streams(channel_id)
                     # Filtrar streams None o inválidos después de recargar
                     streams = [s for s in streams if s is not None and isinstance(s, dict)]
 
-                # Ordenar streams usando la regla
+                # Sort streams using the rule
                 sorted_streams = StreamSorter.sort_streams(rule, streams)
 
-                # Actualizar canal con el nuevo orden
+                # Update channel with new order
                 sorted_stream_ids = [s['id'] for s in sorted_streams]
                 channel['streams'] = sorted_stream_ids
 
-                # Guardar canal actualizado
+                # Save updated channel
                 dispatcharr_client.update_channel(channel_id, channel)
 
                 # Acumular resultados
