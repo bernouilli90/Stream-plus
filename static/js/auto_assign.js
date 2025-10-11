@@ -100,7 +100,7 @@ function filterChannels(searchTerm) {
                     `<img src="${channel.logo}" alt="${channel.name}" style="height: 20px; margin-right: 8px;">` : 
                     '<i class="fas fa-tv text-muted me-2"></i>'
                 }
-                <span>${channel.name || 'Canal #' + channel.id}</span>
+                <span>${channel.name || 'Channel #' + channel.id}</span>
                 <small class="text-muted ms-2">(ID: ${channel.id})</small>
             </div>
         `;
@@ -110,7 +110,7 @@ function filterChannels(searchTerm) {
         // Handle channel selection
         item.addEventListener('click', function(e) {
             e.preventDefault();
-            searchInput.value = channel.name || `Canal #${channel.id}`;
+            searchInput.value = channel.name || `Channel #${channel.id}`;
             channelIdInput.value = channel.id;
             dropdown.classList.remove('show');
         });
@@ -185,7 +185,7 @@ async function editRule(ruleId) {
         document.getElementById('channelId').value = rule.channel_id;
         const selectedChannel = currentChannels.find(c => c.id === rule.channel_id);
         if (selectedChannel) {
-            document.getElementById('channelSearch').value = selectedChannel.name || `Canal #${selectedChannel.id}`;
+            document.getElementById('channelSearch').value = selectedChannel.name || `Channel #${selectedChannel.id}`;
         }
         
         document.getElementById('ruleEnabled').checked = rule.enabled;

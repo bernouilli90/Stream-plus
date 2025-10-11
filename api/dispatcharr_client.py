@@ -534,30 +534,10 @@ class DispatcharrClient:
                     'success': False,
                     'message': f'ffmpeg executable not found: {ffmpeg_executable}'
                 }
-
-            print(f"FFmpeg version check:")
-            try:
-                ffmpeg_version = subprocess.run([ffmpeg_executable, '-version'], capture_output=True, text=True, timeout=10)
-                print(f"FFmpeg available: {ffmpeg_executable}")
-                if ffmpeg_version.returncode != 0:
-                    print(f"Warning: ffmpeg version check failed: {ffmpeg_version.stderr[:200]}")
-            except Exception as e:
-                print(f"Error checking ffmpeg version: {e}")
-
-            print(f"FFprobe version check:")
-            try:
-                ffprobe_version = subprocess.run([ffprobe_executable, '-version'], capture_output=True, text=True, timeout=10)
-                print(f"FFprobe available: {ffprobe_executable}")
-                if ffprobe_version.returncode != 0:
-                    print(f"Warning: ffprobe version check failed: {ffprobe_version.stderr[:200]}")
-            except Exception as e:
-                print(f"Error checking ffprobe version: {e}")
             
             # Step 1: Use ffmpeg to read the stream and get bitrate info
             # We'll run it for the specified duration and capture the output
             print(f"Reading stream for {test_duration} seconds to calculate bitrate...")
-            print(f"Using ffmpeg executable: {ffmpeg_executable}")
-            print(f"Stream URL: {stream_url}")
 
             ffmpeg_cmd = [
                 ffmpeg_executable,
@@ -568,24 +548,12 @@ class DispatcharrClient:
                 '-'
             ]
 
-            print(f"FFmpeg command: {' '.join(ffmpeg_cmd)}")
-
             ffmpeg_result = subprocess.run(
                 ffmpeg_cmd,
                 capture_output=True,
                 text=True,
                 timeout=test_duration + 20
             )
-
-            print(f"FFmpeg return code: {ffmpeg_result.returncode}")
-            print(f"FFmpeg stdout length: {len(ffmpeg_result.stdout)}")
-            print(f"FFmpeg stderr length: {len(ffmpeg_result.stderr)}")
-
-            # Log the complete ffmpeg output for debugging
-            if ffmpeg_result.stdout:
-                print(f"FFmpeg stdout:\n{ffmpeg_result.stdout}")
-            if ffmpeg_result.stderr:
-                print(f"FFmpeg stderr:\n{ffmpeg_result.stderr}")
 
             # Parse bitrate from ffmpeg stderr output
             # Look for output size line like: "video:5607KiB audio:125KiB"
@@ -631,8 +599,6 @@ class DispatcharrClient:
                         calculated_bitrate_kbps = (total_size_kb * 8) / test_duration
                         calculated_bitrate = calculated_bitrate_kbps * 1000  # Convert to bits/s
 
-                        print(f"Calculated bitrate from data sizes: {calculated_bitrate_kbps} kbps (video: {video_size_kb}KB, audio: {audio_size_kb}KB)")
-
                     except (ValueError, IndexError) as e:
                         print(f"Error parsing data sizes from line '{line}': {e}")
                         pass
@@ -646,13 +612,11 @@ class DispatcharrClient:
                             if bitrate_part and bitrate_part != 'N/A':
                                 calculated_bitrate_kbps = float(bitrate_part)
                                 calculated_bitrate = calculated_bitrate_kbps * 1000
-                                print(f"Calculated bitrate from progress line: {calculated_bitrate_kbps} kbps")
                         except (ValueError, IndexError):
                             pass
             
             # Step 2: Use ffprobe to get codec information
             print(f"Analyzing stream metadata with ffprobe...")
-            print(f"Using ffprobe executable: {ffprobe_executable}")
 
             ffprobe_cmd = [
                 ffprobe_executable,
@@ -665,8 +629,6 @@ class DispatcharrClient:
                 stream_url
             ]
 
-            print(f"FFprobe command: {' '.join(ffprobe_cmd)}")
-
             # Run ffprobe
             result = subprocess.run(
                 ffprobe_cmd,
@@ -675,19 +637,8 @@ class DispatcharrClient:
                 timeout=test_duration + 10
             )
 
-            print(f"FFprobe return code: {result.returncode}")
-            print(f"FFprobe stdout length: {len(result.stdout)}")
-            print(f"FFprobe stderr length: {len(result.stderr)}")
-
-            # Log the complete ffprobe output for debugging
-            if result.stdout:
-                print(f"FFprobe stdout:\n{result.stdout}")
-            if result.stderr:
-                print(f"FFprobe stderr:\n{result.stderr}")
-
             if result.returncode != 0:
                 error_msg = result.stderr if result.stderr else "Unknown error"
-                print(f"FFprobe failed with error: {error_msg}")
                 return {
                     'success': False,
                     'message': f'ffprobe failed: {error_msg}',
@@ -706,9 +657,7 @@ class DispatcharrClient:
                     try:
                         calculated_bitrate_kbps = float(format_bitrate) / 1000.0  # Convert from bps to kbps
                         calculated_bitrate = float(format_bitrate)
-                        print(f"Using ffprobe format bitrate as fallback: {calculated_bitrate_kbps} kbps")
                     except (ValueError, TypeError) as e:
-                        print(f"Error parsing ffprobe format bitrate '{format_bitrate}': {e}")
                         pass
                 else:
                     print("No bitrate available from ffprobe format either")

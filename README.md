@@ -7,7 +7,6 @@ Web application for managing Dispatcharr channels and streams with intelligent a
 - 🎯 **Channel & Stream Management**: Complete CRUD operations via web interface
 - 🤖 **Auto-Assignment Rules**: Automatically assign streams to channels based on quality criteria
 - 🏆 **Stream Sorter**: Score-based stream ordering with multi-condition rules
-- 📊 **Real-time Dashboard**: Monitor channel and stream status
 - 🎨 **Modern UI**: Responsive Bootstrap 5 interface
 
 ## Quick Start (Docker)
@@ -198,21 +197,6 @@ docker exec stream-plus python execute_rules.py --all --rule-ids 2 --verbose
 0 * * * * docker exec stream-plus python execute_rules.py --all >> /var/log/stream-plus.log 2>&1
 ```
 
-## Helper Script
-
-Use `docker-helper.sh` for common operations:
-
-```bash
-./docker-helper.sh start       # Start container
-./docker-helper.sh stop        # Stop container
-./docker-helper.sh logs        # View logs
-./docker-helper.sh exec-all    # Execute all rules
-./docker-helper.sh exec-assign # Execute assignment rules
-./docker-helper.sh exec-sort   # Execute sorting rules
-./docker-helper.sh rules       # View configured rules
-./docker-helper.sh health      # Check container health
-```
-
 ## Docker Deployment
 
 ### Build with Custom UID/GID
@@ -231,88 +215,3 @@ Rule files persist in `./rules/` directory:
 - `sorting_rules.json` - Sorting rules
 
 Files are auto-created with empty structure if missing.
-
-### Network Configuration
-
-**Dispatcharr in Docker:**
-```yaml
-environment:
-  - DISPATCHARR_API_URL=http://dispatcharr:8080
-networks:
-  - dispatcharr-network
-```
-
-**Dispatcharr on Host:**
-```yaml
-environment:
-  - DISPATCHARR_API_URL=http://192.168.1.100:8080
-```
-
-## API Endpoints
-
-### Channels
-- `GET/POST /api/channels` - List/create channels
-- `GET/PUT/DELETE /api/channels/<id>` - Manage channel
-
-### Streams
-- `GET/POST /api/streams` - List/create streams
-- `GET/PUT/DELETE /api/streams/<id>` - Manage stream
-- `POST /api/streams/<id>/start` - Start stream
-- `POST /api/streams/<id>/stop` - Stop stream
-
-### Auto-Assignment Rules
-- `GET/POST /api/auto-assignment-rules` - List/create rules
-- `GET/PUT/DELETE /api/auto-assignment-rules/<id>` - Manage rule
-- `POST /api/auto-assignment-rules/<id>/execute` - Execute rule
-
-### Sorting Rules
-- `GET/POST /api/sorting-rules` - List/create rules
-- `GET/PUT/DELETE /api/sorting-rules/<id>` - Manage rule
-- `POST /api/sorting-rules/<id>/preview` - Preview sorting
-- `POST /api/sorting-rules/<id>/execute` - Apply sorting
-
-## Troubleshooting
-
-### Container fails to start
-```bash
-docker logs stream-plus
-docker exec stream-plus env | grep DISPATCHARR
-```
-
-### Cannot connect to Dispatcharr
-```bash
-docker exec stream-plus wget -O- http://dispatcharr:8080
-```
-
-### Permission errors on ./rules
-```bash
-sudo chown -R 1000:1000 ./rules
-```
-
-### Rules not executing
-```bash
-# Verify JSON syntax
-cat ./rules/auto_assignment_rules.json | jq .
-
-# Test manually with verbose output
-docker exec stream-plus python execute_rules.py --all --verbose
-```
-
-## Requirements
-
-- Python 3.8+
-- Dispatcharr API
-- FFmpeg (for stream testing)
-- Docker (for containerized deployment)
-
-## License
-
-MIT License
-
-## Contributing
-
-1. Fork repository
-2. Create feature branch
-3. Commit changes
-4. Push to branch
-5. Create Pull Request

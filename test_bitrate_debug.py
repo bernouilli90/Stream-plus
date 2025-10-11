@@ -1,14 +1,14 @@
 """
-Script de depuración para probar el cálculo de bitrate en un stream
+Debug script to test bitrate calculation in a stream
 """
 import requests
 
-# Usar el endpoint de Flask en lugar de Dispatcharr directamente
+# Use the Flask endpoint instead of Dispatcharr directly
 print("=" * 80)
 print("Testing stream 628: CUATRO FHD --> NEW ERA FHD")
 print("=" * 80)
 
-# Llamar al endpoint de test de la API de Flask
+# Call the test endpoint of the Flask API
 response = requests.post('http://127.0.0.1:5000/api/test-stream/628')
 result = response.json()
 

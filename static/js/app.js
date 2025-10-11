@@ -174,7 +174,7 @@ const StreamPlus = {
     
     // Utility functions
     formatDate: function(dateString) {
-        if (!dateString) return 'Fecha no disponible';
+        if (!dateString) return 'Date not available';
         
         try {
             const date = new Date(dateString);

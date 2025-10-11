@@ -47,7 +47,7 @@
     </div>
 </div>
 
-<!-- Lista de canales recientes -->
+<!-- List of recent channels -->
 {% if channels %}
 <div class="row">
     <div class="col-12">
@@ -68,7 +68,7 @@
                             <div class="card-body">
                                 <h6 class="card-title">
                                     <i class="fas fa-tv text-primary"></i> 
-                                    {{ channel.name if channel.name else 'Canal #' + channel.id|string }}
+                                    {{ channel.name if channel.name else 'Channel #' + channel.id|string }}
                                 </h6>
                                 <p class="card-text text-muted small">
                                     ID: {{ channel.id }}

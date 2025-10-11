@@ -303,8 +303,8 @@ function loadChannelsForFilters() {
             
             if (Array.isArray(channels)) {
                 channels.forEach(channel => {
-                    const option1 = new Option(channel.name || `Canal #${channel.id}`, channel.id);
-                    const option2 = new Option(channel.name || `Canal #${channel.id}`, channel.id);
+                    const option1 = new Option(channel.name || `Channel #${channel.id}`, channel.id);
+                    const option2 = new Option(channel.name || `Channel #${channel.id}`, channel.id);
                     channelFilter.add(option1);
                     streamChannel.add(option2);
                 });
