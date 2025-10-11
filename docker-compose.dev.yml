@@ -1,9 +1,15 @@
 services:
   stream-plus:
-    image: bernouilli/stream-plus:latest
-    container_name: stream-plus
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        USER_UID: 1000
+        USER_GID: 1000
+
+    container_name: stream-plus-dev
     restart: unless-stopped
-    
+
     environment:
       # Dispatcharr API configuration (required)
       - DISPATCHARR_API_URL=http://127.0.0.1:9191
@@ -11,18 +17,20 @@ services:
       - DISPATCHARR_API_PASSWORD=password
       # Flask configuration (optional)
       - PORT=5000
-      - FLASK_DEBUG=false
+      - FLASK_DEBUG=true
       - SECRET_KEY=change-this-secret-key-in-production
-      
+
       # Timezone (optional)
       - TZ=Europe/Madrid
-    
+
     ports:
       - "5000:5000"
-    
+
     volumes:
       - ./rules:/app/rules
-    
+      # Mount source code for development (optional)
+      - .:/app
+
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/"]
       interval: 30s

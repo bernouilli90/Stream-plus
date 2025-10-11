@@ -12,14 +12,52 @@ Web application for managing Dispatcharr channels and streams with intelligent a
 
 ## Quick Start (Docker)
 
+### Production (Recommended)
+
 ```bash
-# 1. Build image
-./docker-build.sh
+# 1. Clone repository
+git clone https://github.com/bernouilli90/Stream-plus.git
+cd Stream-plus
 
 # 2. Configure Dispatcharr credentials in docker-compose.yml
 nano docker-compose.yml
 
 # 3. Start container
+docker-compose up -d
+
+# Access at http://localhost:5000
+```
+
+### Development
+
+```bash
+# 1. Clone repository
+git clone https://github.com/bernouilli90/Stream-plus.git
+cd Stream-plus
+
+# 2. Configure Dispatcharr credentials in docker-compose.dev.yml
+nano docker-compose.dev.yml
+
+# 3. Build and start container
+docker-compose -f docker-compose.dev.yml up -d
+
+# Access at http://localhost:5000
+```
+
+### Manual Build
+
+```bash
+# 1. Clone repository
+git clone https://github.com/bernouilli90/Stream-plus.git
+cd Stream-plus
+
+# 2. Build image manually
+./docker-build.sh
+
+# 3. Configure Dispatcharr credentials in docker-compose.yml
+nano docker-compose.yml
+
+# 4. Start container
 docker-compose up -d
 
 # Access at http://localhost:5000
@@ -65,6 +103,28 @@ FLASK_DEBUG=False
 SECRET_KEY=your-secret-key
 TZ=UTC
 ```
+
+## Docker Images
+
+### Official Images
+
+Pre-built Docker images are available on Docker Hub:
+
+- **Production**: `bernouilli/stream-plus:latest` - Latest stable release
+- **Development**: Build from source using `docker-compose.dev.yml`
+
+### Image Features
+
+- **Alpine Linux** base for minimal size
+- **FFmpeg & FFprobe** included for stream analysis
+- **Non-root user** (UID/GID 1000) for security
+- **Health checks** for container monitoring
+- **Timezone support** via TZ environment variable
+
+### Docker Compose Files
+
+- **`docker-compose.yml`**: Uses pre-built image from Docker Hub (recommended for production)
+- **`docker-compose.dev.yml`**: Builds image from source (recommended for development)
 
 ## Auto-Assignment Rules
 
