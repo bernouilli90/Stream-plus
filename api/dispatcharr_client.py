@@ -524,6 +524,16 @@ class DispatcharrClient:
                 'tools', 'ffprobe_path.txt'
             )
             
+            # Check for local installations (development environment)
+            local_ffprobe = os_module.path.join(
+                os_module.path.dirname(os_module.path.dirname(os_module.path.abspath(__file__))),
+                'tools', 'ffmpeg', 'ffmpeg-7.1-essentials_build', 'bin', 'ffprobe.exe'
+            )
+            local_ffmpeg = os_module.path.join(
+                os_module.path.dirname(os_module.path.dirname(os_module.path.abspath(__file__))),
+                'tools', 'ffmpeg', 'ffmpeg-7.1-essentials_build', 'bin', 'ffmpeg.exe'
+            )
+
             if os_module.path.exists(ffprobe_path_file):
                 try:
                     with open(ffprobe_path_file, 'r') as f:
@@ -536,16 +546,6 @@ class DispatcharrClient:
                 except Exception as e:
                     print(f"Error reading ffprobe path file: {e}, using system ffprobe")
             else:
-                # Check for local installations (development environment)
-                local_ffprobe = os_module.path.join(
-                    os_module.path.dirname(os_module.path.dirname(os_module.path.abspath(__file__))),
-                    'tools', 'ffmpeg', 'ffmpeg-7.1-essentials_build', 'bin', 'ffprobe.exe'
-                )
-                local_ffmpeg = os_module.path.join(
-                    os_module.path.dirname(os_module.path.dirname(os_module.path.abspath(__file__))),
-                    'tools', 'ffmpeg', 'ffmpeg-7.1-essentials_build', 'bin', 'ffmpeg.exe'
-                )
-
                 if os_module.path.exists(local_ffprobe):
                     ffprobe_executable = local_ffprobe
                     print(f"Using local ffprobe: {local_ffprobe}")
