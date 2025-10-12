@@ -29,18 +29,36 @@ try:
     # Find ffprobe executable
     ffprobe_executable = 'ffprobe'
 
-    # Check for local installations
+    # First, check for Docker-specific ffprobe path file
     import os as os_module
-    local_ffprobe = os_module.path.join(
+    ffprobe_path_file = os_module.path.join(
         os_module.path.dirname(os_module.path.dirname(os_module.path.abspath(__file__))),
-        'tools', 'ffmpeg', 'ffmpeg-7.1-essentials_build', 'bin', 'ffprobe.exe'
+        'tools', 'ffprobe_path.txt'
     )
-
-    if os_module.path.exists(local_ffprobe):
-        ffprobe_executable = local_ffprobe
-        print(f'Usando ffprobe local: {ffprobe_executable}')
+    
+    if os_module.path.exists(ffprobe_path_file):
+        try:
+            with open(ffprobe_path_file, 'r') as f:
+                docker_ffprobe_path = f.read().strip()
+                if os_module.path.exists(docker_ffprobe_path):
+                    ffprobe_executable = docker_ffprobe_path
+                    print(f'Usando ffprobe Docker: {docker_ffprobe_path}')
+                else:
+                    print(f'Ruta de ffprobe Docker {docker_ffprobe_path} no existe, usando ffprobe del sistema')
+        except Exception as e:
+            print(f'Error leyendo archivo de ruta ffprobe: {e}, usando ffprobe del sistema')
     else:
-        print('Usando ffprobe del sistema')
+        # Check for local installations (development environment)
+        local_ffprobe = os_module.path.join(
+            os_module.path.dirname(os_module.path.dirname(os_module.path.abspath(__file__))),
+            'tools', 'ffmpeg', 'ffmpeg-7.1-essentials_build', 'bin', 'ffprobe.exe'
+        )
+
+        if os_module.path.exists(local_ffprobe):
+            ffprobe_executable = local_ffprobe
+            print(f'Usando ffprobe local: {ffprobe_executable}')
+        else:
+            print('Usando ffprobe del sistema')
 
     # Test ffprobe directly
     print('Ejecutando ffprobe...')

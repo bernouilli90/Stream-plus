@@ -499,21 +499,39 @@ class DispatcharrClient:
             import os as os_module
             ffprobe_executable = 'ffprobe'
 
-            # Check for local installations
-            local_ffprobe = os_module.path.join(
+            # First, check for Docker-specific ffprobe path file
+            ffprobe_path_file = os_module.path.join(
                 os_module.path.dirname(os_module.path.dirname(os_module.path.abspath(__file__))),
-                'tools', 'ffmpeg', 'ffmpeg-7.1-essentials_build', 'bin', 'ffprobe.exe'
+                'tools', 'ffprobe_path.txt'
             )
-            local_ffmpeg = os_module.path.join(
-                os_module.path.dirname(os_module.path.dirname(os_module.path.abspath(__file__))),
-                'tools', 'ffmpeg', 'ffmpeg-7.1-essentials_build', 'bin', 'ffmpeg.exe'
-            )
-
-            if os_module.path.exists(local_ffprobe):
-                ffprobe_executable = local_ffprobe
-                print(f"Using local ffprobe: {local_ffprobe}")
+            
+            if os_module.path.exists(ffprobe_path_file):
+                try:
+                    with open(ffprobe_path_file, 'r') as f:
+                        docker_ffprobe_path = f.read().strip()
+                        if os_module.path.exists(docker_ffprobe_path):
+                            ffprobe_executable = docker_ffprobe_path
+                            print(f"Using Docker ffprobe: {docker_ffprobe_path}")
+                        else:
+                            print(f"Docker ffprobe path {docker_ffprobe_path} does not exist, using system ffprobe")
+                except Exception as e:
+                    print(f"Error reading ffprobe path file: {e}, using system ffprobe")
             else:
-                print(f"Local ffprobe not found at {local_ffprobe}, using system ffprobe")
+                # Check for local installations (development environment)
+                local_ffprobe = os_module.path.join(
+                    os_module.path.dirname(os_module.path.dirname(os_module.path.abspath(__file__))),
+                    'tools', 'ffmpeg', 'ffmpeg-7.1-essentials_build', 'bin', 'ffprobe.exe'
+                )
+                local_ffmpeg = os_module.path.join(
+                    os_module.path.dirname(os_module.path.dirname(os_module.path.abspath(__file__))),
+                    'tools', 'ffmpeg', 'ffmpeg-7.1-essentials_build', 'bin', 'ffmpeg.exe'
+                )
+
+                if os_module.path.exists(local_ffprobe):
+                    ffprobe_executable = local_ffprobe
+                    print(f"Using local ffprobe: {local_ffprobe}")
+                else:
+                    print(f"Local ffprobe not found at {local_ffprobe}, using system ffprobe")
 
             if os_module.path.exists(local_ffmpeg):
                 ffmpeg_executable = local_ffmpeg
@@ -552,7 +570,7 @@ class DispatcharrClient:
                 ffmpeg_cmd,
                 capture_output=True,
                 text=True,
-                timeout=test_duration + 20
+                timeout=test_duration + 30  # Increased timeout for Docker environments
             )
 
             # Parse bitrate from ffmpeg stderr output
@@ -620,8 +638,8 @@ class DispatcharrClient:
 
             ffprobe_cmd = [
                 ffprobe_executable,
-                '-analyzeduration', str(test_duration * 1000000),  # Convert to microseconds
-                '-probesize', str(test_duration * 5000000),  # Large probesize
+                '-analyzeduration', str(test_duration * 2000000),  # Increased for Docker (2x)
+                '-probesize', str(test_duration * 10000000),  # Increased for Docker (2x)
                 '-v', 'error',
                 '-print_format', 'json',
                 '-show_format',
@@ -634,7 +652,7 @@ class DispatcharrClient:
                 ffprobe_cmd,
                 capture_output=True,
                 text=True,
-                timeout=test_duration + 10
+                timeout=test_duration + 30  # Increased timeout for Docker environments
             )
 
             if result.returncode != 0:
