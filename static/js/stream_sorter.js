@@ -6,6 +6,7 @@
 let currentRuleId = null;
 let conditionCounter = 0;
 let selectedChannelIds = [];
+let selectedChannelGroupIds = [];
 
 // Condition type configurations
 const conditionTypes = {
@@ -56,11 +57,13 @@ const conditionTypes = {
 function showCreateRuleModal() {
     currentRuleId = null;
     selectedChannelIds = [];
+    selectedChannelGroupIds = [];
     document.getElementById('sortingRuleModalTitle').textContent = 'New Sorting Rule';
     document.getElementById('sortingRuleForm').reset();
     document.getElementById('ruleId').value = '';
     document.getElementById('conditionsContainer').innerHTML = '';
     document.getElementById('selectedChannelTags').innerHTML = '';
+    document.getElementById('selectedChannelGroupTags').innerHTML = '';
     conditionCounter = 0;
     
     // Reset test options
@@ -306,6 +309,58 @@ function collectSelectedChannels() {
 }
 
 /**
+ * Add channel group as tag
+ */
+function addChannelGroupTag(groupId, groupName) {
+    if (!groupId || groupId === '') {
+        return;
+    }
+    
+    const groupIdStr = String(groupId);
+    
+    // Check if already added
+    if (selectedChannelGroupIds.includes(groupIdStr)) {
+        return;
+    }
+    
+    // Add to array
+    selectedChannelGroupIds.push(groupIdStr);
+    
+    // Create tag
+    const tag = document.createElement('span');
+    tag.className = 'badge bg-success me-1 mb-1';
+    tag.style.cursor = 'pointer';
+    tag.dataset.groupId = groupIdStr;
+    tag.innerHTML = `${groupName} <i class="fas fa-times ms-1"></i>`;
+    tag.onclick = function() {
+        removeChannelGroupTag(groupIdStr);
+    };
+    
+    document.getElementById('selectedChannelGroupTags').appendChild(tag);
+}
+
+/**
+ * Remove channel group tag
+ */
+function removeChannelGroupTag(groupId) {
+    // Remove from array
+    selectedChannelGroupIds = selectedChannelGroupIds.filter(id => id !== groupId);
+    
+    // Remove tag element
+    const tag = document.querySelector(`#selectedChannelGroupTags [data-group-id="${groupId}"]`);
+    if (tag) {
+        tag.remove();
+    }
+}
+
+/**
+ * Collect selected channel group IDs
+ */
+function collectSelectedChannelGroups() {
+    return selectedChannelGroupIds;
+}
+
+/**
  * Save sorting rule
  */
 async function saveSortingRule() {
@@ -313,6 +368,7 @@ async function saveSortingRule() {
     const name = document.getElementById('ruleName').value.trim();
     const description = document.getElementById('ruleDescription').value.trim();
     const channelIds = collectSelectedChannels();
+    const channelGroupIds = collectSelectedChannelGroups();
     const conditions = collectConditions();
     const testStreamsBeforeSorting = document.getElementById('testStreamsBeforeSorting').checked;
     const forceRetestOldStreams = document.getElementById('forceRetestOldStreams').checked;
@@ -334,7 +390,7 @@ async function saveSortingRule() {
         description: description || null,
         enabled: true,
         channel_ids: channelIds,
-        channel_group_ids: [],
+        channel_group_ids: channelGroupIds,
         conditions: conditions,
         test_streams_before_sorting: testStreamsBeforeSorting,
         force_retest_old_streams: testStreamsBeforeSorting && forceRetestOldStreams,
@@ -403,6 +459,7 @@ async function editSortingRule(ruleId) {
         
         // Clear tags container
         document.getElementById('selectedChannelTags').innerHTML = '';
+        document.getElementById('selectedChannelGroupTags').innerHTML = '';
         
         // Add channel tags
         rule.channel_ids.forEach(channelId => {
@@ -418,6 +475,23 @@ async function editSortingRule(ruleId) {
                     removeChannelTag(channelId);
                 };
                 document.getElementById('selectedChannelTags').appendChild(tag);
+            }
+        });
+        
+        // Add channel group tags
+        rule.channel_group_ids.forEach(groupId => {
+            const group = allChannelGroups.find(g => g.id === groupId);
+            if (group) {
+                selectedChannelGroupIds.push(groupId);
+                const tag = document.createElement('span');
+                tag.className = 'badge bg-success me-1 mb-1';
+                tag.style.cursor = 'pointer';
+                tag.dataset.groupId = groupId;
+                tag.innerHTML = `${group.name || 'Group #' + groupId} <i class="fas fa-times ms-1"></i>`;
+                tag.onclick = function() {
+                    removeChannelGroupTag(groupId);
+                };
+                document.getElementById('selectedChannelGroupTags').appendChild(tag);
             }
         });
         
@@ -875,6 +949,7 @@ function setupModalEventListeners() {
     
     // Setup channel search functionality
     setupChannelSearch();
+    setupChannelGroupSearch();
 }
 
 /**
@@ -970,6 +1045,105 @@ function filterChannels(searchTerm) {
         item.addEventListener('click', function(e) {
             e.preventDefault();
             addChannelTag(channel.id, channel.name || `Channel #${channel.id}`);
+            searchInput.value = '';
+            dropdown.classList.remove('show');
+        });
+        
+        dropdown.appendChild(item);
+    });
+}
+
+/**
+ * Setup channel group search functionality
+ */
+function setupChannelGroupSearch() {
+    const searchInput = document.getElementById('channelGroupSearch');
+    const dropdown = document.getElementById('channelGroupDropdown');
+    
+    if (!searchInput || !dropdown) return;
+    
+    // Show dropdown on focus
+    searchInput.addEventListener('focus', function() {
+        filterChannelGroups('');
+        dropdown.classList.add('show');
+    });
+    
+    // Filter channel groups on input
+    searchInput.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        filterChannelGroups(searchTerm);
+        dropdown.classList.add('show');
+    });
+    
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.classList.remove('show');
+        }
+    });
+    
+    // Handle Enter key to add channel group
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const firstItem = dropdown.querySelector('.dropdown-item:not(.text-muted)');
+            if (firstItem) {
+                firstItem.click();
+            }
+        }
+    });
+}
+
+/**
+ * Filter and display channel groups in dropdown
+ */
+function filterChannelGroups(searchTerm) {
+    const dropdown = document.getElementById('channelGroupDropdown');
+    const searchInput = document.getElementById('channelGroupSearch');
+    
+    if (!dropdown) return;
+    
+    // Filter channel groups
+    const filtered = allChannelGroups.filter(group => {
+        const name = (group.name || '').toLowerCase();
+        const id = String(group.id).toLowerCase();
+        return name.includes(searchTerm) || id.includes(searchTerm);
+    });
+    
+    // Clear dropdown
+    dropdown.innerHTML = '';
+    
+    if (filtered.length === 0) {
+        const noResults = document.createElement('div');
+        noResults.className = 'dropdown-item text-muted';
+        noResults.textContent = 'No channel groups found';
+        dropdown.appendChild(noResults);
+        return;
+    }
+    
+    // Add filtered channel groups
+    filtered.forEach(group => {
+        const item = document.createElement('a');
+        item.className = 'dropdown-item';
+        item.href = '#';
+        item.style.cursor = 'pointer';
+        
+        // Create channel group display
+        const displayHtml = `
+            <div class="d-flex align-items-center">
+                <i class="fas fa-layer-group text-primary me-2"></i>
+                <span>${group.name || 'Group #' + group.id}</span>
+                <small class="text-muted ms-2">(ID: ${group.id})</small>
+                <small class="text-muted ms-2">(${group.channel_ids ? group.channel_ids.length : 0} channels)</small>
+            </div>
+        `;
+        
+        item.innerHTML = displayHtml;
+        
+        // Handle channel group selection
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            addChannelGroupTag(group.id, group.name || `Group #${group.id}`);
             searchInput.value = '';
             dropdown.classList.remove('show');
         });

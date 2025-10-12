@@ -59,14 +59,22 @@
 
                         <!-- Channel Tags -->
                         <div class="mb-2">
-                            <small class="fw-bold d-block mb-1">Channels:</small>
+                            <small class="fw-bold d-block mb-1">Channels & Groups:</small>
                             <div class="d-flex flex-wrap gap-1" id="channelTags{{ rule.id }}">
-                                {% if rule.channel_ids %}
+                                {% if rule.channel_ids or rule.channel_group_ids %}
                                     {% for channel_id in rule.channel_ids %}
                                     <span class="badge bg-primary">
                                         {{ channels_dict.get(channel_id).name if channels_dict.get(channel_id) else 'Channel #' + channel_id|string }}
                                         <i class="fas fa-times ms-1" style="cursor: pointer;" 
                                            onclick="removeChannelFromRule({{ rule.id }}, {{ channel_id }})"></i>
+                                    </span>
+                                    {% endfor %}
+                                    {% for group_id in rule.channel_group_ids %}
+                                    <span class="badge bg-info">
+                                        <i class="fas fa-layer-group me-1"></i>
+                                        {{ channel_groups_dict.get(group_id).name if channel_groups_dict.get(group_id) else 'Group #' + group_id|string }}
+                                        <i class="fas fa-times ms-1" style="cursor: pointer;" 
+                                           onclick="removeChannelGroupFromRule({{ rule.id }}, {{ group_id }})"></i>
                                     </span>
                                     {% endfor %}
                                 {% else %}
@@ -174,6 +182,21 @@
                             Type to search or click to see all channels. Click on tags to remove them. Leave empty to apply to all channels.
                         </small>
                         <div id="selectedChannelTags" class="mt-2"></div>
+                    </div>
+
+                    <!-- Channel Groups Assignment -->
+                    <div class="mb-3">
+                        <label class="form-label">Apply to Channel Groups</label>
+                        <input type="text" class="form-control" id="channelGroupSearch"
+                               placeholder="Search group by name..."
+                               autocomplete="off">
+                        <div id="channelGroupDropdown" class="dropdown-menu" style="max-height: 200px; overflow-y: auto; width: 100%;">
+                            <!-- Groups will be loaded dynamically -->
+                        </div>
+                        <small class="form-text text-muted">
+                            Type to search or click to see all groups. Click on tags to remove them.
+                        </small>
+                        <div id="selectedChannelGroupTags" class="mt-2"></div>
                     </div>
 
                     <!-- Test Streams Option -->
@@ -362,6 +385,7 @@
 <script>
     const m3uAccounts = {{ m3u_accounts|tojson|safe }};
     const allChannels = {{ channels|tojson|safe }};
+    const allChannelGroups = {{ channel_groups|tojson|safe }};
 </script>
 
 <script src="{{ url_for('static', filename='js/stream_sorter_progress.js') }}"></script>

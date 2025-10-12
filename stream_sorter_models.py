@@ -11,6 +11,34 @@ from dataclasses import dataclass, asdict, field
 
 
 @dataclass
+class ChannelGroup:
+    """
+    Group of channels for easier rule management
+    
+    Attributes:
+        id: Unique group ID
+        name: Descriptive group name
+        channel_ids: List of channel IDs in this group
+        description: Optional description of the group
+    """
+    id: int
+    name: str
+    channel_ids: List[int] = field(default_factory=list)
+    description: Optional[str] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Converts group to dictionary"""
+        return asdict(self)
+    
+    @staticmethod
+    def from_dict(data: Dict[str, Any]) -> 'ChannelGroup':
+        """Creates a group from a dictionary"""
+        if 'channel_ids' not in data:
+            data['channel_ids'] = []
+        return ChannelGroup(**data)
+
+
+@dataclass
 class SortingCondition:
     """
     Individual condition for scoring streams
@@ -97,9 +125,16 @@ class SortingRule:
 class SortingRulesManager:
     """Manager for sorting rules persistence"""
     
-    def __init__(self, rules_file: str = 'sorting_rules.json'):
+    def __init__(self, rules_file: str = 'sorting_rules.json', groups_file: str = 'channel_groups.json'):
         self.rules_file = rules_file
+        self.groups_manager = ChannelGroupsManager(groups_file)
         self._ensure_file_exists()
+    
+    def _ensure_file_exists(self):
+        """Creates the rules file if it doesn't exist"""
+        if not os.path.exists(self.rules_file):
+            with open(self.rules_file, 'w', encoding='utf-8') as f:
+                json.dump([], f)
     
     def _ensure_file_exists(self):
         """Creates the rules file if it doesn't exist"""
@@ -186,7 +221,10 @@ class SortingRulesManager:
             # If channel is explicitly assigned
             elif channel_id in rule.channel_ids:
                 applicable_rules.append(rule)
-            # TODO: Add channel group logic when groups are implemented
+            # If channel is in any of the assigned groups
+            elif any(channel_id in self.groups_manager.expand_group_ids([group_id]) 
+                    for group_id in rule.channel_group_ids):
+                applicable_rules.append(rule)
         
         return applicable_rules
     
@@ -196,6 +234,31 @@ class SortingRulesManager:
         if rules:
             return max(r.id for r in rules) + 1
         return 1
+    
+    # Channel Groups Management Methods
+    def create_channel_group(self, name: str, channel_ids: List[int] = None, description: str = None) -> ChannelGroup:
+        """Create a new channel group"""
+        return self.groups_manager.create_group(name, channel_ids, description)
+    
+    def update_channel_group(self, group_id: int, name: str = None, channel_ids: List[int] = None, description: str = None) -> Optional[ChannelGroup]:
+        """Update an existing channel group"""
+        return self.groups_manager.update_group(group_id, name, channel_ids, description)
+    
+    def delete_channel_group(self, group_id: int) -> bool:
+        """Delete a channel group"""
+        return self.groups_manager.delete_group(group_id)
+    
+    def get_channel_group(self, group_id: int) -> Optional[ChannelGroup]:
+        """Get a channel group by ID"""
+        return self.groups_manager.get_group(group_id)
+    
+    def get_all_channel_groups(self) -> List[ChannelGroup]:
+        """Get all channel groups"""
+        return self.groups_manager.get_all_groups()
+    
+    def expand_channel_groups(self, group_ids: List[int]) -> List[int]:
+        """Expand group IDs to their channel IDs"""
+        return self.groups_manager.expand_group_ids(group_ids)
 
 
 class StreamSorter:
@@ -442,3 +505,94 @@ class StreamSorter:
             'score_distribution': score_distribution,
             'max_possible_score': sum(cond.points for cond in rule.conditions)
         }
+
+
+class ChannelGroupsManager:
+    """Manager for channel groups persistence"""
+    
+    def __init__(self, groups_file: str = 'channel_groups.json'):
+        self.groups_file = groups_file
+        self.groups: Dict[int, ChannelGroup] = {}
+        self.next_id = 1
+        self.load_groups()
+    
+    def load_groups(self) -> None:
+        """Load groups from file"""
+        if os.path.exists(self.groups_file):
+            try:
+                with open(self.groups_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    self.groups = {}
+                    for group_data in data.get('groups', []):
+                        group = ChannelGroup.from_dict(group_data)
+                        self.groups[group.id] = group
+                        if group.id >= self.next_id:
+                            self.next_id = group.id + 1
+            except Exception as e:
+                print(f"Error loading channel groups: {e}")
+                self.groups = {}
+    
+    def save_groups(self) -> None:
+        """Save groups to file"""
+        try:
+            data = {
+                'groups': [group.to_dict() for group in self.groups.values()]
+            }
+            with open(self.groups_file, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"Error saving channel groups: {e}")
+    
+    def create_group(self, name: str, channel_ids: List[int] = None, description: str = None) -> ChannelGroup:
+        """Create a new channel group"""
+        group = ChannelGroup(
+            id=self.next_id,
+            name=name,
+            channel_ids=channel_ids or [],
+            description=description
+        )
+        self.groups[group.id] = group
+        self.next_id += 1
+        self.save_groups()
+        return group
+    
+    def update_group(self, group_id: int, name: str = None, channel_ids: List[int] = None, description: str = None) -> Optional[ChannelGroup]:
+        """Update an existing group"""
+        if group_id not in self.groups:
+            return None
+        
+        group = self.groups[group_id]
+        if name is not None:
+            group.name = name
+        if channel_ids is not None:
+            group.channel_ids = channel_ids
+        if description is not None:
+            group.description = description
+        
+        self.save_groups()
+        return group
+    
+    def delete_group(self, group_id: int) -> bool:
+        """Delete a group"""
+        if group_id in self.groups:
+            del self.groups[group_id]
+            self.save_groups()
+            return True
+        return False
+    
+    def get_group(self, group_id: int) -> Optional[ChannelGroup]:
+        """Get a group by ID"""
+        return self.groups.get(group_id)
+    
+    def get_all_groups(self) -> List[ChannelGroup]:
+        """Get all groups"""
+        return list(self.groups.values())
+    
+    def expand_group_ids(self, group_ids: List[int]) -> List[int]:
+        """Expand group IDs to their channel IDs"""
+        channel_ids = []
+        for group_id in group_ids:
+            group = self.get_group(group_id)
+            if group:
+                channel_ids.extend(group.channel_ids)
+        return list(set(channel_ids))  # Remove duplicates

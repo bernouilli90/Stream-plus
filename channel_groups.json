@@ -1,0 +1,14 @@
+{
+  "groups": [
+    {
+      "id": 1,
+      "name": "Test Sports Channels",
+      "channel_ids": [
+        1,
+        2,
+        3
+      ],
+      "description": "A test group for sports channels"
+    }
+  ]
+}

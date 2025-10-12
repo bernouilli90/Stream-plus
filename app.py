@@ -11,7 +11,8 @@ from stream_sorter_models import (
     SortingRulesManager,
     SortingRule,
     SortingCondition,
-    StreamSorter
+    StreamSorter,
+    ChannelGroupsManager
 )
 
 # Load environment variables
@@ -32,6 +33,9 @@ rules_manager = RulesManager()
 
 # Initialize sorting rules manager
 sorting_rules_manager = SortingRulesManager()
+
+# Initialize channel groups manager
+channel_groups_manager = ChannelGroupsManager()
 
 # Dictionary to store progress queues for active executions
 execution_queues = {}
@@ -838,16 +842,18 @@ def stream_sorter():
         channels = dispatcharr_client.get_channels()
         sorting_rules = sorting_rules_manager.load_rules()
         m3u_accounts = dispatcharr_client.get_m3u_accounts()
+        channel_groups = channel_groups_manager.load_groups()
         
         return render_template(
             'stream_sorter.html',
             channels=channels,
             sorting_rules=sorting_rules,
-            m3u_accounts=m3u_accounts
+            m3u_accounts=m3u_accounts,
+            channel_groups=channel_groups
         )
     except Exception as e:
         flash(f'Error loading sorting rules: {str(e)}', 'error')
-        return render_template('stream_sorter.html', channels=[], sorting_rules=[], m3u_accounts=[])
+        return render_template('stream_sorter.html', channels=[], sorting_rules=[], m3u_accounts=[], channel_groups=[])
 
 
 @app.route('/api/sorting-rules', methods=['GET', 'POST'])
@@ -1357,24 +1363,50 @@ def execute_sorting_rule(rule_id):
                     # Testear streams seleccionados
                     for stream_id in streams_to_test:
                         try:
+                            stream_name = next((s.get('name', f'Stream {stream_id}') for s in streams if s['id'] == stream_id), f'Stream {stream_id}')
+                            
+                            queue.put({
+                                'type': 'test_progress',
+                                'stream_id': stream_id,
+                                'stream_name': stream_name,
+                                'current': stream_idx,
+                                'total': len(streams_to_test),
+                                'message': f'Testing stream {stream_idx}/{len(streams_to_test)}: {stream_name}'
+                            })
+                            
                             result = dispatcharr_client.test_stream(stream_id)
                             if result.get('success') and not result.get('save_error'):
                                 tested_count += 1
-                                print(f"Stream {stream_id} tested successfully")
+                                queue.put({
+                                    'type': 'test_success',
+                                    'stream_id': stream_id,
+                                    'message': f'✓ Stream {stream_name} tested successfully'
+                                })
                             else:
                                 failed_tests += 1
                                 error_msg = result.get('save_error', result.get('message', 'Unknown error'))
-                                print(f"Failed to test stream {stream_id}: {error_msg}")
+                                queue.put({
+                                    'type': 'test_fail',
+                                    'stream_id': stream_id,
+                                    'message': f'✗ Failed to test stream {stream_name}: {error_msg}'
+                                })
                         except Exception as e:
                             failed_tests += 1
-                            print(f"Error testing stream {stream_id}: {e}")
+                            queue.put({
+                                'type': 'test_fail',
+                                'stream_id': stream_id,
+                                'message': f'✗ Error testing stream {stream_id}: {str(e)}'
+                            })
                     
-                    # Reload streams to get updated stats
+                    # Reload streams
+                    queue.put({
+                        'type': 'info',
+                        'message': 'Reloading streams with updated stats...'
+                    })
                     streams = dispatcharr_client.get_channel_streams(channel_id)
-                    # Filtrar streams None o inválidos después de recargar
                     streams = [s for s in streams if s is not None and isinstance(s, dict)]
 
-                # Sort streams using the rule
+                # Sort streams usando la regla
                 sorted_streams = StreamSorter.sort_streams(rule, streams)
 
                 # Update channel with new order
