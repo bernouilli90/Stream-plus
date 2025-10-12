@@ -20,9 +20,14 @@
         <h2>
             <i class="fas fa-sort-amount-down text-primary"></i> Stream Sorter
         </h2>
-        <button class="btn btn-primary" onclick="showCreateRuleModal()">
-            <i class="fas fa-plus"></i> New Sorting Rule
-        </button>
+        <div>
+            <button class="btn btn-success me-2" onclick="executeAllSortingRules()" disabled>
+                <i class="fas fa-play"></i> Execute All Rules (WIP)
+            </button>
+            <button class="btn btn-primary" onclick="showCreateRuleModal()">
+                <i class="fas fa-plus"></i> New Sorting Rule
+            </button>
+        </div>
     </div>
 
     <!-- Info alert -->
@@ -41,11 +46,14 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <h5 class="card-title mb-0">{{ rule.name }}</h5>
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" 
-                                       id="ruleToggle{{ rule.id }}"
-                                       {% if rule.enabled %}checked{% endif %}
-                                       onchange="toggleSortingRule({{ rule.id }})">
+                            <div class="text-end">
+                                <small class="text-muted d-block">Order: {{ rule.execution_order }}</small>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" 
+                                           id="ruleToggle{{ rule.id }}"
+                                           {% if rule.enabled %}checked{% endif %}
+                                           onchange="toggleSortingRule({{ rule.id }})">
+                                </div>
                             </div>
                         </div>
 
@@ -175,6 +183,16 @@
                                   placeholder="Describe what this rule does..."></textarea>
                     </div>
 
+                    <!-- Execution Order -->
+                    <div class="mb-3">
+                        <label for="executionOrder" class="form-label">Execution Order</label>
+                        <input type="number" class="form-control" id="executionOrder" min="1" 
+                               placeholder="Lower numbers execute first (default: auto-assigned)">
+                        <small class="form-text text-muted">
+                            Rules execute in order from lowest to highest number. Leave empty for auto-assignment.
+                        </small>
+                    </div>
+
                     <!-- Channel Assignment -->
                     <div class="mb-3">
                         <label class="form-label">Apply to Channels</label>
@@ -185,8 +203,13 @@
                             <!-- Channels will be loaded dynamically -->
                         </div>
                         <small class="form-text text-muted">
-                            Type to search or click to see all channels. Click on tags to remove them. Leave empty to apply to all channels.
+                            Type to search or click to see all channels. Use "Add All Channels" button for bulk selection. Click on tags to remove them.
                         </small>
+                        <div class="mt-2">
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addAllChannels()">
+                                <i class="fas fa-plus-circle me-1"></i>Add All Channels
+                            </button>
+                        </div>
                         <div id="selectedChannelTags" class="mt-2"></div>
                     </div>
 

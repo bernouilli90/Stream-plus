@@ -356,6 +356,131 @@ class RuleExecutor:
             'failed': failed_rules,
             'total_channels_sorted': total_channels_sorted
         }
+    
+    def execute_single_sorting_rule(self, rule: SortingRule, verbose: bool = False) -> dict:
+        """
+        Execute a single sorting rule
+        
+        Args:
+            rule: The sorting rule to execute
+            verbose: Print detailed progress information
+            
+        Returns:
+            Dictionary with execution statistics for this rule
+        """
+        # Determine target channels
+        if rule.all_channels:
+            # Apply to all channels
+            all_channels = self.dispatcharr_client.get_channels()
+            channel_ids = [ch['id'] for ch in all_channels]
+            if verbose:
+                print(f"    Target channels: All ({len(channel_ids)} channel(s))")
+        elif rule.channel_ids:
+            channel_ids = rule.channel_ids
+            if verbose:
+                print(f"    Target channels: {len(channel_ids)} specific channel(s)")
+        else:
+            # Expand group assignments
+            channel_ids = []
+            if rule.channel_group_ids:
+                channel_ids = self.sorting_manager.groups_manager.expand_group_ids(rule.channel_group_ids)
+                if verbose:
+                    print(f"    Target channels: {len(channel_ids)} from group(s)")
+        
+        if not channel_ids:
+            return {'channels_sorted': 0, 'error': 'No channels to sort'}
+        
+        # Test streams if required
+        if rule.test_streams_before_sorting:
+            if verbose:
+                print(f"    Testing streams to get stats...")
+            
+            # Get all streams
+            streams = self.dispatcharr_client.get_streams()
+            
+            # Get streams that belong to target channels
+            channel_stream_ids = set()
+            for channel_id in channel_ids:
+                channel_streams = self.dispatcharr_client.get_channel_streams(channel_id)
+                channel_stream_ids.update(s['id'] for s in channel_streams)
+            
+            # Filter to only test channel streams
+            streams_to_test = [s for s in streams if s['id'] in channel_stream_ids]
+            
+            if verbose:
+                print(f"    {len(streams_to_test)} stream(s) in target channels")
+            
+            tested = 0
+            failed = 0
+            skipped = 0
+            
+            for stream in streams_to_test:
+                stream_stats = stream.get('stream_stats')
+                
+                # Check if we need to test
+                needs_test = StreamSorter._needs_stream_testing(
+                    stream_stats,
+                    rule.force_retest_old_streams,
+                    rule.retest_days_threshold
+                )
+                
+                if needs_test:
+                    # Test the stream
+                    try:
+                        updated_stream = self.dispatcharr_client.update_stream(stream['id'], stream)
+                        if updated_stream and updated_stream.get('stream_stats'):
+                            tested += 1
+                        else:
+                            failed += 1
+                    except Exception as e:
+                        if verbose:
+                            print(f"      ❌ Failed to test stream {stream['id']}: {str(e)}")
+                        failed += 1
+                else:
+                    skipped += 1
+            
+            if verbose:
+                print(f"    Stream testing: {tested} tested, {skipped} skipped, {failed} failed")
+        
+        # Sort each channel
+        sorted_count = 0
+        for channel_id in channel_ids:
+            if verbose:
+                print(f"      Sorting channel {channel_id}...")
+            
+            try:
+                # Get channel streams
+                channel_streams = self.dispatcharr_client.get_channel_streams(channel_id)
+                
+                if not channel_streams:
+                    if verbose:
+                        print(f"        (empty channel, skipped)")
+                    continue
+                
+                # Score and sort streams
+                sorted_streams = StreamSorter.sort_streams(rule, channel_streams)
+                
+                # Update order in Dispatcharr
+                channel = self.dispatcharr_client.get_channel(channel_id)
+                if channel:
+                    channel['streams'] = [s['id'] for s in sorted_streams]
+                    success = self.dispatcharr_client.update_channel(channel_id, channel)
+                else:
+                    success = False
+                
+                if success:
+                    sorted_count += 1
+                    if verbose:
+                        print(f"        ✓ Sorted {len(sorted_streams)} stream(s)")
+                else:
+                    if verbose:
+                        print(f"        ❌ Failed to update order")
+                        
+            except Exception as e:
+                if verbose:
+                    print(f"        ❌ Error sorting channel {channel_id}: {str(e)}")
+        
+        return {'channels_sorted': sorted_count}
 
 
 def main():

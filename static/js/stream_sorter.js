@@ -7,6 +7,7 @@ let currentRuleId = null;
 let conditionCounter = 0;
 let selectedChannelIds = [];
 let selectedChannelGroupIds = [];
+let allChannelsSelected = false;  // New flag for "all channels" mode
 
 // Condition type configurations
 const conditionTypes = {
@@ -60,6 +61,7 @@ function showCreateRuleModal() {
         currentRuleId = null;
         selectedChannelIds = [];
         selectedChannelGroupIds = [];
+        allChannelsSelected = false;
         document.getElementById('sortingRuleModalTitle').textContent = 'New Sorting Rule';
         document.getElementById('sortingRuleForm').reset();
         document.getElementById('ruleId').value = '';
@@ -72,6 +74,7 @@ function showCreateRuleModal() {
         document.getElementById('testStreamsBeforeSorting').checked = false;
         document.getElementById('forceRetestOldStreams').checked = false;
         document.getElementById('retestDaysThreshold').value = 7;
+        document.getElementById('executionOrder').value = '';
         
         // Setup event listeners for modal
         setupModalEventListeners();
@@ -277,6 +280,12 @@ function addChannelTag(channelId, channelName) {
         return;
     }
     
+    // If all channels was selected, clear it first
+    if (allChannelsSelected) {
+        allChannelsSelected = false;
+        document.getElementById('selectedChannelTags').innerHTML = '';
+    }
+    
     // Add to array
     selectedChannelIds.push(channelIdInt);
     
@@ -311,7 +320,7 @@ function removeChannelTag(channelId) {
  * Collect selected channel IDs
  */
 function collectSelectedChannels() {
-    return selectedChannelIds;
+    return allChannelsSelected ? [] : selectedChannelIds;
 }
 
 /**
@@ -327,6 +336,12 @@ function addChannelGroupTag(groupId, groupName) {
     // Check if already added
     if (selectedChannelGroupIds.includes(groupIdStr)) {
         return;
+    }
+    
+    // If all channels was selected, clear it first
+    if (allChannelsSelected) {
+        allChannelsSelected = false;
+        document.getElementById('selectedChannelTags').innerHTML = '';
     }
     
     // Add to array
@@ -379,7 +394,8 @@ async function saveSortingRule() {
     const testStreamsBeforeSorting = document.getElementById('testStreamsBeforeSorting').checked;
     const forceRetestOldStreams = document.getElementById('forceRetestOldStreams').checked;
     const retestDaysThresholdValue = document.getElementById('retestDaysThreshold').value;
-    const retestDaysThreshold = retestDaysThresholdValue !== '' ? parseInt(retestDaysThresholdValue) : 7;
+    const executionOrderValue = document.getElementById('executionOrder').value;
+    const executionOrder = executionOrderValue !== '' ? parseInt(executionOrderValue) : null;
     
     if (!name) {
         StreamPlus.showNotification('Rule name is required', 'error');
@@ -397,10 +413,12 @@ async function saveSortingRule() {
         enabled: true,
         channel_ids: channelIds,
         channel_group_ids: channelGroupIds,
+        all_channels: allChannelsSelected,
         conditions: conditions,
         test_streams_before_sorting: testStreamsBeforeSorting,
         force_retest_old_streams: testStreamsBeforeSorting && forceRetestOldStreams,
-        retest_days_threshold: retestDaysThreshold
+        retest_days_threshold: retestDaysThresholdValue,
+        execution_order: executionOrder
     };
     
     try {
@@ -461,31 +479,47 @@ async function editSortingRule(ruleId) {
         // Populate form
         currentRuleId = ruleId;
         selectedChannelIds = [];
+        selectedChannelGroupIds = [];
+        allChannelsSelected = rule.all_channels || false;
         document.getElementById('sortingRuleModalTitle').textContent = 'Edit Sorting Rule';
         document.getElementById('ruleId').value = ruleId;
         document.getElementById('ruleName').value = rule.name;
         document.getElementById('ruleDescription').value = rule.description || '';
+        document.getElementById('executionOrder').value = rule.execution_order || '';
         
         // Clear tags container
         document.getElementById('selectedChannelTags').innerHTML = '';
         document.getElementById('selectedChannelGroupTags').innerHTML = '';
         
-        // Add channel tags
-        rule.channel_ids.forEach(channelId => {
-            const channel = allChannels.find(ch => ch.id === channelId);
-            if (channel) {
-                selectedChannelIds.push(channelId);
-                const tag = document.createElement('span');
-                tag.className = 'badge bg-primary me-1 mb-1';
-                tag.style.cursor = 'pointer';
-                tag.dataset.channelId = channelId;
-                tag.innerHTML = `${channel.name || 'Channel #' + channelId} <i class="fas fa-times ms-1"></i>`;
-                tag.onclick = function() {
-                    removeChannelTag(channelId);
-                };
-                document.getElementById('selectedChannelTags').appendChild(tag);
-            }
-        });
+        // Handle all channels selection
+        if (allChannelsSelected) {
+            const allChannelsTag = document.createElement('span');
+            allChannelsTag.className = 'badge bg-warning me-1 mb-1';
+            allChannelsTag.style.cursor = 'pointer';
+            allChannelsTag.innerHTML = 'All Channels <i class="fas fa-times ms-1"></i>';
+            allChannelsTag.onclick = function() {
+                allChannelsSelected = false;
+                document.getElementById('selectedChannelTags').innerHTML = '';
+            };
+            document.getElementById('selectedChannelTags').appendChild(allChannelsTag);
+        } else {
+            // Add channel tags
+            rule.channel_ids.forEach(channelId => {
+                const channel = allChannels.find(ch => ch.id === channelId);
+                if (channel) {
+                    selectedChannelIds.push(channelId);
+                    const tag = document.createElement('span');
+                    tag.className = 'badge bg-primary me-1 mb-1';
+                    tag.style.cursor = 'pointer';
+                    tag.dataset.channelId = channelId;
+                    tag.innerHTML = `${channel.name || 'Channel #' + channelId} <i class="fas fa-times ms-1"></i>`;
+                    tag.onclick = function() {
+                        removeChannelTag(channelId);
+                    };
+                    document.getElementById('selectedChannelTags').appendChild(tag);
+                }
+            });
+        }
         
         // Add channel group tags
         rule.channel_group_ids.forEach(groupId => {
@@ -1221,4 +1255,240 @@ async function updateChannelGroups() {
         console.error('Error updating channel groups:', error);
         throw error;
     }
+}
+
+/**
+ * Add all available channels to the current rule
+ */
+function addAllChannels() {
+    if (!allChannels || allChannels.length === 0) {
+        StreamPlus.showNotification('No channels available', 'warning');
+        return;
+    }
+    
+    // Clear existing channel tags
+    document.getElementById('selectedChannelTags').innerHTML = '';
+    selectedChannelIds = [];
+    
+    // Set all channels flag
+    allChannelsSelected = true;
+    
+    // Create special "All channels" tag
+    const allChannelsTag = document.createElement('span');
+    allChannelsTag.className = 'badge bg-warning me-1 mb-1';
+    allChannelsTag.style.cursor = 'pointer';
+    allChannelsTag.innerHTML = 'All Channels <i class="fas fa-times ms-1"></i>';
+    allChannelsTag.onclick = function() {
+        allChannelsSelected = false;
+        document.getElementById('selectedChannelTags').innerHTML = '';
+    };
+    
+    document.getElementById('selectedChannelTags').appendChild(allChannelsTag);
+    
+    StreamPlus.showNotification('Rule will apply to all channels', 'success');
+}
+
+/**
+ * Execute all sorting rules
+ */
+async function executeAllSortingRules() {
+    try {
+        StreamPlus.showLoading();
+        
+        const requestData = { stream: true };
+        console.log('Sending request data:', requestData);
+        console.log('JSON stringified:', JSON.stringify(requestData));
+        
+        // Start execution
+        const response = await fetch('/api/sorting-rules/execute-all', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(requestData)
+        });
+        
+        console.log('Response status:', response.status);
+        console.log('Response status text:', response.statusText);
+        console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+        console.log('Response ok:', response.ok);
+        
+        if (!response.ok) {
+            let errorMessage = 'Error starting execution';
+            try {
+                const error = await response.json();
+                errorMessage = error.error || errorMessage;
+            } catch (e) {
+                // If response is not JSON, use status text
+                const responseText = await response.text();
+                console.log('Response text:', responseText);
+                errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
+        }
+        
+        const result = await response.json();
+        
+        if (result.stream && result.execution_id) {
+            // Show progress modal for streaming execution
+            showAllRulesExecutionModal(result.execution_id);
+        } else {
+            // Simple execution completed
+            StreamPlus.showNotification(result.message, 'success');
+        }
+        
+    } catch (error) {
+        console.error('Error executing all rules:', error);
+        StreamPlus.showNotification(error.message, 'error');
+    } finally {
+        StreamPlus.hideLoading();
+    }
+}
+
+/**
+ * Show modal for executing all rules with progress
+ */
+function showAllRulesExecutionModal(executionId) {
+    // Create modal HTML
+    const modalHtml = `
+        <div class="modal fade" id="allRulesExecutionModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fas fa-play text-success me-2"></i>
+                            Executing All Sorting Rules
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="allRulesExecutionProgress" class="mb-3">
+                            <div class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2">Starting execution...</p>
+                            </div>
+                        </div>
+                        <div id="allRulesExecutionLog" class="border rounded p-3 bg-light" style="max-height: 400px; overflow-y: auto; font-family: monospace; font-size: 0.875rem;">
+                            <!-- Execution log will be appended here -->
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if present
+    const existingModal = document.getElementById('allRulesExecutionModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('allRulesExecutionModal'));
+    modal.show();
+    
+    // Start listening for progress updates
+    listenForAllRulesExecutionProgress(executionId);
+}
+
+/**
+ * Listen for execution progress updates
+ */
+function listenForAllRulesExecutionProgress(executionId) {
+    const eventSource = new EventSource(`/api/sorting-rules/execute-all/stream?execution_id=${executionId}`);
+    const progressDiv = document.getElementById('allRulesExecutionProgress');
+    const logDiv = document.getElementById('allRulesExecutionLog');
+    
+    eventSource.onmessage = function(event) {
+        try {
+            const data = JSON.parse(event.data);
+            
+            if (data.type === 'start') {
+                progressDiv.innerHTML = `
+                    <div class="alert alert-info">
+                        <strong>Starting execution:</strong> ${data.message}
+                    </div>
+                `;
+                logDiv.innerHTML += `<div class="text-info">[START] ${data.message}</div>`;
+                
+            } else if (data.type === 'rule_start') {
+                progressDiv.innerHTML = `
+                    <div class="alert alert-primary">
+                        <strong>Executing Rule ${data.rule_index}/${data.total_rules}:</strong> ${data.rule_name}
+                        <div class="progress mt-2">
+                            <div class="progress-bar" role="progressbar" style="width: ${(data.rule_index-1)/data.total_rules*100}%"></div>
+                        </div>
+                    </div>
+                `;
+                logDiv.innerHTML += `<div class="text-primary fw-bold">[RULE ${data.rule_index}/${data.total_rules}] Starting: ${data.rule_name}</div>`;
+                logDiv.scrollTop = logDiv.scrollHeight;
+                
+            } else if (data.type === 'rule_progress') {
+                progressDiv.innerHTML = `
+                    <div class="alert alert-primary">
+                        <strong>Executing Rule ${data.rule_index}/${data.total_rules}:</strong> ${data.rule_name}
+                        <div class="progress mt-2">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" 
+                                 style="width: ${data.progress}%"></div>
+                        </div>
+                        <small class="text-muted">${data.message}</small>
+                    </div>
+                `;
+                logDiv.innerHTML += `<div class="text-muted">${data.message}</div>`;
+                logDiv.scrollTop = logDiv.scrollHeight;
+                
+            } else if (data.type === 'rule_complete') {
+                logDiv.innerHTML += `<div class="text-success">[COMPLETE] Rule ${data.rule_index}/${data.total_rules}: ${data.rule_name} - ${data.channels_sorted} channels sorted</div>`;
+                logDiv.scrollTop = logDiv.scrollHeight;
+                
+            } else if (data.type === 'complete') {
+                progressDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <strong>Execution Complete!</strong><br>
+                        ${data.rules_executed} rules executed, ${data.total_channels_sorted} channels sorted
+                    </div>
+                `;
+                logDiv.innerHTML += `<div class="text-success fw-bold">[FINISHED] All rules executed successfully</div>`;
+                logDiv.scrollTop = logDiv.scrollHeight;
+                
+                // Close EventSource after a delay
+                setTimeout(() => eventSource.close(), 2000);
+                
+            } else if (data.type === 'error') {
+                progressDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <strong>Error:</strong> ${data.message}
+                    </div>
+                `;
+                logDiv.innerHTML += `<div class="text-danger">[ERROR] ${data.message}</div>`;
+                logDiv.scrollTop = logDiv.scrollHeight;
+                eventSource.close();
+                
+            } else if (data.type === 'keepalive') {
+                // Keep-alive message, ignore
+            }
+            
+        } catch (e) {
+            console.error('Error parsing SSE data:', e);
+        }
+    };
+    
+    eventSource.onerror = function(error) {
+        console.error('EventSource error:', error);
+        progressDiv.innerHTML = `
+            <div class="alert alert-warning">
+                <strong>Connection lost</strong> - Refresh the page to check execution status
+            </div>
+        `;
+        eventSource.close();
+    };
 }

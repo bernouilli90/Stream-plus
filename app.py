@@ -5,6 +5,7 @@ import time
 from queue import Queue
 from threading import Thread
 from dotenv import load_dotenv
+from flask_cors import CORS
 from api.dispatcharr_client import DispatcharrClient
 from models import RulesManager, AutoAssignmentRule, StreamMatcher
 from stream_sorter_models import (
@@ -51,6 +52,9 @@ def update_execution_timestamp(feature):
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+
+# Enable CORS for all routes
+CORS(app)
 
 # Configure API client
 dispatcharr_client = DispatcharrClient(
@@ -904,8 +908,8 @@ def api_sorting_rules():
     """API endpoint to list and create sorting rules"""
     try:
         if request.method == 'GET':
-            # Get all rules
-            rules = sorting_rules_manager.load_rules()
+            # Get all rules ordered by execution order
+            rules = sorting_rules_manager.load_rules_ordered()
             return jsonify([rule.to_dict() for rule in rules])
         
         elif request.method == 'POST':
@@ -933,7 +937,9 @@ def api_sorting_rules():
                 description=data.get('description'),
                 test_streams_before_sorting=data.get('test_streams_before_sorting', False),
                 force_retest_old_streams=data.get('force_retest_old_streams', False),
-                retest_days_threshold=data.get('retest_days_threshold', 7)
+                retest_days_threshold=data.get('retest_days_threshold', 7),
+                execution_order=data.get('execution_order', 999),
+                all_channels=data.get('all_channels', False)
             )
             
             # Save rule
@@ -953,6 +959,18 @@ def api_sorting_rule(rule_id):
             rule = sorting_rules_manager.get_rule(rule_id)
             if not rule:
                 return jsonify({'error': 'Rule not found'}), 404
+            
+            # Clean up references to non-existent groups (groups that are now empty)
+            # This ensures the UI shows a consistent state after optimization
+            existing_group_ids = set(channel_groups_manager.groups.keys())
+            cleaned_group_ids = [gid for gid in rule.channel_group_ids if gid in existing_group_ids]
+            
+            if len(cleaned_group_ids) != len(rule.channel_group_ids):
+                # Some groups were cleaned up, update the rule
+                rule.channel_group_ids = cleaned_group_ids
+                sorting_rules_manager.update_rule(rule_id, rule)
+                print(f"Cleaned up {len(rule.channel_group_ids) - len(cleaned_group_ids)} non-existent group references from rule {rule_id}")
+            
             return jsonify(rule.to_dict())
         
         elif request.method == 'PUT':
@@ -983,7 +1001,9 @@ def api_sorting_rule(rule_id):
                 description=data.get('description'),
                 test_streams_before_sorting=data.get('test_streams_before_sorting', False),
                 force_retest_old_streams=data.get('force_retest_old_streams', False),
-                retest_days_threshold=data.get('retest_days_threshold', 7)
+                retest_days_threshold=data.get('retest_days_threshold', 7),
+                execution_order=data.get('execution_order', 999),
+                all_channels=data.get('all_channels', False)
             )
             
             # Update rule
@@ -1318,6 +1338,46 @@ def execute_sorting_rule(rule_id):
         if not rule.enabled:
             return jsonify({'error': 'Rule is disabled'}), 400
         
+        # Pre-execution validation: Check that assigned channels and groups exist
+        validation_warnings = []
+        
+        # If rule applies to all channels, skip individual channel validation
+        if rule.all_channels:
+            # Load all available channels
+            try:
+                all_channels = dispatcharr_client.get_channels()
+                valid_channel_ids = [ch['id'] for ch in all_channels if isinstance(ch, dict)]
+                print(f"Rule applies to all channels: loaded {len(valid_channel_ids)} channels")
+            except Exception as e:
+                return jsonify({'error': f'Error loading all channels: {str(e)}'}), 500
+        else:
+            # Check direct channel assignments
+            valid_channel_ids = []
+            for channel_id in rule.channel_ids:
+                try:
+                    channel = dispatcharr_client.get_channel(channel_id)
+                    if channel:
+                        valid_channel_ids.append(channel_id)
+                    else:
+                        validation_warnings.append(f"Channel {channel_id} does not exist")
+                except Exception as e:
+                    validation_warnings.append(f"Error checking channel {channel_id}: {str(e)}")
+        
+        # Check group assignments (only if not applying to all channels)
+        valid_group_ids = []
+        if not rule.all_channels:
+            for group_id in rule.channel_group_ids:
+                if group_id in channel_groups_manager.groups:
+                    valid_group_ids.append(group_id)
+                else:
+                    validation_warnings.append(f"Channel group {group_id} does not exist")
+        
+        # Log warnings if any
+        if validation_warnings:
+            print(f"Rule '{rule.name}' (ID: {rule_id}) has validation warnings:")
+            for warning in validation_warnings:
+                print(f"  - {warning}")
+        
         # Determine the channels to process
         data = request.get_json() or {}
         manual_channel_id = data.get('channel_id')
@@ -1327,12 +1387,18 @@ def execute_sorting_rule(rule_id):
             # If a channel is provided manually, use that
             channel_ids = [manual_channel_id]
         else:
-            # Combine direct channel assignments and expanded group assignments
-            channel_ids = list(rule.channel_ids)  # Start with direct channels
-            
-            # Expand any assigned groups to their channel IDs
-            if rule.channel_group_ids:
-                expanded_group_channels = channel_groups_manager.expand_group_ids(rule.channel_group_ids)
+            if rule.all_channels:
+                # Rule applies to all channels, use all valid channels loaded
+                channel_ids = valid_channel_ids
+            else:
+                # Combine direct channel assignments and expanded group assignments
+                channel_ids = list(valid_channel_ids)  # Start with validated direct channels
+                
+                # Expand any assigned groups to their channel IDs
+                if valid_group_ids:
+                    expanded_group_channels = channel_groups_manager.expand_group_ids(valid_group_ids)
+                    channel_ids.extend(expanded_group_channels)
+                expanded_group_channels = channel_groups_manager.expand_group_ids(valid_group_ids)
                 channel_ids.extend(expanded_group_channels)
             
             # Remove duplicates and ensure we have channels
@@ -1580,27 +1646,185 @@ def execute_all_auto_assignment_rules():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/sorting-rules/execute-all', methods=['POST'])
+@app.route('/api/sorting-rules/execute-all', methods=['POST', 'OPTIONS'])
 def execute_all_sorting_rules():
     """Execute all enabled sorting rules"""
+    if request.method == 'OPTIONS':
+        print("DEBUG: Received OPTIONS request")
+        response = jsonify({'message': 'OK'})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        return response
+        
     try:
+        raw_data = request.get_data()
+        
+        # Try to parse JSON manually
+        if raw_data:
+            try:
+                import json
+                data = json.loads(raw_data.decode('utf-8'))
+            except Exception as json_error:
+                return jsonify({'error': f'JSON parsing failed: {str(json_error)}'}), 400
+        else:
+            data = {}
+        
+        use_stream = data.get('stream', False)  # If true, use SSE streaming
+        
+        if use_stream:
+            import uuid
+            execution_id = str(uuid.uuid4())
+            
+            # Create queue for this execution
+            queue = Queue()
+            execution_queues[execution_id] = queue
+            
+            # Start background thread
+            thread = Thread(
+                target=execute_all_sorting_rules_in_background,
+                args=(execution_id, queue)
+            )
+            thread.daemon = True
+            thread.start()
+            
+            return jsonify({
+                'success': True,
+                'execution_id': execution_id,
+                'stream': True,
+                'message': 'Execution started. Connect to SSE endpoint to monitor progress.'
+            })
+        
+        # Synchronous execution (original behavior)
         from execute_rules import RuleExecutor
         executor = RuleExecutor()
-
+        
         # Execute all rules
         result = executor.execute_sorting_rules(verbose=True)
-
+        
         # Update execution timestamp
         update_execution_timestamp("stream_sorter")
-
+        
         return jsonify({
             'success': True,
             'message': f'Executed {result.get("rules_executed", 0)} sorting rules',
             'details': result
         })
-
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/sorting-rules/execute-all/stream')
+def execute_all_sorting_rules_stream():
+    """SSE endpoint to stream all rules execution progress"""
+    execution_id = request.args.get('execution_id')
+    
+    if not execution_id or execution_id not in execution_queues:
+        return jsonify({'error': 'Invalid execution ID'}), 400
+    
+    def generate():
+        queue = execution_queues[execution_id]
+        
+        try:
+            while True:
+                # Get message from queue (block for max 30 seconds)
+                try:
+                    message = queue.get(timeout=30)
+                    
+                    if message is None:  # Signal to stop
+                        break
+                    
+                    # Send SSE message
+                    yield f"data: {json.dumps(message)}\n\n"
+                    
+                except Exception as e:
+                    # Timeout or error, send keepalive
+                    yield f"data: {json.dumps({'type': 'keepalive'})}\n\n"
+        finally:
+            # Clean up queue when client disconnects
+            if execution_id in execution_queues:
+                del execution_queues[execution_id]
+    
+    return Response(
+        stream_with_context(generate()),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no'
+        }
+    )
+
+
+def execute_all_sorting_rules_in_background(execution_id, queue):
+    """Execute all sorting rules in background thread and send progress updates"""
+    try:
+        from execute_rules import RuleExecutor
+        executor = RuleExecutor()
+        
+        # Load rules in execution order
+        all_rules = sorting_rules_manager.load_rules_ordered()
+        enabled_rules = [r for r in all_rules if r.enabled]
+        
+        if not enabled_rules:
+            queue.put({'type': 'error', 'message': 'No enabled rules found'})
+            queue.put(None)
+            return
+        
+        queue.put({
+            'type': 'start',
+            'message': f'Starting execution of {len(enabled_rules)} sorting rules',
+            'total_rules': len(enabled_rules)
+        })
+        
+        total_channels_sorted = 0
+        successful_rules = 0
+        
+        for idx, rule in enumerate(enabled_rules, 1):
+            queue.put({
+                'type': 'rule_start',
+                'rule_index': idx,
+                'total_rules': len(enabled_rules),
+                'rule_name': rule.name,
+                'rule_id': rule.id
+            })
+            
+            try:
+                # Execute single rule and get result
+                result = executor.execute_single_sorting_rule(rule, verbose=False)
+                
+                channels_sorted = result.get('channels_sorted', 0)
+                total_channels_sorted += channels_sorted
+                successful_rules += 1
+                
+                queue.put({
+                    'type': 'rule_complete',
+                    'rule_index': idx,
+                    'total_rules': len(enabled_rules),
+                    'rule_name': rule.name,
+                    'channels_sorted': channels_sorted
+                })
+                
+            except Exception as e:
+                queue.put({
+                    'type': 'error',
+                    'message': f'Error executing rule {rule.name}: {str(e)}'
+                })
+                break
+        
+        # Update execution timestamp
+        update_execution_timestamp("stream_sorter")
+        
+        queue.put({
+            'type': 'complete',
+            'rules_executed': successful_rules,
+            'total_channels_sorted': total_channels_sorted
+        })
+        
+    except Exception as e:
+        queue.put({'type': 'error', 'message': f'Unexpected error: {str(e)}'})
+    finally:
+        queue.put(None)  # Signal completion
 
 
 @app.route('/api/sorting-rules/<int:rule_id>/preview', methods=['POST'])

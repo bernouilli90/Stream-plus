@@ -79,6 +79,8 @@ class SortingRule:
         conditions: List of scoring conditions
         description: Optional description of the rule
         test_streams_before_sorting: Whether to test streams to obtain stats before sorting
+        execution_order: Order in which this rule should be executed (lower numbers = higher priority)
+        all_channels: Whether this rule applies to all available channels
     """
     id: int
     name: str
@@ -90,6 +92,8 @@ class SortingRule:
     test_streams_before_sorting: bool = False
     force_retest_old_streams: bool = False
     retest_days_threshold: int = 7
+    execution_order: int = 999  # Default high number for new rules
+    all_channels: bool = False  # Whether this rule applies to all channels
     
     def to_dict(self) -> Dict[str, Any]:
         """Converts rule to dictionary"""
@@ -122,6 +126,24 @@ class SortingRule:
             # Convert group IDs to integers (they might be strings from JSON)
             data['channel_group_ids'] = [int(gid) for gid in data['channel_group_ids']]
             
+        # Set default execution order for existing rules
+        if 'execution_order' not in data:
+            data['execution_order'] = 999
+            
+        # Set default all_channels for existing rules
+        if 'all_channels' not in data:
+            data['all_channels'] = False
+            
+        # Ensure retest_days_threshold is an integer
+        if 'retest_days_threshold' in data:
+            try:
+                data['retest_days_threshold'] = int(data['retest_days_threshold'])
+            except (TypeError, ValueError):
+                # If it's not convertible to int, use default
+                data['retest_days_threshold'] = 7
+        else:
+            data['retest_days_threshold'] = 7
+            
         return SortingRule(**data)
 
 
@@ -144,6 +166,11 @@ class SortingRulesManager:
         if not os.path.exists(self.rules_file):
             with open(self.rules_file, 'w', encoding='utf-8') as f:
                 json.dump([], f)
+    
+    def load_rules_ordered(self) -> List[SortingRule]:
+        """Loads all rules ordered by execution_order"""
+        rules = self.load_rules()
+        return sorted(rules, key=lambda r: r.execution_order)
     
     def load_rules(self) -> List[SortingRule]:
         """Loads all rules from the file"""
@@ -180,6 +207,15 @@ class SortingRulesManager:
         else:
             rule.id = 1
         
+        # Assign execution order if not specified or if it's the default
+        if rule.execution_order == 999:  # Default value
+            # Find the next available execution order
+            existing_orders = [r.execution_order for r in rules if r.execution_order < 999]
+            if existing_orders:
+                rule.execution_order = max(existing_orders) + 1
+            else:
+                rule.execution_order = 1
+        
         rules.append(rule)
         self.save_rules(rules)
         return rule
@@ -210,7 +246,7 @@ class SortingRulesManager:
         return False
     
     def get_rules_for_channel(self, channel_id: int) -> List[SortingRule]:
-        """Gets all active rules that apply to a specific channel"""
+        """Gets all active rules that apply to a specific channel, ordered by execution_order"""
         rules = self.load_rules()
         applicable_rules = []
         
@@ -218,8 +254,11 @@ class SortingRulesManager:
             if not rule.enabled:
                 continue
             
-            # If no channels assigned, rule applies to all channels
-            if not rule.channel_ids and not rule.channel_group_ids:
+            # If rule applies to all channels, it applies to this channel
+            if rule.all_channels:
+                applicable_rules.append(rule)
+            # If no channels assigned and not all_channels, rule applies to all channels
+            elif not rule.channel_ids and not rule.channel_group_ids:
                 applicable_rules.append(rule)
             # If channel is explicitly assigned
             elif channel_id in rule.channel_ids:
@@ -229,6 +268,8 @@ class SortingRulesManager:
                     for group_id in rule.channel_group_ids):
                 applicable_rules.append(rule)
         
+        # Sort by execution order (ascending)
+        applicable_rules.sort(key=lambda r: r.execution_order)
         return applicable_rules
     
     def get_next_id(self) -> int:
@@ -521,44 +562,79 @@ class ChannelGroupsManager:
         self.load_groups()
     
     def load_groups(self) -> None:
-        """Load groups from Dispatcharr API or file"""
-        print(f"Loading groups from Dispatcharr API...")
+        """Load groups from Dispatcharr API or file - optimized to only load groups with channels"""
+        print(f"Loading channel groups efficiently...")
         
         # Try to load from Dispatcharr API first
-        if self.dispatcharr_client and hasattr(self.dispatcharr_client, 'get_channel_groups'):
+        if self.dispatcharr_client and hasattr(self.dispatcharr_client, 'get_channels'):
             try:
-                api_groups = self.dispatcharr_client.get_channel_groups()
-                print(f"Loaded {len(api_groups)} groups from Dispatcharr API")
+                # Load ALL channels in one request
+                print("Loading all channels to determine active groups...")
+                all_channels = self.dispatcharr_client.get_channels()
+                print(f"Loaded {len(all_channels)} channels from Dispatcharr API")
                 
-                self.groups = {}
-                for api_group in api_groups:
-                    group_id = api_group['id']
-                    group_name = api_group['name']
-                    
-                    # Get channels that belong to this group
+                # Group channels by channel_group_id
+                groups_channels = {}
+                for channel in all_channels:
+                    group_id = channel.get('channel_group_id')
+                    if group_id is not None:
+                        if group_id not in groups_channels:
+                            groups_channels[group_id] = []
+                        groups_channels[group_id].append(channel['id'])
+                
+                print(f"Found {len(groups_channels)} groups with channels assigned")
+                
+                # Only load group names for groups that have channels
+                if groups_channels:
                     try:
-                        all_channels = self.dispatcharr_client.get_channels()
-                        channel_ids = [ch['id'] for ch in all_channels if ch.get('channel_group_id') == group_id]
-                        print(f"Group '{group_name}' (ID: {group_id}) has {len(channel_ids)} channels")
+                        api_groups = self.dispatcharr_client.get_channel_groups()
+                        print(f"Loaded {len(api_groups)} group definitions from API")
+                        
+                        # Create groups only for those that have channels
+                        self.groups = {}
+                        for api_group in api_groups:
+                            group_id = api_group['id']
+                            if group_id in groups_channels:  # Only if this group has channels
+                                group = ChannelGroup(
+                                    id=group_id,
+                                    name=api_group['name'],
+                                    channel_ids=groups_channels[group_id],
+                                    description=f"Group from Dispatcharr API ({len(groups_channels[group_id])} channels)"
+                                )
+                                self.groups[group.id] = group
+                                print(f"Group '{api_group['name']}' (ID: {group_id}) has {len(groups_channels[group_id])} channels")
+                                if group.id >= self.next_id:
+                                    self.next_id = group.id + 1
+                        
+                        print(f"Total active groups loaded from API: {len(self.groups)}")
+                        return
+                        
                     except Exception as e:
-                        print(f"Error getting channels for group {group_id}: {e}")
-                        channel_ids = []
+                        print(f"Error loading group names from Dispatcharr API: {e}")
+                        # Fallback: create groups with generic names but correct channel assignments
+                        self.groups = {}
+                        for group_id, channel_ids in groups_channels.items():
+                            group = ChannelGroup(
+                                id=group_id,
+                                name=f"Group {group_id}",
+                                channel_ids=channel_ids,
+                                description=f"Auto-detected group ({len(channel_ids)} channels)"
+                            )
+                            self.groups[group.id] = group
+                            print(f"Auto-detected group {group_id} with {len(channel_ids)} channels")
+                            if group.id >= self.next_id:
+                                self.next_id = group.id + 1
+                        
+                        print(f"Total auto-detected groups: {len(self.groups)}")
+                        return
+                
+                else:
+                    print("No groups with channels found")
+                    self.groups = {}
+                    return
                     
-                    group = ChannelGroup(
-                        id=group_id,
-                        name=group_name,
-                        channel_ids=channel_ids,
-                        description=f"Group from Dispatcharr API"
-                    )
-                    self.groups[group.id] = group
-                    if group.id >= self.next_id:
-                        self.next_id = group.id + 1
-                
-                print(f"Total groups loaded from API: {len(self.groups)}")
-                return
-                
             except Exception as e:
-                print(f"Error loading groups from Dispatcharr API: {e}")
+                print(f"Error loading channels/groups from Dispatcharr API: {e}")
                 print("Falling back to local file...")
         else:
             print("Dispatcharr client not available or invalid, loading from local file...")
