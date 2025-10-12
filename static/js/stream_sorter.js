@@ -55,30 +55,36 @@ const conditionTypes = {
  * Show create rule modal
  */
 function showCreateRuleModal() {
-    currentRuleId = null;
-    selectedChannelIds = [];
-    selectedChannelGroupIds = [];
-    document.getElementById('sortingRuleModalTitle').textContent = 'New Sorting Rule';
-    document.getElementById('sortingRuleForm').reset();
-    document.getElementById('ruleId').value = '';
-    document.getElementById('conditionsContainer').innerHTML = '';
-    document.getElementById('selectedChannelTags').innerHTML = '';
-    document.getElementById('selectedChannelGroupTags').innerHTML = '';
-    conditionCounter = 0;
-    
-    // Reset test options
-    document.getElementById('testStreamsBeforeSorting').checked = false;
-    document.getElementById('forceRetestOldStreams').checked = false;
-    document.getElementById('retestDaysThreshold').value = 7;
-    
-    // Setup event listeners for modal
-    setupModalEventListeners();
-    toggleRetestOptions();
-    
-    updateMaxPossibleScore();
-    
-    const modal = new bootstrap.Modal(document.getElementById('sortingRuleModal'));
-    modal.show();
+    // Update channel groups before showing modal
+    updateChannelGroups().then(() => {
+        currentRuleId = null;
+        selectedChannelIds = [];
+        selectedChannelGroupIds = [];
+        document.getElementById('sortingRuleModalTitle').textContent = 'New Sorting Rule';
+        document.getElementById('sortingRuleForm').reset();
+        document.getElementById('ruleId').value = '';
+        document.getElementById('conditionsContainer').innerHTML = '';
+        document.getElementById('selectedChannelTags').innerHTML = '';
+        document.getElementById('selectedChannelGroupTags').innerHTML = '';
+        conditionCounter = 0;
+        
+        // Reset test options
+        document.getElementById('testStreamsBeforeSorting').checked = false;
+        document.getElementById('forceRetestOldStreams').checked = false;
+        document.getElementById('retestDaysThreshold').value = 7;
+        
+        // Setup event listeners for modal
+        setupModalEventListeners();
+        toggleRetestOptions();
+        
+        updateMaxPossibleScore();
+        
+        const modal = new bootstrap.Modal(document.getElementById('sortingRuleModal'));
+        modal.show();
+    }).catch(error => {
+        console.error('Error updating channel groups:', error);
+        StreamPlus.showNotification('Error loading channel groups', 'error');
+    });
 }
 
 /**
@@ -443,6 +449,9 @@ async function saveSortingRule() {
 async function editSortingRule(ruleId) {
     try {
         StreamPlus.showLoading();
+        
+        // Update channel groups before editing
+        await updateChannelGroups();
         
         const response = await fetch(`/api/sorting-rules/${ruleId}`);
         if (!response.ok) throw new Error('Error loading rule');
@@ -1105,6 +1114,11 @@ function filterChannelGroups(searchTerm) {
     
     // Filter channel groups
     const filtered = allChannelGroups.filter(group => {
+        // Only show groups that have channels
+        if (!group.channel_ids || group.channel_ids.length === 0) {
+            return false;
+        }
+        
         const name = (group.name || '').toLowerCase();
         const id = String(group.id).toLowerCase();
         return name.includes(searchTerm) || id.includes(searchTerm);
@@ -1150,4 +1164,24 @@ function filterChannelGroups(searchTerm) {
         
         dropdown.appendChild(item);
     });
+}
+
+/**
+ * Update channel groups from server
+ */
+async function updateChannelGroups() {
+    try {
+        const response = await fetch('/api/channel-groups');
+        if (!response.ok) throw new Error('Error loading channel groups');
+        
+        const groups = await response.json();
+        // Update the global variable
+        window.allChannelGroups = groups;
+        
+        console.log(`Updated ${groups.length} channel groups from server`);
+        return groups;
+    } catch (error) {
+        console.error('Error updating channel groups:', error);
+        throw error;
+    }
 }

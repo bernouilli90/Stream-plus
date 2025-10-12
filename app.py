@@ -35,7 +35,7 @@ rules_manager = RulesManager()
 sorting_rules_manager = SortingRulesManager()
 
 # Initialize channel groups manager
-channel_groups_manager = ChannelGroupsManager()
+channel_groups_manager = ChannelGroupsManager(dispatcharr_client)
 
 # Dictionary to store progress queues for active executions
 execution_queues = {}
@@ -842,7 +842,9 @@ def stream_sorter():
         channels = dispatcharr_client.get_channels()
         sorting_rules = sorting_rules_manager.load_rules()
         m3u_accounts = dispatcharr_client.get_m3u_accounts()
-        channel_groups = channel_groups_manager.load_groups()
+        channel_groups = [group.to_dict() for group in channel_groups_manager.groups.values()]
+        print(f"Passing to template: {len(channels)} channels, {len(channel_groups)} groups")
+        print(f"Channel groups data: {channel_groups}")
         
         return render_template(
             'stream_sorter.html',
@@ -957,6 +959,18 @@ def api_sorting_rule(rule_id):
                 return jsonify({'error': 'Rule not found'}), 404
             return jsonify({'success': True, 'message': 'Rule deleted successfully'})
             
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/channel-groups')
+def api_channel_groups():
+    """API endpoint to get updated channel groups"""
+    try:
+        # Force reload groups from API
+        channel_groups_manager.load_groups()
+        groups = [group.to_dict() for group in channel_groups_manager.groups.values()]
+        return jsonify(groups)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -1086,23 +1100,30 @@ def execute_sorting_in_background(rule_id, channel_ids, queue):
                         threshold = datetime.now(timezone.utc) - timedelta(days=rule.retest_days_threshold)
                         
                         for stream in streams:
+                            # Check if the stream has valid stats
                             has_stats = stream.get('stream_stats') and isinstance(stream.get('stream_stats'), dict)
                             stream_stats_date_str = stream.get('stream_stats_updated_at')
                             
                             if not has_stats or not stream_stats_date_str:
+                                # No stats or no stats date, test
                                 streams_to_test.append(stream['id'])
                             else:
                                 try:
+                                    # Parse the stat date
                                     stream_stats_date = datetime.fromisoformat(stream_stats_date_str.replace('Z', '+00:00'))
                                     
+                                    # If older or equal to threshold, test
                                     if stream_stats_date <= threshold:
                                         streams_to_test.append(stream['id'])
                                     else:
+                                        # Recent stats, skip
                                         skipped_count += 1
                                 except (ValueError, AttributeError) as e:
+                                    # Error parsing date, test for safety
+                                    print(f"Error parsing stats_date for stream {stream['id']}: {e}")
                                     streams_to_test.append(stream['id'])
                     else:
-                        # Force retest ALL streams (even with recent stats)
+                        # Force re-testeo de TODOS los streams (incluso los que tienen stats recientes)
                         streams_to_test = [s['id'] for s in streams]
                     
                     queue.put({
@@ -1128,10 +1149,22 @@ def execute_sorting_in_background(rule_id, channel_ids, queue):
                             result = dispatcharr_client.test_stream(stream_id)
                             if result.get('success') and not result.get('save_error'):
                                 tested_count += 1
+                                # Get stream stats for display
+                                stats = result.get('statistics', {})
+                                stats_message = ""
+                                if stats:
+                                    bitrate = stats.get('output_bitrate') or stats.get('ffmpeg_output_bitrate')
+                                    resolution = stats.get('resolution', 'Unknown')
+                                    codec = stats.get('video_codec', 'Unknown')
+                                    if bitrate:
+                                        stats_message = f" ({resolution}, {codec}, {bitrate:.0f}kbps)"
+                                
                                 queue.put({
                                     'type': 'test_success',
                                     'stream_id': stream_id,
-                                    'message': f'✓ Stream {stream_name} tested successfully'
+                                    'stream_name': stream_name,
+                                    'statistics': stats,
+                                    'message': f'✓ Stream {stream_name} tested successfully{stats_message}'
                                 })
                             else:
                                 failed_tests += 1
@@ -1252,12 +1285,20 @@ def execute_sorting_rule(rule_id):
         if manual_channel_id:
             # If a channel is provided manually, use that
             channel_ids = [manual_channel_id]
-        elif rule.channel_ids:
-            # If the rule has assigned channels, use those
-            channel_ids = rule.channel_ids
         else:
-            # If no channels assigned or provided, error
-            return jsonify({'error': 'No channels specified. Rule has no assigned channels.'}), 400
+            # Combine direct channel assignments and expanded group assignments
+            channel_ids = list(rule.channel_ids)  # Start with direct channels
+            
+            # Expand any assigned groups to their channel IDs
+            if rule.channel_group_ids:
+                expanded_group_channels = channel_groups_manager.expand_group_ids(rule.channel_group_ids)
+                channel_ids.extend(expanded_group_channels)
+            
+            # Remove duplicates and ensure we have channels
+            channel_ids = list(set(channel_ids))
+            
+            if not channel_ids:
+                return jsonify({'error': 'No channels specified. Rule has no assigned channels or groups.'}), 400
         
         # If streaming requested and rule requires testing, use background execution
         if use_stream and rule.test_streams_before_sorting:
@@ -1339,21 +1380,21 @@ def execute_sorting_rule(rule_id):
                             stream_stats_date_str = stream.get('stream_stats_updated_at')
                             
                             if not has_stats or not stream_stats_date_str:
-                                # No stats or no stats date, test
+                                # No stats o sin fecha de stats, testear
                                 streams_to_test.append(stream['id'])
                             else:
                                 try:
-                                    # Parse the stat date
+                                    # Parsear la fecha de los stats
                                     stream_stats_date = datetime.fromisoformat(stream_stats_date_str.replace('Z', '+00:00'))
                                     
-                                    # If older or equal to threshold, test
+                                    # Si es más antigua o igual que el umbral, testear
                                     if stream_stats_date <= threshold:
                                         streams_to_test.append(stream['id'])
                                     else:
-                                        # Recent stats, skip
+                                        # Stats recientes, saltar
                                         skipped_count += 1
                                 except (ValueError, AttributeError) as e:
-                                    # Error parsing date, test for safety
+                                    # Error al parsear la fecha, testear por seguridad
                                     print(f"Error parsing stats_date for stream {stream['id']}: {e}")
                                     streams_to_test.append(stream['id'])
                     else:

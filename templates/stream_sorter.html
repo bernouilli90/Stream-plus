@@ -9,6 +9,12 @@
     {% set _ = channels_dict.update({channel.id: channel}) %}
 {% endfor %}
 
+{# Create a dictionary of channel groups for easy lookup #}
+{% set channel_groups_dict = {} %}
+{% for group in channel_groups %}
+    {% set _ = channel_groups_dict.update({group.id: group}) %}
+{% endfor %}
+
 <div class="container-fluid mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>
@@ -72,7 +78,7 @@
                                     {% for group_id in rule.channel_group_ids %}
                                     <span class="badge bg-info">
                                         <i class="fas fa-layer-group me-1"></i>
-                                        {{ channel_groups_dict.get(group_id).name if channel_groups_dict.get(group_id) else 'Group #' + group_id|string }}
+                                        {{ channel_groups_dict.get(group_id|int).name if channel_groups_dict.get(group_id|int) else 'Group #' + group_id }}
                                         <i class="fas fa-times ms-1" style="cursor: pointer;" 
                                            onclick="removeChannelGroupFromRule({{ rule.id }}, {{ group_id }})"></i>
                                     </span>

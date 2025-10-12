@@ -470,6 +470,19 @@ class DispatcharrClient:
             return result
         return result.get('results', [])
     
+    def get_channel_groups(self) -> List[Dict[str, Any]]:
+        """
+        Get all channel groups
+        
+        Returns:
+            List of channel groups
+        """
+        result = self._make_request('GET', '/api/channels/groups/')
+        # API may return direct list or paginated object
+        if isinstance(result, list):
+            return result
+        return result.get('results', [])
+    
     def test_stream(self, stream_id: int, test_duration: int = None) -> Dict[str, Any]:
         """
         Test a stream using ffprobe to analyze its properties and quality.

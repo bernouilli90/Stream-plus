@@ -113,11 +113,14 @@ class SortingRule:
         else:
             data['conditions'] = []
         
-        # Ensure lists exist
+        # Ensure lists exist and convert group IDs to integers
         if 'channel_ids' not in data:
             data['channel_ids'] = []
         if 'channel_group_ids' not in data:
             data['channel_group_ids'] = []
+        else:
+            # Convert group IDs to integers (they might be strings from JSON)
+            data['channel_group_ids'] = [int(gid) for gid in data['channel_group_ids']]
             
         return SortingRule(**data)
 
@@ -510,27 +513,80 @@ class StreamSorter:
 class ChannelGroupsManager:
     """Manager for channel groups persistence"""
     
-    def __init__(self, groups_file: str = 'channel_groups.json'):
+    def __init__(self, dispatcharr_client=None, groups_file: str = 'channel_groups.json'):
         self.groups_file = groups_file
         self.groups: Dict[int, ChannelGroup] = {}
         self.next_id = 1
+        self.dispatcharr_client = dispatcharr_client
         self.load_groups()
     
     def load_groups(self) -> None:
-        """Load groups from file"""
+        """Load groups from Dispatcharr API or file"""
+        print(f"Loading groups from Dispatcharr API...")
+        
+        # Try to load from Dispatcharr API first
+        if self.dispatcharr_client and hasattr(self.dispatcharr_client, 'get_channel_groups'):
+            try:
+                api_groups = self.dispatcharr_client.get_channel_groups()
+                print(f"Loaded {len(api_groups)} groups from Dispatcharr API")
+                
+                self.groups = {}
+                for api_group in api_groups:
+                    group_id = api_group['id']
+                    group_name = api_group['name']
+                    
+                    # Get channels that belong to this group
+                    try:
+                        all_channels = self.dispatcharr_client.get_channels()
+                        channel_ids = [ch['id'] for ch in all_channels if ch.get('channel_group_id') == group_id]
+                        print(f"Group '{group_name}' (ID: {group_id}) has {len(channel_ids)} channels")
+                    except Exception as e:
+                        print(f"Error getting channels for group {group_id}: {e}")
+                        channel_ids = []
+                    
+                    group = ChannelGroup(
+                        id=group_id,
+                        name=group_name,
+                        channel_ids=channel_ids,
+                        description=f"Group from Dispatcharr API"
+                    )
+                    self.groups[group.id] = group
+                    if group.id >= self.next_id:
+                        self.next_id = group.id + 1
+                
+                print(f"Total groups loaded from API: {len(self.groups)}")
+                return
+                
+            except Exception as e:
+                print(f"Error loading groups from Dispatcharr API: {e}")
+                print("Falling back to local file...")
+        else:
+            print("Dispatcharr client not available or invalid, loading from local file...")
+        
+        # Fallback to local file
+        print(f"Loading groups from: {self.groups_file}")
+        print(f"File exists: {os.path.exists(self.groups_file)}")
         if os.path.exists(self.groups_file):
             try:
                 with open(self.groups_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
+                    print(f"Loaded data: {data}")
                     self.groups = {}
                     for group_data in data.get('groups', []):
                         group = ChannelGroup.from_dict(group_data)
                         self.groups[group.id] = group
+                        print(f"Loaded group: {group.name} (ID: {group.id})")
                         if group.id >= self.next_id:
                             self.next_id = group.id + 1
+                    print(f"Total groups loaded: {len(self.groups)}")
             except Exception as e:
                 print(f"Error loading channel groups: {e}")
+                import traceback
+                traceback.print_exc()
                 self.groups = {}
+        else:
+            print("Groups file does not exist")
+            self.groups = {}
     
     def save_groups(self) -> None:
         """Save groups to file"""
