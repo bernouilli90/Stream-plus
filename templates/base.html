@@ -34,16 +34,6 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'channels' %}active{% endif %}" href="{{ url_for('channels') }}">
-                            <i class="fas fa-tv"></i> Channels
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'streams' %}active{% endif %}" href="{{ url_for('streams') }}">
-                            <i class="fas fa-play-circle"></i> Streams
-                        </a>
-                    </li>
-                    <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'auto_assign' %}active{% endif %}" href="{{ url_for('auto_assign') }}">
                             <i class="fas fa-magic"></i> Auto-Assignment
                         </a>

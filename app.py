@@ -50,26 +50,6 @@ def index():
         flash(f'Error getting data: {str(e)}', 'error')
         return render_template('index.html', channels=[])
 
-@app.route('/channels')
-def channels():
-    """Channel management page"""
-    try:
-        channels_data = dispatcharr_client.get_channels()
-        return render_template('channels.html', channels=channels_data)
-    except Exception as e:
-        flash(f'Error getting channels: {str(e)}', 'error')
-        return render_template('channels.html', channels=[])
-
-@app.route('/streams')
-def streams():
-    """Stream management page"""
-    try:
-        streams_data = dispatcharr_client.get_streams()
-        return render_template('streams.html', streams=streams_data)
-    except Exception as e:
-        flash(f'Error getting streams: {str(e)}', 'error')
-        return render_template('streams.html', streams=[])
-
 @app.route('/auto-assign')
 def auto_assign():
     """Stream auto-assignment to channels page"""

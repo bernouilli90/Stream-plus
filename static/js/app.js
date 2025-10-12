@@ -25,8 +25,8 @@ const StreamPlus = {
     // Get current page from URL
     getCurrentPage: function() {
         const path = window.location.pathname;
-        if (path.includes('channels')) return 'channels';
-        if (path.includes('streams')) return 'streams';
+        if (path.includes('auto-assign')) return 'auto-assign';
+        if (path.includes('stream-sorter')) return 'stream-sorter';
         return 'index';
     },
     
@@ -334,13 +334,13 @@ function exportCurrentData() {
     let filename = '';
     
     switch (currentPage) {
-        case 'channels':
-            endpoint = '/api/channels';
-            filename = 'channels_export.json';
+        case 'auto-assign':
+            endpoint = '/api/auto-assign-rules';
+            filename = 'auto_assign_rules_export.json';
             break;
-        case 'streams':
-            endpoint = '/api/streams';
-            filename = 'streams_export.json';
+        case 'stream-sorter':
+            endpoint = '/api/sorting-rules';
+            filename = 'sorting_rules_export.json';
             break;
         default:
             StreamPlus.showNotification('No data to export on this page', 'warning');
