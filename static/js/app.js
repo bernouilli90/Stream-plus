@@ -1,5 +1,12 @@
 // Stream Plus - JavaScript Functions
 
+// Global alert function
+function showAlert(message, type = 'info', duration = 5000) {
+    console.log('showAlert called with:', message, type);
+    // For now, just show a simple alert
+    alert(message);
+}
+
 // Global configuration
 const StreamPlus = {
     apiBaseUrl: '',
@@ -136,8 +143,48 @@ const StreamPlus = {
             }, duration);
         }
     },
-    
-    // Loading management
+    showAlert: function(message, type = 'info', duration = 5000) {
+        const alertTypes = {
+            'info': 'alert-info',
+            'success': 'alert-success', 
+            'warning': 'alert-warning',
+            'error': 'alert-danger',
+            'danger': 'alert-danger'
+        };
+        
+        const alertClass = alertTypes[type] || 'alert-info';
+        
+        // Create or find alert container
+        let alertContainer = document.getElementById('alert-container');
+        if (!alertContainer) {
+            alertContainer = document.createElement('div');
+            alertContainer.id = 'alert-container';
+            alertContainer.className = 'container-fluid mt-3';
+            
+            // Insert at the beginning of the main content
+            const mainContent = document.querySelector('main') || document.querySelector('.container') || document.body;
+            mainContent.insertBefore(alertContainer, mainContent.firstChild);
+        }
+        
+        const alert = document.createElement('div');
+        alert.className = `alert ${alertClass} alert-dismissible fade show`;
+        alert.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        alertContainer.appendChild(alert);
+        
+        // Auto dismiss after duration
+        if (duration > 0) {
+            setTimeout(() => {
+                if (alert.parentNode) {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                }
+            }, duration);
+        }
+    },
     showLoading: function(element = null) {
         const target = element || document.getElementById('loading');
         if (target) {
@@ -382,3 +429,6 @@ window.addEventListener('unhandledrejection', function(event) {
 
 // Export StreamPlus for use in other scripts
 window.StreamPlus = StreamPlus;
+
+// Global showAlert function for backward compatibility
+window.showAlert = StreamPlus.showAlert;

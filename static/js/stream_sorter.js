@@ -600,11 +600,13 @@ async function previewSortingRule(ruleId) {
         if (!ruleResponse.ok) throw new Error('Error loading rule');
         const rule = await ruleResponse.json();
         
-        // Get assigned channel IDs
+        // Get assigned channel IDs from both direct assignments and groups
         const assignedChannelIds = rule.channel_ids || [];
+        const assignedGroupIds = rule.channel_group_ids || [];
         
-        if (assignedChannelIds.length === 0) {
-            showAlert('This rule has no assigned channels. Please assign at least one channel.', 'warning');
+        // If no channels or groups are assigned, show error
+        if (assignedChannelIds.length === 0 && assignedGroupIds.length === 0) {
+            showAlert('This rule has no assigned channels. Please assign at least one channel.');
             return;
         }
         
@@ -613,8 +615,43 @@ async function previewSortingRule(ruleId) {
         if (!channelsResponse.ok) throw new Error('Error loading channels');
         const allChannels = await channelsResponse.json();
         
-        // Filter only assigned channels
-        const assignedChannels = allChannels.filter(ch => assignedChannelIds.includes(ch.id));
+        // Get channel groups if needed
+        let allChannelGroups = [];
+        if (assignedGroupIds.length > 0) {
+            const groupsResponse = await fetch('/api/channel-groups');
+            if (!groupsResponse.ok) throw new Error('Error loading channel groups');
+            allChannelGroups = await groupsResponse.json();
+        }
+        
+        // Collect all assigned channels (from direct assignment and groups)
+        let assignedChannels = [];
+        
+        // Add directly assigned channels
+        if (assignedChannelIds.length > 0) {
+            assignedChannels = assignedChannels.concat(
+                allChannels.filter(ch => assignedChannelIds.includes(ch.id))
+            );
+        }
+        
+        // Add channels from assigned groups
+        if (assignedGroupIds.length > 0) {
+            for (const groupId of assignedGroupIds) {
+                const group = allChannelGroups.find(g => g.id === groupId);
+                if (group && group.channel_ids) {
+                    const groupChannels = allChannels.filter(ch => group.channel_ids.includes(ch.id));
+                    assignedChannels = assignedChannels.concat(groupChannels);
+                }
+            }
+        }
+        // Remove duplicates
+        assignedChannels = assignedChannels.filter((channel, index, self) => 
+            index === self.findIndex(c => c.id === channel.id)
+        );
+        
+        if (assignedChannels.length === 0) {
+            showAlert('No channels found in the assigned groups. Please check your group assignments.');
+            return;
+        }
         
         // If only one channel is assigned, load preview directly without showing selector
         if (assignedChannels.length === 1) {
@@ -679,7 +716,7 @@ async function previewSortingRule(ruleId) {
                     executeRuleOnChannel(ruleId, parseInt(channelId));
                     modal.hide();
                 } else {
-                    showAlert('Please select a channel first', 'warning');
+                    showAlert('Please select a channel first');
                 }
             };
             
