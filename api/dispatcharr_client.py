@@ -1,5 +1,6 @@
 import requests
 import json
+import os
 from typing import Dict, List, Optional, Any
 
 class DispatcharrClient:
@@ -469,18 +470,23 @@ class DispatcharrClient:
             return result
         return result.get('results', [])
     
-    def test_stream(self, stream_id: int, test_duration: int = 10) -> Dict[str, Any]:
+    def test_stream(self, stream_id: int, test_duration: int = None) -> Dict[str, Any]:
         """
         Test a stream using ffprobe to analyze its properties and quality.
         Uses the stream's direct URL. Updates the stream in Dispatcharr with the analyzed statistics.
         
         Args:
             stream_id: ID of the stream to test
-            test_duration: How long to analyze the stream (in seconds)
+            test_duration: How long to analyze the stream (in seconds). If None, uses STREAM_TEST_DURATION env var or default 10
             
         Returns:
-            Dict with test results including stream statistics
+            Dict with test results
         """
+        # Get configurable parameters from environment
+        if test_duration is None:
+            test_duration = int(os.getenv('STREAM_TEST_DURATION', '10'))
+        
+        timeout_buffer = int(os.getenv('STREAM_TEST_TIMEOUT_BUFFER', '30'))
         import subprocess
         import time
         
@@ -570,7 +576,7 @@ class DispatcharrClient:
                 ffmpeg_cmd,
                 capture_output=True,
                 text=True,
-                timeout=test_duration + 30  # Increased timeout for Docker environments
+                timeout=test_duration + timeout_buffer
             )
 
             # Parse bitrate from ffmpeg stderr output
@@ -652,7 +658,7 @@ class DispatcharrClient:
                 ffprobe_cmd,
                 capture_output=True,
                 text=True,
-                timeout=test_duration + 30  # Increased timeout for Docker environments
+                timeout=test_duration + timeout_buffer
             )
 
             if result.returncode != 0:

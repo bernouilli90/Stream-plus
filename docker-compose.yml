@@ -14,6 +14,10 @@ services:
       - FLASK_DEBUG=false
       - SECRET_KEY=change-this-secret-key-in-production
       
+      # Stream testing configuration (optional)
+      - STREAM_TEST_DURATION=10
+      - STREAM_TEST_TIMEOUT_BUFFER=30
+      
       # Timezone (optional)
       - TZ=Europe/Madrid
     

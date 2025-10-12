@@ -639,7 +639,7 @@ def execute_auto_assignment_in_background(rule_id, queue):
                             'message': f'Testing stream {stream_idx}/{len(streams_to_test)}: {stream_name}...'
                         })
                         
-                        result = dispatcharr_client.test_stream(stream_id, test_duration=10)
+                        result = dispatcharr_client.test_stream(stream_id)
                         
                         # Send progress update AFTER test completes
                         queue.put({
@@ -1119,7 +1119,7 @@ def execute_sorting_in_background(rule_id, channel_ids, queue):
                                 'message': f'Testing stream {stream_idx}/{len(streams_to_test)}: {stream_name}'
                             })
                             
-                            result = dispatcharr_client.test_stream(stream_id, test_duration=10)
+                            result = dispatcharr_client.test_stream(stream_id)
                             if result.get('success') and not result.get('save_error'):
                                 tested_count += 1
                                 queue.put({
@@ -1357,7 +1357,7 @@ def execute_sorting_rule(rule_id):
                     # Testear streams seleccionados
                     for stream_id in streams_to_test:
                         try:
-                            result = dispatcharr_client.test_stream(stream_id, test_duration=10)
+                            result = dispatcharr_client.test_stream(stream_id)
                             if result.get('success') and not result.get('save_error'):
                                 tested_count += 1
                                 print(f"Stream {stream_id} tested successfully")
