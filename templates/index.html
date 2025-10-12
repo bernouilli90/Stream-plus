@@ -18,135 +18,284 @@
     </div>
 </div>
 
-<!-- Cards de resumen -->
+<!-- Feature Cards -->
 <div class="row mb-4">
     <div class="col-md-6">
         <div class="card border-primary">
-            <div class="card-body text-center">
-                <i class="fas fa-tv fa-3x text-primary mb-3"></i>
-                <h5 class="card-title">Channels</h5>
-                <p class="card-text display-6 text-primary">{{ channels|length if channels else 0 }}</p>
-                <a href="{{ url_for('channels') }}" class="btn btn-primary">
-                    <i class="fas fa-cog"></i> Manage Channels
-                </a>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-6">
-        <div class="card border-success">
-            <div class="card-body text-center">
-                <i class="fas fa-play-circle fa-3x text-success mb-3"></i>
-                <h5 class="card-title">Streams</h5>
-                <p class="card-text display-6 text-success" id="streams-count">0</p>
-                <a href="{{ url_for('streams') }}" class="btn btn-success">
-                    <i class="fas fa-play"></i> Manage Streams
-                </a>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- List of recent channels -->
-{% if channels %}
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                    <i class="fas fa-list"></i> Available Channels
-                </h5>
-                <a href="{{ url_for('channels') }}" class="btn btn-sm btn-outline-primary">
-                    View all <i class="fas fa-arrow-right"></i>
-                </a>
-            </div>
             <div class="card-body">
-                <div class="row">
-                    {% for channel in channels[:6] %}
-                    <div class="col-md-4 mb-3">
-                        <div class="card h-100 shadow-sm">
-                            <div class="card-body">
-                                <h6 class="card-title">
-                                    <i class="fas fa-tv text-primary"></i> 
-                                    {{ channel.name if channel.name else 'Channel #' + channel.id|string }}
-                                </h6>
-                                <p class="card-text text-muted small">
-                                    ID: {{ channel.id }}
-                                </p>
-                                {% if channel.status %}
-                                <span class="badge bg-{% if channel.status == 'active' %}success{% elif channel.status == 'inactive' %}secondary{% else %}warning{% endif %}">
-                                    {{ channel.status|title }}
-                                </span>
+                <div class="text-center mb-3">
+                    <i class="fas fa-magic fa-3x text-primary"></i>
+                </div>
+                <h5 class="card-title text-center">Auto-Assignment</h5>
+                <p class="card-text text-center">Automatically assign streams to channels based on custom rules.</p>
+
+                <!-- Rules Info -->
+                <div class="row text-center mb-3">
+                    <div class="col-6">
+                        <div class="border rounded p-2">
+                            <div class="h5 text-primary mb-0" id="auto-assignment-rules-count">{{ execution_state.auto_assignment.rules_count }}</div>
+                            <small class="text-muted">Rules</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="border rounded p-2">
+                            <div class="small text-muted mb-1">Last Run</div>
+                            <div class="small" id="auto-assignment-last-run">
+                                {% if execution_state.auto_assignment.last_execution %}
+                                    {% set dt = execution_state.auto_assignment.last_execution | str %}
+                                    {{ dt[:16] }}
+                                {% else %}
+                                    <em>Never</em>
                                 {% endif %}
-                            </div>
-                            <div class="card-footer bg-transparent">
-                                <small class="text-muted">
-                                    <i class="fas fa-clock"></i> 
-                                    {% if channel.created_at %}
-                                        {{ channel.created_at }}
-                                    {% else %}
-                                        Date not available
-                                    {% endif %}
-                                </small>
                             </div>
                         </div>
                     </div>
-                    {% endfor %}
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-success" onclick="executeAllAutoAssignmentRules()">
+                        <i class="fas fa-play"></i> Execute All Rules
+                    </button>
+                    <a href="{{ url_for('auto_assign') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-cog"></i> Manage Rules
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card border-success">
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    <i class="fas fa-sort fa-3x text-success"></i>
+                </div>
+                <h5 class="card-title text-center">Stream Sorter</h5>
+                <p class="card-text text-center">Sort and organize your streams with advanced filtering and ordering rules.</p>
+
+                <!-- Rules Info -->
+                <div class="row text-center mb-3">
+                    <div class="col-6">
+                        <div class="border rounded p-2">
+                            <div class="h5 text-success mb-0" id="stream-sorter-rules-count">{{ execution_state.stream_sorter.rules_count }}</div>
+                            <small class="text-muted">Rules</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="border rounded p-2">
+                            <div class="small text-muted mb-1">Last Run</div>
+                            <div class="small" id="stream-sorter-last-run">
+                                {% if execution_state.stream_sorter.last_execution %}
+                                    {% set dt = execution_state.stream_sorter.last_execution | str %}
+                                    {{ dt[:16] }}
+                                {% else %}
+                                    <em>Never</em>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-success" onclick="executeAllSortingRules()">
+                        <i class="fas fa-play"></i> Execute All Rules
+                    </button>
+                    <a href="{{ url_for('stream_sorter') }}" class="btn btn-outline-success">
+                        <i class="fas fa-list-ol"></i> Manage Rules
+                    </a>
                 </div>
             </div>
         </div>
     </div>
 </div>
-{% else %}
+
+<!-- Quick Actions -->
 <div class="row">
     <div class="col-12">
-        <div class="alert alert-info text-center" role="alert">
-            <i class="fas fa-info-circle fa-2x mb-3"></i>
-            <h4>No channels available</h4>
-            <p>It seems there are no channels configured in Dispatcharr or there is a connection problem.</p>
-            <a href="{{ url_for('channels') }}" class="btn btn-primary">
-                <i class="fas fa-plus"></i> Create Channel
-            </a>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-bolt"></i> Quick Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Stream Management</h6>
+                        <ul class="list-unstyled">
+                            <li class="mb-2">
+                                <a href="{{ url_for('auto_assign') }}" class="text-decoration-none">
+                                    <i class="fas fa-magic text-primary"></i> Run Auto-Assignment
+                                </a>
+                            </li>
+                            <li class="mb-2">
+                                <a href="{{ url_for('stream_sorter') }}" class="text-decoration-none">
+                                    <i class="fas fa-sort text-success"></i> Sort Streams
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>API Access</h6>
+                        <ul class="list-unstyled">
+                            <li class="mb-2">
+                                <a href="/api/docs" class="text-decoration-none" target="_blank">
+                                    <i class="fas fa-file-code text-info"></i> API Documentation
+                                </a>
+                            </li>
+                            <li class="mb-2">
+                                <a href="/api/channels" class="text-decoration-none" target="_blank">
+                                    <i class="fas fa-tv text-secondary"></i> Channels API
+                                </a>
+                            </li>
+                            <li class="mb-2">
+                                <a href="/api/streams" class="text-decoration-none" target="_blank">
+                                    <i class="fas fa-play-circle text-secondary"></i> Streams API
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
-{% endif %}
 
 <!-- Loading indicator -->
 <div id="loading" class="text-center mt-4" style="display: none;">
     <div class="spinner-border text-primary" role="status">
         <span class="visually-hidden">Loading...</span>
     </div>
-    <p class="mt-2">Loading streams information...</p>
+    <p class="mt-2">Loading...</p>
 </div>
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
-// Load streams count on page load
-document.addEventListener('DOMContentLoaded', function() {
-    loadStreamsCount();
-});
-
-function loadStreamsCount() {
-    document.getElementById('loading').style.display = 'block';
-    
-    fetch('/api/streams')
-        .then(response => response.json())
-        .then(data => {
-            if (Array.isArray(data)) {
-                document.getElementById('streams-count').textContent = data.length;
-            } else {
-                document.getElementById('streams-count').textContent = '0';
-            }
-        })
-        .catch(error => {
-            console.error('Error loading streams count:', error);
-            document.getElementById('streams-count').textContent = 'Error';
-        })
-        .finally(() => {
-            document.getElementById('loading').style.display = 'none';
-        });
+async function loadExecutionState() {
+    try {
+        // Load execution state from a simple API endpoint
+        const response = await fetch('/api/execution-state');
+        if (response.ok) {
+            const data = await response.json();
+            updateExecutionDisplay(data);
+        }
+    } catch (error) {
+        console.error('Error loading execution state:', error);
+    }
 }
+
+function updateExecutionDisplay(executionState) {
+    // Update auto-assignment counts
+    const aaRulesCount = document.querySelector('#auto-assignment-rules-count');
+    const aaLastRun = document.querySelector('#auto-assignment-last-run');
+    
+    if (aaRulesCount && executionState.auto_assignment) {
+        aaRulesCount.textContent = executionState.auto_assignment.rules_count || 0;
+    }
+    
+    if (aaLastRun && executionState.auto_assignment) {
+        if (executionState.auto_assignment.last_execution) {
+            const dt = executionState.auto_assignment.last_execution;
+            aaLastRun.textContent = dt.substring(0, 16).replace('T', ' ');
+        } else {
+            aaLastRun.textContent = 'Never';
+        }
+    }
+    
+    // Update stream sorter counts
+    const ssRulesCount = document.querySelector('#stream-sorter-rules-count');
+    const ssLastRun = document.querySelector('#stream-sorter-last-run');
+    
+    if (ssRulesCount && executionState.stream_sorter) {
+        ssRulesCount.textContent = executionState.stream_sorter.rules_count || 0;
+    }
+    
+    if (ssLastRun && executionState.stream_sorter) {
+        if (executionState.stream_sorter.last_execution) {
+            const dt = executionState.stream_sorter.last_execution;
+            ssLastRun.textContent = dt.substring(0, 16).replace('T', ' ');
+        } else {
+            ssLastRun.textContent = 'Never';
+        }
+    }
+}
+
+function executeAllAutoAssignmentRules() {
+    if (!confirm('Are you sure you want to execute all auto-assignment rules? This may take some time.')) {
+        return;
+    }
+
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Executing...';
+
+    fetch('/api/auto-assign-rules/execute-all', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Auto-assignment rules executed successfully!\n' + data.message);
+            loadExecutionState(); // Refresh the display
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error executing rules: ' + error.message);
+    })
+    .finally(() => {
+        button.disabled = false;
+        button.innerHTML = originalText;
+    });
+}
+
+function executeAllSortingRules() {
+    if (!confirm('Are you sure you want to execute all sorting rules? This may take some time.')) {
+        return;
+    }
+
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Executing...';
+
+    fetch('/api/sorting-rules/execute-all', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Sorting rules executed successfully!\n' + data.message);
+            loadExecutionState(); // Refresh the display
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error executing rules: ' + error.message);
+    })
+    .finally(() => {
+        button.disabled = false;
+        button.innerHTML = originalText;
+    });
+}
+
+// Load execution state on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadExecutionState();
+});
 </script>
 {% endblock %}

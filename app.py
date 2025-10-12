@@ -18,6 +18,37 @@ from stream_sorter_models import (
 # Load environment variables
 load_dotenv()
 
+# Execution state file
+EXECUTION_STATE_FILE = 'execution_state.json'
+
+def load_execution_state():
+    """Load execution state from file"""
+    if os.path.exists(EXECUTION_STATE_FILE):
+        try:
+            with open(EXECUTION_STATE_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            pass
+    return {
+        "auto_assignment": {"last_execution": None, "rules_count": 0},
+        "stream_sorter": {"last_execution": None, "rules_count": 0}
+    }
+
+def save_execution_state(state):
+    """Save execution state to file"""
+    try:
+        with open(EXECUTION_STATE_FILE, 'w') as f:
+            json.dump(state, f, indent=2)
+    except Exception as e:
+        print(f"Error saving execution state: {e}")
+
+def update_execution_timestamp(feature):
+    """Update the last execution timestamp for a feature"""
+    state = load_execution_state()
+    import datetime
+    state[feature]["last_execution"] = datetime.datetime.now().isoformat()
+    save_execution_state(state)
+
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
@@ -42,13 +73,43 @@ execution_queues = {}
 
 @app.route('/')
 def index():
-    """Main page with channels and streams summary"""
+    """Main page with application overview"""
     try:
-        channels = dispatcharr_client.get_channels()
-        return render_template('index.html', channels=channels)
+        # Load rules counts
+        auto_assignment_rules = rules_manager.load_rules()
+        sorting_rules = sorting_rules_manager.load_rules()
+
+        # Load execution state
+        execution_state = load_execution_state()
+
+        # Update rules counts in state
+        execution_state["auto_assignment"]["rules_count"] = len(auto_assignment_rules)
+        execution_state["stream_sorter"]["rules_count"] = len(sorting_rules)
+        save_execution_state(execution_state)
+
+        print(f"DEBUG: Auto assignment rules: {len(auto_assignment_rules)}")
+        print(f"DEBUG: Sorting rules: {len(sorting_rules)}")
+        print(f"DEBUG: Execution state: {execution_state}")
+
+        print(f"DEBUG: Auto assignment rules: {len(auto_assignment_rules)}")
+        print(f"DEBUG: Sorting rules: {len(sorting_rules)}")
+        print(f"DEBUG: Execution state: {execution_state}")
+
+        return render_template('index.html',
+                             auto_assignment_rules=auto_assignment_rules,
+                             sorting_rules=sorting_rules,
+                             execution_state=execution_state)
     except Exception as e:
-        flash(f'Error getting data: {str(e)}', 'error')
-        return render_template('index.html', channels=[])
+        print(f"Error loading index data: {e}")
+        import traceback
+        traceback.print_exc()
+        return render_template('index.html',
+                             auto_assignment_rules=[],
+                             sorting_rules=[],
+                             execution_state={
+                                 "auto_assignment": {"last_execution": None, "rules_count": 0},
+                                 "stream_sorter": {"last_execution": None, "rules_count": 0}
+                             })
 
 @app.route('/auto-assign')
 def auto_assign():
@@ -1482,6 +1543,62 @@ def execute_sorting_rule(rule_id):
             'errors': errors if errors else None
         })
         
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/execution-state')
+def get_execution_state():
+    """Get current execution state"""
+    try:
+        state = load_execution_state()
+        return jsonify(state)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/auto-assign-rules/execute-all', methods=['POST'])
+def execute_all_auto_assignment_rules():
+    """Execute all enabled auto-assignment rules"""
+    try:
+        from execute_rules import RuleExecutor
+        executor = RuleExecutor()
+
+        # Execute all rules
+        result = executor.execute_assignment_rules(verbose=True)
+
+        # Update execution timestamp
+        update_execution_timestamp("auto_assignment")
+
+        return jsonify({
+            'success': True,
+            'message': f'Executed {result.get("rules_executed", 0)} auto-assignment rules',
+            'details': result
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/sorting-rules/execute-all', methods=['POST'])
+def execute_all_sorting_rules():
+    """Execute all enabled sorting rules"""
+    try:
+        from execute_rules import RuleExecutor
+        executor = RuleExecutor()
+
+        # Execute all rules
+        result = executor.execute_sorting_rules(verbose=True)
+
+        # Update execution timestamp
+        update_execution_timestamp("stream_sorter")
+
+        return jsonify({
+            'success': True,
+            'message': f'Executed {result.get("rules_executed", 0)} sorting rules',
+            'details': result
+        })
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
