@@ -250,7 +250,7 @@ Score and reorder streams within channels based on quality metrics. Rules can ap
 **Scoring Conditions:**
 - M3U Source account
 - Video bitrate (>, >=, <, <=, ==)
-- Video resolution (1080p, 720p, SD &lt; 720p)
+- Video resolution (2160p, 1080p, 720p, SD &lt; 720p)
 - Video codec
 - Audio codec
 - Video FPS

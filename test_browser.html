@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Execute All Rules</title>
+</head>
+<body>
+    <h1>Test Execute All Rules</h1>
+    <button id="testButton">Execute All Rules</button>
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('testButton').addEventListener('click', async () => {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Sending request...';
+
+            try {
+                const requestData = { stream: true };
+                console.log('Sending request data:', requestData);
+
+                const response = await fetch('http://localhost:5000/api/sorting-rules/execute-all', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                console.log('Response status:', response.status);
+                console.log('Response headers:', [...response.headers.entries()]);
+
+                if (!response.ok) {
+                    let errorMessage = 'Error starting execution';
+                    try {
+                        const error = await response.json();
+                        errorMessage = error.error || errorMessage;
+                    } catch (e) {
+                        const responseText = await response.text();
+                        console.log('Response text:', responseText);
+                        errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+                    }
+                    throw new Error(errorMessage);
+                }
+
+                const result = await response.json();
+                resultDiv.innerHTML = `<pre>${JSON.stringify(result, null, 2)}</pre>`;
+
+            } catch (error) {
+                console.error('Error:', error);
+                resultDiv.innerHTML = `<div style="color: red;">Error: ${error.message}</div>`;
+            }
+        });
+    </script>
+</body>
+</html>

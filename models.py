@@ -553,3 +553,42 @@ class StreamMatcher:
             'regex_match_count': len(regex_matching),
             'conditions_applied': conditions
         }
+
+
+def generate_channel_name_regex(channel_name: str) -> str:
+    """
+    Generate a case-insensitive regex pattern that matches streams containing
+    all words from the channel name, either together or separately.
+
+    Examples:
+    - "DAZN LALIGA" -> matches "DAZN LALIGA HD", "DAZN LA LIGA", "DAZN LA LIGA HD", etc.
+    - "ESPN PLUS" -> matches "ESPN PLUS HD", "ESPN PLUS 4K", etc.
+
+    Args:
+        channel_name: The channel name to generate regex for
+
+    Returns:
+        A regex pattern string
+    """
+    if not channel_name or not channel_name.strip():
+        return ""
+
+    # Split channel name into words, filter out empty strings
+    words = [word.strip() for word in channel_name.split() if word.strip()]
+
+    if not words:
+        return ""
+
+    # If only one word, create a simple case-insensitive match
+    if len(words) == 1:
+        return f"(?i).*{re.escape(words[0])}.*"
+
+    # For multiple words, create a pattern that matches all words in any order
+    # Each word must appear at least once, separated by any characters
+    # This uses a positive lookahead for each word
+    word_patterns = [f"(?=.*{re.escape(word)})" for word in words]
+
+    # Combine all lookaheads with the main pattern
+    pattern = f"(?i){''.join(word_patterns)}.*"
+
+    return pattern

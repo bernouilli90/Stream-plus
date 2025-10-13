@@ -7,7 +7,7 @@ from threading import Thread
 from dotenv import load_dotenv
 from flask_cors import CORS
 from api.dispatcharr_client import DispatcharrClient
-from models import RulesManager, AutoAssignmentRule, StreamMatcher
+from models import RulesManager, AutoAssignmentRule, StreamMatcher, generate_channel_name_regex
 from stream_sorter_models import (
     SortingRulesManager,
     SortingRule,
@@ -892,6 +892,128 @@ def api_toggle_rule(rule_id):
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/auto-assign-rules/bulk-create', methods=['POST'])
+def api_bulk_create_auto_assign_rules():
+    """API endpoint to create auto-assignment rules automatically for all channels in a group"""
+    try:
+        data = request.get_json()
+
+        # Validate required fields
+        if not data.get('group_id'):
+            return jsonify({'error': 'The "group_id" field is required'}), 400
+
+        group_id = int(data['group_id'])
+
+        # Verify that group exists and get its channels
+        group = channel_groups_manager.get_group(group_id)
+        if not group:
+            return jsonify({'error': f'Group with ID {group_id} does not exist'}), 404
+
+        if not group.channel_ids:
+            return jsonify({'error': f'Group "{group.name}" has no channels assigned'}), 400
+
+        # Get all existing rules to check for conflicts
+        existing_rules = rules_manager.load_rules()
+        channels_with_rules = {rule.channel_id for rule in existing_rules}
+
+        # Determine which channels to process based on the option
+        skip_existing = data.get('skip_existing_channels', False)
+        channels_to_process = []
+
+        for channel_id in group.channel_ids:
+            if skip_existing and channel_id in channels_with_rules:
+                continue  # Skip channels that already have rules
+            channels_to_process.append(channel_id)
+
+        if not channels_to_process:
+            return jsonify({
+                'error': 'No channels to process. All channels in the group already have rules.',
+                'channels_skipped': len(group.channel_ids)
+            }), 400
+
+        # Get channel details for regex generation
+        channels_details = {}
+        for channel_id in channels_to_process:
+            try:
+                channel = dispatcharr_client.get_channel(channel_id)
+                if channel:
+                    channels_details[channel_id] = channel
+                else:
+                    return jsonify({'error': f'Channel with ID {channel_id} not found'}), 404
+            except Exception as e:
+                return jsonify({'error': f'Could not verify channel with ID {channel_id}: {str(e)}'}), 404
+
+        # Create rules for each channel
+        created_rules = []
+        errors = []
+
+        for channel_id in channels_to_process:
+            try:
+                channel = channels_details[channel_id]
+                channel_name = channel.get('name', f'Channel {channel_id}')
+
+                # Generate regex pattern for this channel
+                regex_pattern = generate_channel_name_regex(channel_name)
+
+                # Create rule name
+                rule_name = f"Auto: {channel_name}"
+
+                # Create the rule with the provided conditions
+                rule = AutoAssignmentRule(
+                    id=0,  # Will be auto-assigned
+                    name=rule_name,
+                    channel_id=channel_id,
+                    enabled=data.get('enabled', True),
+                    replace_existing_streams=data.get('replace_existing_streams', False),
+                    regex_pattern=regex_pattern,
+                    m3u_account_ids=data.get('m3u_account_ids'),
+                    video_bitrate_operator=data.get('bitrate_operator'),
+                    video_bitrate_value=int(data['bitrate_value']) if data.get('bitrate_value') else None,
+                    video_codec=data.get('video_codec'),
+                    video_resolution=data.get('video_resolution'),
+                    video_fps=int(data['video_fps']) if data.get('video_fps') else None,
+                    audio_codec=data.get('audio_codec'),
+                    test_streams_before_sorting=data.get('test_streams_before_sorting', False),
+                    force_retest_old_streams=data.get('force_retest_old_streams', False),
+                    retest_days_threshold=int(data.get('retest_days_threshold', 7))
+                )
+
+                # Save rule
+                created_rule = rules_manager.create_rule(rule)
+                created_rules.append(created_rule.to_dict())
+
+            except Exception as e:
+                error_msg = f'Error creating rule for channel {channel_id}: {str(e)}'
+                errors.append(error_msg)
+
+        # Return results
+        result = {
+            'message': f'Successfully created {len(created_rules)} rules for group "{group.name}"',
+            'rules_created': created_rules,
+            'channels_processed': len(channels_to_process),
+            'channels_skipped': len(group.channel_ids) - len(channels_to_process) if skip_existing else 0,
+            'errors': errors
+        }
+
+        if errors:
+            result['message'] += f' ({len(errors)} errors)'
+
+        return jsonify(result), 201 if created_rules else 207  # 207 = Multi-Status for partial success
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/channel-groups', methods=['GET'])
+def api_get_channel_groups():
+    """API endpoint to get all channel groups"""
+    try:
+        groups = channel_groups_manager.get_all_groups()
+        return jsonify([group.to_dict() for group in groups])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 # ============================================================================
 # STREAM SORTER ROUTES
 # ============================================================================
@@ -1182,25 +1304,25 @@ def execute_sorting_in_background(rule_id, channel_ids, queue):
                             stream_stats_date_str = stream.get('stream_stats_updated_at')
                             
                             if not has_stats or not stream_stats_date_str:
-                                # No stats or no stats date, test
+                                # No stats o sin fecha de stats, testear
                                 streams_to_test.append(stream['id'])
                             else:
                                 try:
-                                    # Parse the stat date
+                                    # Parsear la fecha de los stats
                                     stream_stats_date = datetime.fromisoformat(stream_stats_date_str.replace('Z', '+00:00'))
                                     
-                                    # If older or equal to threshold, test
+                                    # Si es más antigua o igual que el umbral, testear
                                     if stream_stats_date <= threshold:
                                         streams_to_test.append(stream['id'])
                                     else:
-                                        # Recent stats, skip
+                                        # Stats recientes, saltar
                                         skipped_count += 1
                                 except (ValueError, AttributeError) as e:
-                                    # Error parsing date, test for safety
+                                    # Error al parsear la fecha, testear por seguridad
                                     print(f"Error parsing stats_date for stream {stream['id']}: {e}")
                                     streams_to_test.append(stream['id'])
                     else:
-                        # Force re-testeo de TODOS los streams (incluso los que tienen stats recientes)
+                        # Forzar re-testeo de TODOS los streams (incluso los que tienen stats recientes)
                         streams_to_test = [s['id'] for s in streams]
                     
                     queue.put({
@@ -1226,22 +1348,10 @@ def execute_sorting_in_background(rule_id, channel_ids, queue):
                             result = dispatcharr_client.test_stream(stream_id)
                             if result.get('success') and not result.get('save_error'):
                                 tested_count += 1
-                                # Get stream stats for display
-                                stats = result.get('statistics', {})
-                                stats_message = ""
-                                if stats:
-                                    bitrate = stats.get('output_bitrate') or stats.get('ffmpeg_output_bitrate')
-                                    resolution = stats.get('resolution', 'Unknown')
-                                    codec = stats.get('video_codec', 'Unknown')
-                                    if bitrate:
-                                        stats_message = f" ({resolution}, {codec}, {bitrate:.0f}kbps)"
-                                
                                 queue.put({
                                     'type': 'test_success',
                                     'stream_id': stream_id,
-                                    'stream_name': stream_name,
-                                    'statistics': stats,
-                                    'message': f'✓ Stream {stream_name} tested successfully{stats_message}'
+                                    'message': f'✓ Stream {stream_name} tested successfully'
                                 })
                             else:
                                 failed_tests += 1
@@ -1258,15 +1368,7 @@ def execute_sorting_in_background(rule_id, channel_ids, queue):
                                 'stream_id': stream_id,
                                 'message': f'✗ Error testing stream {stream_id}: {str(e)}'
                             })
-                    
-                    # Reload streams
-                    queue.put({
-                        'type': 'info',
-                        'message': 'Reloading streams with updated stats...'
-                    })
-                    streams = dispatcharr_client.get_channel_streams(channel_id)
-                    streams = [s for s in streams if s is not None and isinstance(s, dict)]
-
+                
                 # Sort streams
                 queue.put({
                     'type': 'sorting',
@@ -1561,15 +1663,7 @@ def execute_sorting_rule(rule_id):
                                 'stream_id': stream_id,
                                 'message': f'✗ Error testing stream {stream_id}: {str(e)}'
                             })
-                    
-                    # Reload streams
-                    queue.put({
-                        'type': 'info',
-                        'message': 'Reloading streams with updated stats...'
-                    })
-                    streams = dispatcharr_client.get_channel_streams(channel_id)
-                    streams = [s for s in streams if s is not None and isinstance(s, dict)]
-
+                
                 # Sort streams usando la regla
                 sorted_streams = StreamSorter.sort_streams(rule, streams)
 

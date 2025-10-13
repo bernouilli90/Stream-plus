@@ -33,9 +33,14 @@
     <h1>
         <i class="fas fa-magic text-primary"></i> Stream Auto-Assignment
     </h1>
-    <button class="btn btn-primary" onclick="showCreateRuleModal()">
-        <i class="fas fa-plus"></i> New Rule
-    </button>
+    <div>
+        <button class="btn btn-outline-primary me-2" onclick="showBulkCreateModal()">
+            <i class="fas fa-layer-group"></i> Bulk Create Rules
+        </button>
+        <button class="btn btn-primary" onclick="showCreateRuleModal()">
+            <i class="fas fa-plus"></i> New Rule
+        </button>
+    </div>
 </div>
 
 <!-- Description -->
@@ -386,6 +391,210 @@
                 </button>
                 <button type="button" class="btn btn-primary" onclick="saveRule()">
                     <i class="fas fa-save"></i> Save
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for bulk creating rules -->
+<div class="modal fade" id="bulkCreateModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Bulk Create Auto-Assignment Rules</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Bulk Rule Creation:</strong> Create auto-assignment rules automatically for all channels in a group.
+                    Each rule will be generated with a regex pattern that matches streams containing all words from the channel name.
+                </div>
+
+                <form id="bulkCreateForm">
+                    <!-- Group Selection -->
+                    <div class="mb-3">
+                        <label for="bulkGroupId" class="form-label">Channel Group *</label>
+                        <select class="form-select" id="bulkGroupId" required>
+                            <option value="">Select a group...</option>
+                            <!-- Groups will be loaded dynamically -->
+                        </select>
+                        <small class="form-text text-muted">Select the channel group for which to create rules</small>
+                    </div>
+
+                    <!-- Creation Options -->
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="bulkSkipExisting" checked>
+                            <label class="form-check-label" for="bulkSkipExisting">
+                                <i class="fas fa-filter"></i> Skip channels that already have rules
+                            </label>
+                        </div>
+                        <small class="form-text text-muted">
+                            If checked, only channels without existing rules will get new rules created
+                        </small>
+                    </div>
+
+                    <!-- Status and Replace -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="bulkEnabled" checked>
+                                <label class="form-check-label" for="bulkEnabled">
+                                    Rules enabled by default
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="bulkReplaceExisting">
+                                <label class="form-check-label" for="bulkReplaceExisting">
+                                    Replace existing streams
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Test Streams Option -->
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="bulkTestStreamsBeforeSorting">
+                            <label class="form-check-label" for="bulkTestStreamsBeforeSorting">
+                                <i class="fas fa-flask"></i> Test streams before assigning (obtains stats via ffmpeg)
+                            </label>
+                        </div>
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> Only tests streams without stats or with outdated stats. Each stream will be started for 10 seconds to obtain stats (bitrate, codec, resolution, etc.).
+                        </small>
+
+                        <!-- Force Retest All Streams Sub-option -->
+                        <div class="mt-2 ms-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="bulkForceRetestOldStreams" disabled>
+                                <label class="form-check-label" for="bulkForceRetestOldStreams">
+                                    <i class="fas fa-redo"></i> Force retest of ALL streams (even with recent stats)
+                                </label>
+                            </div>
+                            <small class="form-text text-muted">
+                                <i class="fas fa-exclamation-triangle text-warning"></i> <strong>Warning:</strong> This will test ALL streams, even those with recent stats. Only use if you need to refresh all statistics.
+                            </small>
+                            <div class="mt-2" id="bulkRetestThresholdContainer">
+                                <small class="text-muted">
+                                    <i class="fas fa-clock"></i> By default, only streams without stats or with stats older than
+                                    <input type="number" id="bulkRetestDaysThreshold" class="form-control form-control-sm d-inline-block"
+                                           style="width: 60px;" min="1" value="7" disabled>
+                                    days will be tested.
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Filters -->
+                    <h6 class="border-bottom pb-2 mb-3">Search Filters</h6>
+
+                    <!-- M3U Account -->
+                    <div class="mb-3">
+                        <label for="bulkM3uAccountIds" class="form-label">M3U Accounts</label>
+                        <select class="form-select" id="bulkM3uAccountIds" multiple size="3">
+                            <option value="">All accounts...</option>
+                        </select>
+                        <div class="form-text">Hold Ctrl/Cmd to select multiple accounts. Leave empty for all accounts.</div>
+                    </div>
+
+                    <!-- Video Conditions -->
+                    <h6 class="border-bottom pb-2 mb-3">Video Conditions</h6>
+
+                    <!-- Bitrate -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="bulkBitrateOperator" class="form-label">Bitrate Operator</label>
+                            <select class="form-select" id="bulkBitrateOperator">
+                                <option value="">No restriction...</option>
+                                <option value=">">Greater than (>)</option>
+                                <option value=">=">Greater or equal (>=)</option>
+                                <option value="<">Less than (<)</option>
+                                <option value="<=">Less or equal (<=)</option>
+                                <option value="==">Equal (==)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="bulkBitrateValue" class="form-label">Bitrate Value (Kbps)</label>
+                            <input type="number" class="form-control" id="bulkBitrateValue" placeholder="Ex: 5000">
+                        </div>
+                    </div>
+
+                    <!-- Video Codec -->
+                    <div class="mb-3">
+                        <label for="bulkVideoCodec" class="form-label">
+                            Video Codec
+                            <small class="text-muted">(hold Ctrl/Cmd to select multiple)</small>
+                        </label>
+                        <select class="form-select" id="bulkVideoCodec" multiple size="6">
+                            <option value="h264">H.264</option>
+                            <option value="h265">H.265 (HEVC)</option>
+                            <option value="mpeg2">MPEG-2</option>
+                            <option value="vp9">VP9</option>
+                            <option value="av1">AV1</option>
+                        </select>
+                        <small class="form-text text-muted">Leave empty for no restriction</small>
+                    </div>
+
+                    <!-- Resolution -->
+                    <div class="mb-3">
+                        <label for="bulkResolution" class="form-label">
+                            Video Resolution
+                            <small class="text-muted">(hold Ctrl/Cmd to select multiple)</small>
+                        </label>
+                        <select class="form-select" id="bulkResolution" multiple size="4">
+                            <option value="720p">720p (HD)</option>
+                            <option value="1080p">1080p (Full HD)</option>
+                            <option value="2160p">2160p (4K)</option>
+                            <option value="SD">SD (&lt; 720p)</option>
+                        </select>
+                        <small class="form-text text-muted">Leave empty for no restriction</small>
+                    </div>
+
+                    <!-- FPS -->
+                    <div class="mb-3">
+                        <label for="bulkVideoFps" class="form-label">
+                            FPS (Frames per second)
+                            <small class="text-muted">(hold Ctrl/Cmd to select multiple)</small>
+                        </label>
+                        <select class="form-select" id="bulkVideoFps" multiple size="5">
+                            <option value="24">24</option>
+                            <option value="25">25</option>
+                            <option value="30">30</option>
+                            <option value="50">50</option>
+                            <option value="60">60</option>
+                        </select>
+                        <small class="form-text text-muted">Leave empty for no restriction</small>
+                    </div>
+
+                    <!-- Audio Conditions -->
+                    <h6 class="border-bottom pb-2 mb-3">Audio Conditions</h6>
+
+                    <!-- Audio Codec -->
+                    <div class="mb-3">
+                        <label for="bulkAudioCodec" class="form-label">
+                            Audio Codec
+                            <small class="text-muted">(hold Ctrl/Cmd to select multiple)</small>
+                        </label>
+                        <select class="form-select" id="bulkAudioCodec" multiple size="5">
+                            <option value="aac">AAC</option>
+                            <option value="ac3">AC3 (Dolby Digital)</option>
+                            <option value="eac3">E-AC3 (Dolby Digital Plus)</option>
+                            <option value="mp3">MP3</option>
+                            <option value="opus">Opus</option>
+                        </select>
+                        <small class="form-text text-muted">Leave empty for no restriction</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="createBulkRules()">
+                    <i class="fas fa-magic"></i> Create Rules
                 </button>
             </div>
         </div>

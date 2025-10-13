@@ -686,3 +686,192 @@ function normalizeResolution(resolutionStr) {
     if (height >= 700) return '720p';    // HD
     return 'SD';  // Standard Definition
 }
+
+// ========== BULK RULE CREATION FUNCTIONS ==========
+
+let currentChannelGroups = [];
+
+// Load channel groups for bulk creation
+async function loadChannelGroups() {
+    try {
+        const response = await fetch('/api/channel-groups');
+        if (!response.ok) throw new Error('Error loading channel groups');
+        
+        currentChannelGroups = await response.json();
+        
+        // Populate bulk creation modal
+        populateBulkGroupSelect();
+    } catch (error) {
+        console.error('Error loading channel groups:', error);
+        showToast('Error loading channel groups', 'danger');
+    }
+}
+
+// Populate group select in bulk creation modal
+function populateBulkGroupSelect() {
+    const select = document.getElementById('bulkGroupId');
+    if (!select) return;
+    
+    select.innerHTML = '<option value="">Select a group...</option>';
+    
+    currentChannelGroups.forEach(group => {
+        const option = document.createElement('option');
+        option.value = group.id;
+        option.textContent = `${group.name} (${group.channel_ids.length} channels)`;
+        if (group.description) {
+            option.title = group.description;
+        }
+        select.appendChild(option);
+    });
+}
+
+// Show bulk create modal
+function showBulkCreateModal() {
+    // Load channel groups if not already loaded
+    if (currentChannelGroups.length === 0) {
+        loadChannelGroups();
+    } else {
+        populateBulkGroupSelect();
+    }
+    
+    // Reset form
+    document.getElementById('bulkCreateForm').reset();
+    document.getElementById('bulkEnabled').checked = true;
+    
+    // Setup event listeners for bulk modal
+    setupBulkModalEventListeners();
+    toggleBulkRetestOptions();
+    
+    const modal = new bootstrap.Modal(document.getElementById('bulkCreateModal'));
+    modal.show();
+}
+
+// Setup event listeners for bulk modal form controls
+function setupBulkModalEventListeners() {
+    const testCheckbox = document.getElementById('bulkTestStreamsBeforeSorting');
+    const forceRetestCheckbox = document.getElementById('bulkForceRetestOldStreams');
+    
+    if (testCheckbox) {
+        // Remove existing listeners to avoid duplicates
+        testCheckbox.removeEventListener('change', toggleBulkRetestOptions);
+        testCheckbox.addEventListener('change', toggleBulkRetestOptions);
+    }
+}
+
+// Toggle bulk retest options
+function toggleBulkRetestOptions() {
+    const testCheckbox = document.getElementById('bulkTestStreamsBeforeSorting');
+    const forceRetestCheckbox = document.getElementById('bulkForceRetestOldStreams');
+    const retestDaysInput = document.getElementById('bulkRetestDaysThreshold');
+    const retestContainer = document.getElementById('bulkRetestThresholdContainer');
+    
+    const testEnabled = testCheckbox && testCheckbox.checked;
+    
+    if (forceRetestCheckbox) {
+        forceRetestCheckbox.disabled = !testEnabled;
+    }
+    if (retestDaysInput) {
+        retestDaysInput.disabled = !testEnabled;
+    }
+    if (retestContainer) {
+        retestContainer.style.display = testEnabled ? 'block' : 'none';
+    }
+    
+    if (!testEnabled) {
+        if (forceRetestCheckbox) forceRetestCheckbox.checked = false;
+    }
+}
+
+// Create bulk rules
+async function createBulkRules() {
+    try {
+        // Validate form
+        const groupId = document.getElementById('bulkGroupId').value;
+        if (!groupId) {
+            showToast('Please select a channel group', 'warning');
+            return;
+        }
+        
+        // Collect form data
+        const formData = {
+            group_id: parseInt(groupId),
+            skip_existing_channels: document.getElementById('bulkSkipExisting').checked,
+            enabled: document.getElementById('bulkEnabled').checked,
+            replace_existing_streams: document.getElementById('bulkReplaceExisting').checked,
+            test_streams_before_sorting: document.getElementById('bulkTestStreamsBeforeSorting').checked,
+            force_retest_old_streams: document.getElementById('bulkForceRetestOldStreams').checked,
+            retest_days_threshold: parseInt(document.getElementById('bulkRetestDaysThreshold').value) || 7,
+            m3u_account_ids: Array.from(document.getElementById('bulkM3uAccountIds').selectedOptions).map(opt => parseInt(opt.value)).filter(id => id),
+            bitrate_operator: document.getElementById('bulkBitrateOperator').value,
+            bitrate_value: document.getElementById('bulkBitrateValue').value ? parseInt(document.getElementById('bulkBitrateValue').value) : null,
+            video_codec: Array.from(document.getElementById('bulkVideoCodec').selectedOptions).map(opt => opt.value),
+            video_resolution: Array.from(document.getElementById('bulkResolution').selectedOptions).map(opt => opt.value),
+            video_fps: Array.from(document.getElementById('bulkVideoFps').selectedOptions).map(opt => parseInt(opt.value)),
+            audio_codec: Array.from(document.getElementById('bulkAudioCodec').selectedOptions).map(opt => opt.value)
+        };
+        
+        // Clean empty arrays
+        if (formData.m3u_account_ids.length === 0) delete formData.m3u_account_ids;
+        if (formData.video_codec.length === 0) delete formData.video_codec;
+        if (formData.video_resolution.length === 0) delete formData.video_resolution;
+        if (formData.video_fps.length === 0) delete formData.video_fps;
+        if (formData.audio_codec.length === 0) delete formData.audio_codec;
+        
+        // Show loading
+        const createBtn = document.querySelector('#bulkCreateModal .btn-success');
+        const originalText = createBtn.innerHTML;
+        createBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+        createBtn.disabled = true;
+        
+        // Make API call
+        const response = await fetch('/api/auto-assign-rules/bulk-create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast(result.message, 'success');
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('bulkCreateModal'));
+            modal.hide();
+            
+            // Reload rules list
+            loadRules();
+            
+            // Show detailed results
+            if (result.errors && result.errors.length > 0) {
+                let details = `Created ${result.rules_created.length} rules for ${result.channels_processed} channels.\n`;
+                if (result.channels_skipped > 0) {
+                    details += `Skipped ${result.channels_skipped} channels with existing rules.\n`;
+                }
+                details += `\nErrors:\n${result.errors.join('\n')}`;
+                alert(details);
+            }
+            
+        } else {
+            showToast(result.error || 'Error creating bulk rules', 'danger');
+        }
+        
+    } catch (error) {
+        console.error('Error creating bulk rules:', error);
+        showToast('Error creating bulk rules', 'danger');
+    } finally {
+        // Restore button
+        const createBtn = document.querySelector('#bulkCreateModal .btn-success');
+        createBtn.innerHTML = '<i class="fas fa-magic"></i> Create Rules';
+        createBtn.disabled = false;
+    }
+}
+
+// Initialize bulk functionality when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadChannels();
+    loadM3UAccounts();
+    loadChannelGroups();  // Load groups for bulk creation
+});
