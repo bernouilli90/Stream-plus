@@ -846,11 +846,31 @@ async function createBulkRules() {
             
             // Show detailed results
             if (result.errors && result.errors.length > 0) {
-                let details = `Created ${result.rules_created.length} rules for ${result.channels_processed} channels.\n`;
+                let details = `Processed ${result.channels_processed} channels`;
+                if (result.rules_created && result.rules_created.length > 0) {
+                    details += ` (${result.rules_created.length} created`;
+                }
+                if (result.rules_updated && result.rules_updated.length > 0) {
+                    details += `${result.rules_created && result.rules_created.length > 0 ? ', ' : ' ('}${result.rules_updated.length} updated`;
+                }
+                details += `).\n`;
                 if (result.channels_skipped > 0) {
                     details += `Skipped ${result.channels_skipped} channels with existing rules.\n`;
                 }
                 details += `\nErrors:\n${result.errors.join('\n')}`;
+                alert(details);
+            } else {
+                let details = `Successfully processed ${result.channels_processed} channels`;
+                if (result.rules_created && result.rules_created.length > 0) {
+                    details += ` (${result.rules_created.length} created`;
+                }
+                if (result.rules_updated && result.rules_updated.length > 0) {
+                    details += `${result.rules_created && result.rules_created.length > 0 ? ', ' : ' ('}${result.rules_updated.length} updated`;
+                }
+                details += `).`;
+                if (result.channels_skipped > 0) {
+                    details += `\nSkipped ${result.channels_skipped} channels with existing rules.`;
+                }
                 alert(details);
             }
             

@@ -945,6 +945,7 @@ def api_bulk_create_auto_assign_rules():
 
         # Create rules for each channel
         created_rules = []
+        updated_rules = []
         errors = []
 
         for channel_id in channels_to_process:
@@ -955,41 +956,75 @@ def api_bulk_create_auto_assign_rules():
                 # Generate regex pattern for this channel
                 regex_pattern = generate_channel_name_regex(channel_name)
 
-                # Create rule name
-                rule_name = f"Auto: {channel_name}"
+                # Check if rule already exists for this channel
+                existing_rule = None
+                for rule in existing_rules:
+                    if rule.channel_id == channel_id:
+                        existing_rule = rule
+                        break
 
-                # Create the rule with the provided conditions
-                rule = AutoAssignmentRule(
-                    id=0,  # Will be auto-assigned
-                    name=rule_name,
-                    channel_id=channel_id,
-                    enabled=data.get('enabled', True),
-                    replace_existing_streams=data.get('replace_existing_streams', False),
-                    regex_pattern=regex_pattern,
-                    m3u_account_ids=data.get('m3u_account_ids'),
-                    video_bitrate_operator=data.get('bitrate_operator'),
-                    video_bitrate_value=int(data['bitrate_value']) if data.get('bitrate_value') else None,
-                    video_codec=data.get('video_codec'),
-                    video_resolution=data.get('video_resolution'),
-                    video_fps=int(data['video_fps']) if data.get('video_fps') else None,
-                    audio_codec=data.get('audio_codec'),
-                    test_streams_before_sorting=data.get('test_streams_before_sorting', False),
-                    force_retest_old_streams=data.get('force_retest_old_streams', False),
-                    retest_days_threshold=int(data.get('retest_days_threshold', 7))
-                )
+                if existing_rule:
+                    # Update existing rule
+                    updated_rule = AutoAssignmentRule(
+                        id=existing_rule.id,
+                        name=f"Auto: {channel_name}",
+                        channel_id=channel_id,
+                        enabled=data.get('enabled', True),
+                        replace_existing_streams=data.get('replace_existing_streams', False),
+                        regex_pattern=regex_pattern,
+                        m3u_account_ids=data.get('m3u_account_ids'),
+                        video_bitrate_operator=data.get('bitrate_operator'),
+                        video_bitrate_value=int(data['bitrate_value']) if data.get('bitrate_value') else None,
+                        video_codec=data.get('video_codec'),
+                        video_resolution=data.get('video_resolution'),
+                        video_fps=int(data['video_fps']) if data.get('video_fps') else None,
+                        audio_codec=data.get('audio_codec'),
+                        test_streams_before_sorting=data.get('test_streams_before_sorting', False),
+                        force_retest_old_streams=data.get('force_retest_old_streams', False),
+                        retest_days_threshold=int(data.get('retest_days_threshold', 7))
+                    )
 
-                # Save rule
-                created_rule = rules_manager.create_rule(rule)
-                created_rules.append(created_rule.to_dict())
+                    # Update rule
+                    result = rules_manager.update_rule(existing_rule.id, updated_rule)
+                    if result:
+                        updated_rules.append(result.to_dict())
+                    else:
+                        errors.append(f'Failed to update rule for channel {channel_id}')
+                else:
+                    # Create new rule
+                    rule = AutoAssignmentRule(
+                        id=0,  # Will be auto-assigned
+                        name=f"Auto: {channel_name}",
+                        channel_id=channel_id,
+                        enabled=data.get('enabled', True),
+                        replace_existing_streams=data.get('replace_existing_streams', False),
+                        regex_pattern=regex_pattern,
+                        m3u_account_ids=data.get('m3u_account_ids'),
+                        video_bitrate_operator=data.get('bitrate_operator'),
+                        video_bitrate_value=int(data['bitrate_value']) if data.get('bitrate_value') else None,
+                        video_codec=data.get('video_codec'),
+                        video_resolution=data.get('video_resolution'),
+                        video_fps=int(data['video_fps']) if data.get('video_fps') else None,
+                        audio_codec=data.get('audio_codec'),
+                        test_streams_before_sorting=data.get('test_streams_before_sorting', False),
+                        force_retest_old_streams=data.get('force_retest_old_streams', False),
+                        retest_days_threshold=int(data.get('retest_days_threshold', 7))
+                    )
+
+                    # Save rule
+                    created_rule = rules_manager.create_rule(rule)
+                    created_rules.append(created_rule.to_dict())
 
             except Exception as e:
                 error_msg = f'Error creating rule for channel {channel_id}: {str(e)}'
                 errors.append(error_msg)
 
         # Return results
+        total_processed = len(created_rules) + len(updated_rules)
         result = {
-            'message': f'Successfully created {len(created_rules)} rules for group "{group.name}"',
+            'message': f'Successfully processed {total_processed} rules for group "{group.name}" ({len(created_rules)} created, {len(updated_rules)} updated)',
             'rules_created': created_rules,
+            'rules_updated': updated_rules,
             'channels_processed': len(channels_to_process),
             'channels_skipped': len(group.channel_ids) - len(channels_to_process) if skip_existing else 0,
             'errors': errors

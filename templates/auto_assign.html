@@ -428,11 +428,12 @@
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="bulkSkipExisting" checked>
                             <label class="form-check-label" for="bulkSkipExisting">
-                                <i class="fas fa-filter"></i> Skip channels that already have rules
+                                <i class="fas fa-filter"></i> Only create rules for channels without existing rules
                             </label>
                         </div>
                         <small class="form-text text-muted">
-                            If checked, only channels without existing rules will get new rules created
+                            If checked, only channels that don't have auto-assignment rules will get new rules.
+                            If unchecked, existing rules will be updated with the new conditions.
                         </small>
                     </div>
 
