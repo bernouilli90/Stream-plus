@@ -19,6 +19,9 @@ from stream_sorter_models import (
 # Load environment variables
 load_dotenv()
 
+# Application version
+APP_VERSION = "v.0.1.0"
+
 # Execution state file
 EXECUTION_STATE_FILE = 'execution_state.json'
 
@@ -55,6 +58,11 @@ app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
 # Enable CORS for all routes
 CORS(app)
+
+# Add version to template context
+@app.context_processor
+def inject_version():
+    return {'app_version': APP_VERSION}
 
 # Configure API client
 dispatcharr_client = DispatcharrClient(
