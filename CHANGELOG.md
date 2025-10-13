@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **STREAM_TEST_DELAY parameter**: New environment variable to control delay between consecutive stream tests, preventing provider detection of multiple simultaneous streams
 - **Channel filter**: Search and filter auto-assignment rules by channel name in real-time
+- **Rule name filter**: Search and filter auto-assignment rules by rule name in real-time
 - **Compact rule cards**: Redesigned rule cards with better space utilization and responsive grid layout
 - **Channel logos**: Display channel logos prominently in rule cards with fallback icons
 - **Bulk rule creation improvements**: Enhanced bulk creation modal with better user feedback
@@ -21,16 +22,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Environment configuration**: Updated .env.example and docker-compose.yml with new STREAM_TEST_DELAY parameter
 
 ### Fixed
+- **Search filter functionality**: Fixed JavaScript errors and template syntax issues in auto-assignment rules page
 - **Bulk rule creation**: Resolved issue where successful bulk operations showed error messages
 - **Dropdown overflow**: Fixed dropdown menus being cut off by adjacent cards
 - **Version display**: Improved version visibility in footer with better contrast
+- **Template block structure**: Corrected Jinja2 template syntax and JavaScript variable scoping
 
 ### Technical Details
 - Added `STREAM_TEST_DELAY` environment variable (default: 3 seconds)
 - Implemented delay logic in stream testing loops to avoid provider detection
 - Redesigned auto-assign template with responsive Bootstrap grid
-- Added JavaScript filtering functionality for rule cards
+- Added JavaScript filtering functionality for rule cards with real-time search
 - Fixed dropdown positioning with CSS z-index and boundary management
+- Corrected template syntax errors and JavaScript DOM manipulation issues
 
 ### Configuration
 Add to your `.env` file:

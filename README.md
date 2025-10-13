@@ -2,12 +2,15 @@
 
 Web application for managing Dispatcharr channels and streams with intelligent auto-assignment and stream sorting capabilities.
 
+**Version:** v0.2.0 | **Release Date:** October 13, 2025
+
 ## Features
 
 - 🎯 **Channel & Stream Management**: Complete CRUD operations via web interface
+- 🔍 **Advanced Search & Filtering**: Real-time search and filter auto-assignment rules by channel name or rule name
 - 🤖 **Auto-Assignment Rules**: Automatically assign streams to channels based on quality criteria with support for multiple M3U accounts
 - 🏆 **Stream Sorter**: Score-based stream ordering with multi-condition rules that can apply to all channels or specific ones
-- 🎨 **Modern UI**: Responsive Bootstrap 5 interface with comprehensive preview functionality
+- 🎨 **Modern UI**: Responsive Bootstrap 5 interface with comprehensive preview functionality and improved user experience
 
 ## Screenshots
 
@@ -70,6 +73,8 @@ services:
       - STREAM_TEST_DURATION=10
       # Additional timeout buffer for stream testing (default: 30)
       - STREAM_TEST_TIMEOUT_BUFFER=30
+      # Delay in seconds between consecutive stream tests to avoid provider detection (default: 3)
+      - STREAM_TEST_DELAY=3
       
       # ===== OPTIONAL: System Configuration =====
       # Timezone for the container (affects logs and scheduling)
@@ -179,6 +184,7 @@ SECRET_KEY=your-secret-key
 # Stream Testing Configuration
 STREAM_TEST_DURATION=10          # Duration in seconds to test each stream
 STREAM_TEST_TIMEOUT_BUFFER=30    # Additional timeout buffer for testing
+STREAM_TEST_DELAY=3              # Delay in seconds between consecutive stream tests
 
 # System
 TZ=UTC                          # Timezone for logs and scheduling
@@ -223,6 +229,12 @@ Create rules to automatically assign streams to channels based on criteria:
 - **Stream testing before assignment**: Automatically test streams using FFmpeg to obtain real statistics (bitrate, codec, resolution, etc.)
 - **Force retest**: Option to retest streams even with recent statistics
 - **Test age threshold**: Configure how old statistics can be before requiring retest
+
+**Search & Filter:**
+- **Real-time search**: Filter rules instantly by typing channel names or rule names
+- **Case-insensitive matching**: Search works regardless of letter case
+- **Dynamic counter**: Shows "X of Y rules" as you filter
+- **Clear filter**: One-click button to reset the search
 
 **Example rule with advanced options:**
 ```json
