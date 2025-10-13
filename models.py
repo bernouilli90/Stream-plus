@@ -369,8 +369,21 @@ class StreamMatcher:
         if not StreamMatcher._stream_matches_basic_conditions(rule, stream):
             return False
         
+        # Check if rule requires stream statistics
+        rule_requires_stats = (
+            rule.video_bitrate_operator or
+            rule.video_codec or
+            rule.video_resolution or
+            rule.video_fps or
+            rule.audio_codec
+        )
+        
         # From here, we need stream statistics
         stream_stats = stream.get('stream_stats')
+        
+        # If rule requires stats but stream doesn't have them, fail immediately
+        if rule_requires_stats and not stream_stats:
+            return False
         
         # 3. Filter by video bitrate
         if rule.video_bitrate_operator and rule.video_bitrate_value is not None:
