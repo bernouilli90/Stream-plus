@@ -15,6 +15,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changed healthcheck command from wget to curl in Dockerfile and docker-compose files
 - Healthcheck now properly verifies Flask application is running
 
+## [0.2.2] - 2025-10-13
+
+### Enhanced
+- **Stream testing error logging**: Significantly improved error logging when stream tests fail with detailed diagnostic information
+
+### Technical Details
+- Enhanced `test_stream()` method in `dispatcharr_client.py` with comprehensive error context
+- Added structured error details including stream metadata, executable paths, timeout information, and failure reasons
+- Improved error messages for missing URLs, executable not found, timeouts, and save failures
+- Added error type classification and contextual information for better debugging
+
 ## [0.2.0] - 2025-10-13
 
 ### Added

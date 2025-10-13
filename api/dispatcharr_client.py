@@ -559,11 +559,18 @@ class DispatcharrClient:
             # Get the stream object from Dispatcharr
             stream_obj = self.get_stream(stream_id)
             stream_url = stream_obj.get('url')
+            stream_name = stream_obj.get('name', f'Stream {stream_id}')
             
             if not stream_url:
                 return {
                     'success': False,
-                    'message': f'Stream {stream_id} does not have a URL'
+                    'message': f'Stream {stream_id} ({stream_name}) does not have a URL',
+                    'error_details': {
+                        'error_type': 'missing_url',
+                        'stream_id': stream_id,
+                        'stream_name': stream_name,
+                        'stream_url': None
+                    }
                 }
             
             # Try to find ffprobe executable
@@ -616,12 +623,30 @@ class DispatcharrClient:
             if not shutil.which(ffprobe_executable):
                 return {
                     'success': False,
-                    'message': f'ffprobe executable not found: {ffprobe_executable}'
+                    'message': f'ffprobe executable not found: {ffprobe_executable}',
+                    'error_details': {
+                        'error_type': 'ffprobe_not_found',
+                        'stream_id': stream_id,
+                        'stream_name': stream_name,
+                        'stream_url': stream_url,
+                        'ffprobe_path': ffprobe_executable,
+                        'ffmpeg_path': ffmpeg_executable,
+                        'checked_paths': [ffprobe_path_file, local_ffprobe] if 'ffprobe_path_file' in locals() else []
+                    }
                 }
             if not shutil.which(ffmpeg_executable):
                 return {
                     'success': False,
-                    'message': f'ffmpeg executable not found: {ffmpeg_executable}'
+                    'message': f'ffmpeg executable not found: {ffmpeg_executable}',
+                    'error_details': {
+                        'error_type': 'ffmpeg_not_found',
+                        'stream_id': stream_id,
+                        'stream_name': stream_name,
+                        'stream_url': stream_url,
+                        'ffprobe_path': ffprobe_executable,
+                        'ffmpeg_path': ffmpeg_executable,
+                        'checked_paths': [local_ffmpeg] if 'local_ffmpeg' in locals() else []
+                    }
                 }
             
             # Step 1: Use ffmpeg to read the stream and get bitrate info
@@ -846,22 +871,67 @@ class DispatcharrClient:
                 print(f"Failed to save statistics to Dispatcharr: {str(e)}")
                 return {
                     'success': True,
-                    'message': f'Stream {stream_id} analyzed successfully but failed to save to Dispatcharr: {str(e)}',
+                    'message': f'Stream {stream_id} ({stream_name}) analyzed successfully but failed to save to Dispatcharr: {str(e)}',
                     'stream_id': stream_id,
+                    'stream_name': stream_name,
                     'stream_url': stream_url,
                     'statistics': stats,
                     'raw_probe_data': probe_data,
-                    'save_error': str(e)
+                    'save_error': str(e),
+                    'error_details': {
+                        'error_type': 'save_failed',
+                        'stream_id': stream_id,
+                        'stream_name': stream_name,
+                        'stream_url': stream_url,
+                        'stats_collected': bool(stats),
+                        'probe_data_available': bool(probe_data),
+                        'save_exception': str(e),
+                        'save_exception_type': type(e).__name__
+                    }
                 }
             
         except subprocess.TimeoutExpired:
             return {
                 'success': False,
-                'message': f'ffprobe timeout after {test_duration} seconds'
+                'message': f'Stream test timeout after {test_duration + timeout_buffer} seconds (test_duration: {test_duration}s, buffer: {timeout_buffer}s)',
+                'error_details': {
+                    'error_type': 'timeout',
+                    'stream_id': stream_id,
+                    'stream_name': stream_name if 'stream_name' in locals() else f'Stream {stream_id}',
+                    'stream_url': stream_url if 'stream_url' in locals() else 'unknown',
+                    'test_duration': test_duration,
+                    'timeout_buffer': timeout_buffer,
+                    'total_timeout': test_duration + timeout_buffer,
+                    'command_used': ffmpeg_cmd if 'ffmpeg_cmd' in locals() else None
+                }
             }
             
         except Exception as e:
+            # Collect as much context as possible for debugging
+            error_context = {
+                'error_type': 'general_exception',
+                'stream_id': stream_id,
+                'stream_name': stream_name if 'stream_name' in locals() else f'Stream {stream_id}',
+                'stream_url': stream_url if 'stream_url' in locals() else 'unknown',
+                'exception_type': type(e).__name__,
+                'exception_message': str(e),
+                'test_duration': test_duration if 'test_duration' in locals() else None,
+                'timeout_buffer': timeout_buffer if 'timeout_buffer' in locals() else None
+            }
+
+            # Add more context if we have it
+            if 'ffprobe_executable' in locals():
+                error_context['ffprobe_path'] = ffprobe_executable
+            if 'ffmpeg_executable' in locals():
+                error_context['ffmpeg_path'] = ffmpeg_executable
+            if 'ffmpeg_cmd' in locals():
+                error_context['last_command'] = ffmpeg_cmd
+            if 'ffmpeg_result' in locals():
+                error_context['ffmpeg_returncode'] = ffmpeg_result.returncode
+                error_context['ffmpeg_stderr_preview'] = ffmpeg_result.stderr[-500:] if ffmpeg_result.stderr else None
+
             return {
                 'success': False,
-                'message': f'Error testing stream {stream_id}: {str(e)}'
+                'message': f'Error testing stream {stream_id} ({stream_name if "stream_name" in locals() else f"Stream {stream_id}"}): {str(e)}',
+                'error_details': error_context
             }
