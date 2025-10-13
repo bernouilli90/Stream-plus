@@ -19,6 +19,7 @@ ARG USER_GID=1000
 RUN apk add --no-cache \
     ffmpeg \
     ffmpeg-libs \
+    curl \
     su-exec \
     && rm -rf /var/cache/apk/*
 
@@ -65,7 +66,7 @@ USER streamplus
 
 # Healthcheck to verify application is running
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:5000/ || exit 1
+    CMD curl -f http://localhost:5000/ || exit 1
 
 # Entry point
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

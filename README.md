@@ -90,7 +90,7 @@ services:
     
     healthcheck:
       # Health check to ensure the application is running
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/"]
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -203,6 +203,7 @@ Pre-built Docker images are available on Docker Hub:
 
 - **Alpine Linux** base for minimal size
 - **FFmpeg & FFprobe** included for stream analysis
+- **Curl** included for health checks
 - **Non-root user** (UID/GID 1000) for security
 - **Health checks** for container monitoring
 - **Timezone support** via TZ environment variable

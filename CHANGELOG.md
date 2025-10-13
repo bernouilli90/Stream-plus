@@ -22,11 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Environment configuration**: Updated .env.example and docker-compose.yml with new STREAM_TEST_DELAY parameter
 
 ### Fixed
-- **Search filter functionality**: Fixed JavaScript errors and template syntax issues in auto-assignment rules page
+- **Search filter functionality**: Fixed critical JavaScript errors and template syntax issues in auto-assignment rules page
 - **Bulk rule creation**: Resolved issue where successful bulk operations showed error messages
 - **Dropdown overflow**: Fixed dropdown menus being cut off by adjacent cards
 - **Version display**: Improved version visibility in footer with better contrast
 - **Template block structure**: Corrected Jinja2 template syntax and JavaScript variable scoping
+- **Docker healthcheck**: Fixed failing healthcheck by replacing wget with curl and adding curl to Dockerfile
 
 ### Technical Details
 - Added `STREAM_TEST_DELAY` environment variable (default: 3 seconds)
