@@ -5,9 +5,9 @@ Web application for managing Dispatcharr channels and streams with intelligent a
 ## Features
 
 - 🎯 **Channel & Stream Management**: Complete CRUD operations via web interface
-- 🤖 **Auto-Assignment Rules**: Automatically assign streams to channels based on quality criteria
-- 🏆 **Stream Sorter**: Score-based stream ordering with multi-condition rules
-- 🎨 **Modern UI**: Responsive Bootstrap 5 interface
+- 🤖 **Auto-Assignment Rules**: Automatically assign streams to channels based on quality criteria with support for multiple M3U accounts
+- 🏆 **Stream Sorter**: Score-based stream ordering with multi-condition rules that can apply to all channels or specific ones
+- 🎨 **Modern UI**: Responsive Bootstrap 5 interface with comprehensive preview functionality
 
 ## Screenshots
 
@@ -39,18 +39,66 @@ Web application for managing Dispatcharr channels and streams with intelligent a
 
 ### Production (Recommended)
 
+Create a `docker-compose.yml` file with the following content:
+
+```yaml
+services:
+  stream-plus:
+    image: bernouilli/stream-plus:latest
+    container_name: stream-plus
+    restart: unless-stopped
+    
+    environment:
+      # ===== REQUIRED: Dispatcharr API Configuration =====
+      # URL where your Dispatcharr instance is running
+      - DISPATCHARR_API_URL=http://127.0.0.1:9191
+      # Username for Dispatcharr API authentication
+      - DISPATCHARR_API_USER=user
+      # Password for Dispatcharr API authentication
+      - DISPATCHARR_API_PASSWORD=password
+      
+      # ===== OPTIONAL: Flask Application Settings =====
+      # Port where the web interface will be accessible
+      - PORT=5000
+      # Enable/disable Flask debug mode (keep false in production)
+      - FLASK_DEBUG=false
+      # Secret key for session management (change in production!)
+      - SECRET_KEY=change-this-secret-key-in-production
+      
+      # ===== OPTIONAL: Stream Testing Configuration =====
+      # Duration in seconds to test each stream (default: 10)
+      - STREAM_TEST_DURATION=10
+      # Additional timeout buffer for stream testing (default: 30)
+      - STREAM_TEST_TIMEOUT_BUFFER=30
+      
+      # ===== OPTIONAL: System Configuration =====
+      # Timezone for the container (affects logs and scheduling)
+      - TZ=Europe/Madrid
+    
+    ports:
+      # Map container port 5000 to host port 5000
+      - "5000:5000"
+    
+    volumes:
+      # Persist rules and configuration data
+      - ./rules:/app/rules
+    
+    healthcheck:
+      # Health check to ensure the application is running
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+```
+
+Then start the container:
+
 ```bash
-# 1. Clone repository
-git clone https://github.com/bernouilli90/Stream-plus.git
-cd Stream-plus
-
-# 2. Configure Dispatcharr credentials in docker-compose.yml
-nano docker-compose.yml
-
-# 3. Start container
+# Start the container in detached mode
 docker-compose up -d
 
-# Access at http://localhost:5000
+# Access the web interface at http://localhost:5000
 ```
 
 ### Development
@@ -123,10 +171,17 @@ DISPATCHARR_API_PASSWORD=yourpassword
 ### Optional Variables
 
 ```env
+# Web Interface
 PORT=5000
 FLASK_DEBUG=False
 SECRET_KEY=your-secret-key
-TZ=UTC
+
+# Stream Testing Configuration
+STREAM_TEST_DURATION=10          # Duration in seconds to test each stream
+STREAM_TEST_TIMEOUT_BUFFER=30    # Additional timeout buffer for testing
+
+# System
+TZ=UTC                          # Timezone for logs and scheduling
 ```
 
 ## Docker Images
@@ -156,40 +211,57 @@ Pre-built Docker images are available on Docker Hub:
 Create rules to automatically assign streams to channels based on criteria:
 
 - **Stream name patterns**: Match by name/regex
-- **Video resolution**: 1080p, 720p, SD, etc.
+- **M3U Accounts**: Select multiple accounts or all accounts for broader matching
+- **Video resolution**: 2160p, 1080p, 720p, SD (&lt; 720p)
 - **Video codec**: h264, h265, av1
 - **Audio codec**: aac, ac3, eac3
 - **Video FPS**: Frame rate matching
 - **Bitrate**: Quality thresholds
 
-**Example rule:**
+**Advanced Options:**
+- **Replace existing streams**: Choose whether to replace current streams or add new ones
+- **Stream testing before assignment**: Automatically test streams using FFmpeg to obtain real statistics (bitrate, codec, resolution, etc.)
+- **Force retest**: Option to retest streams even with recent statistics
+- **Test age threshold**: Configure how old statistics can be before requiring retest
+
+**Example rule with advanced options:**
 ```json
 {
-  "name": "HD Streams",
+  "name": "Premium HD Sports",
   "enabled": true,
   "channel_id": 123,
-  "conditions": {
-    "video_resolution": ["1080p", "720p"],
-    "video_codec": ["h265", "h264"]
-  }
+  "m3u_account_ids": [1, 3],
+  "replace_existing_streams": true,
+  "regex_pattern": ".*(?:ESPN|FOX|NBC).*HD.*",
+  "video_resolution": ["1080p", "720p"],
+  "video_codec": ["h265", "h264"],
+  "video_bitrate_operator": ">=",
+  "video_bitrate_value": 4000,
+  "test_streams_before_sorting": true,
+  "force_retest_old_streams": false,
+  "retest_days_threshold": 7
 }
 ```
 
 ## Stream Sorting
 
-Score and reorder streams within channels based on quality metrics:
+Score and reorder streams within channels based on quality metrics. Rules can apply to specific channels or all channels in your system.
 
 **Scoring Conditions:**
 - M3U Source account
 - Video bitrate (>, >=, <, <=, ==)
-- Video resolution
+- Video resolution (1080p, 720p, SD &lt; 720p)
 - Video codec
 - Audio codec
 - Video FPS
 
+**Rule Scope Options:**
+- **Specific channels**: Apply to selected individual channels or channel groups
+- **All channels**: Apply the sorting rule to every channel in your Dispatcharr instance
+
 **Example:**
 ```
-Rule: "Best Quality First"
+Rule: "Best Quality First" (Applies to ALL channels)
 Conditions:
   - Video Bitrate >= 5000 → 10 points
   - Resolution >= 1920 → 15 points
@@ -197,6 +269,20 @@ Conditions:
 ```
 
 Streams are reordered by total score (highest first).
+
+## Rule Preview & Testing
+
+Test your rules before applying them to avoid unexpected results:
+
+### Auto-Assignment Rules
+- **Comprehensive preview**: Shows all streams that match your criteria across all selected M3U accounts
+- **Stream details**: Displays M3U source, audio codec, bitrate, resolution, and FPS for each matching stream
+- **Channel validation**: Verifies that the target channel exists before allowing rule execution
+
+### Stream Sorting Rules
+- **Channel selection**: Preview how sorting rules affect specific channels
+- **Score breakdown**: See how each stream scores against your conditions
+- **All channels support**: Preview rules that apply to all channels by selecting any channel for testing
 
 ## CLI Rule Execution
 
