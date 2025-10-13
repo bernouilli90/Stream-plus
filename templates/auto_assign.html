@@ -204,9 +204,9 @@
                                 {% if channel %}
                                     {% set logo = logos.get(channel.logo_id) if channel.logo_id else None %}
                                     {% if logo and (logo.cache_url or logo.url) %}
-                                    <img src="{{ logo.cache_url or logo.url }}" alt="{{ channel.name }}" class="rounded me-3 shadow-sm" style="height: 48px; width: 48px; object-fit: contain; border: 2px solid rgba(255,255,255,0.4);">
+                                    <img src="{{ logo.cache_url or logo.url }}" alt="{{ channel.name }}" class="rounded me-3 shadow-sm" style="height: 48px; width: 48px; object-fit: contain;">
                                     {% else %}
-                                    <div class="bg-white bg-opacity-25 rounded d-flex align-items-center justify-content-center me-3 shadow-sm" style="height: 48px; width: 48px; border: 2px solid rgba(255,255,255,0.4);">
+                                    <div class="bg-white bg-opacity-25 rounded d-flex align-items-center justify-content-center me-3 shadow-sm" style="height: 48px; width: 48px;">
                                         <i class="fas fa-tv text-white" style="font-size: 20px;"></i>
                                     </div>
                                     {% endif %}
