@@ -130,6 +130,7 @@ def auto_assign():
         rules = rules_manager.load_rules()
         channels = dispatcharr_client.get_channels()
         m3u_accounts = dispatcharr_client.get_m3u_accounts()
+        logos = dispatcharr_client.get_logos()
         
         # Create channels dictionary by ID for easy access
         channels_dict = {channel['id']: channel for channel in channels}
@@ -137,10 +138,13 @@ def auto_assign():
         # Create M3U accounts dictionary by ID for easy access
         m3u_accounts_dict = {account['id']: account for account in m3u_accounts}
         
-        return render_template('auto_assign.html', rules=rules, channels=channels_dict, m3u_accounts=m3u_accounts_dict)
+        # Create logos dictionary by ID for easy access
+        logos_dict = {logo['id']: logo for logo in logos}
+        
+        return render_template('auto_assign.html', rules=rules, channels=channels_dict, m3u_accounts=m3u_accounts_dict, logos=logos_dict)
     except Exception as e:
         flash(f'Error loading rules: {str(e)}', 'error')
-        return render_template('auto_assign.html', rules=[], channels={}, m3u_accounts={})
+        return render_template('auto_assign.html', rules=[], channels={}, m3u_accounts={}, logos={})
 
 @app.route('/api/channels', methods=['GET'])
 def api_get_channels():

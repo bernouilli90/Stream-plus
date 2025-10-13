@@ -12,56 +12,141 @@
         border-radius: 0.25rem;
         box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
     }
-    
+
     #channelDropdown .dropdown-item {
         padding: 0.5rem 1rem;
         transition: background-color 0.15s ease-in-out;
     }
-    
+
     #channelDropdown .dropdown-item:hover {
         background-color: #f8f9fa;
     }
-    
+
     #channelSearch {
         position: relative;
     }
-    
+
     .rule-card {
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 16px;
+        overflow: hidden;
+        border: none;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }
-    
+
     .rule-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+        transform: translateY(-8px) scale(1.02);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     }
-    
-    .card-header {
-        border-bottom: 1px solid rgba(0,0,0,0.05);
+
+    .rule-card .card {
+        border-radius: 16px;
+        border: none;
+        height: 100%;
     }
-    
+
+    .rule-card .card-header {
+        border-radius: 16px 16px 0 0 !important;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .rule-card .card-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+        pointer-events: none;
+    }
+
+    .rule-card .card-body {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        border-radius: 0 0 16px 16px;
+        position: relative;
+    }
+
+    .rule-card.disabled {
+        opacity: 0.7;
+        filter: grayscale(0.3);
+    }
+
+    .rule-card.disabled:hover {
+        transform: none;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
     .badge {
         font-weight: 500;
+        border-radius: 6px;
     }
-    
-    .dropdown-menu {
-        min-width: 140px;
+
+    .action-buttons {
+        display: flex;
+        gap: 6px;
     }
-    
-    .rule-card .dropdown {
-        position: static;
+
+    .action-btn {
+        border-radius: 6px;
+        padding: 4px 8px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 28px;
+        height: 28px;
+        border: 1px solid transparent;
     }
-    
-    .rule-card .dropdown-menu {
-        z-index: 1080;
-        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-        position: absolute;
-        transform: translate3d(0, 0, 1px);
+
+    .action-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
-    
-    .rule-card .dropdown-menu.show {
-        transform: translate3d(0, 0, 1px);
+
+    .action-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none !important;
     }
-</style>
+
+    .action-btn:disabled:hover {
+        box-shadow: none;
+        transform: none !important;
+    }
+
+    .rule-info {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+    .rule-info-item {
+        display: flex;
+        align-items: center;
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+
+    .rule-info-item i {
+        margin-right: 4px;
+        width: 14px;
+    }
+
+    .switch-container {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .switch-container .form-check-input {
+        margin-right: 8px;
+    }
 </style>
 {% endblock %}
 
@@ -107,115 +192,189 @@
 <!-- Rule list -->
 <div id="rulesContainer">
     {% if rules %}
-        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3" id="rulesList">
+        <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4" id="rulesList">
             {% for rule in rules %}
-            <div class="col rule-card" data-channel-name="{% set channel = channels.get(rule.channel_id) %}{{ channel.name|lower if channel else '' }}">
-                <div class="card h-100 shadow-sm border-0">
-                    <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
-                        <div class="d-flex align-items-center flex-grow-1">
-                            <div class="form-check form-switch me-2">
-                                <input class="form-check-input" type="checkbox" id="enableRule{{ rule.id }}" 
-                                       {% if rule.enabled %}checked{% endif %} 
-                                       onchange="toggleRule({{ rule.id }})"
-                                       style="cursor: pointer; transform: scale(0.8);">
-                            </div>
-                            {% set channel = channels.get(rule.channel_id) %}
-                            {% if channel %}
-                                {% if channel.logo %}
-                                <img src="{{ channel.logo }}" alt="{{ channel.name }}" class="rounded me-2" style="height: 24px; width: 24px; object-fit: contain;">
-                                {% else %}
-                                <div class="bg-secondary rounded d-flex align-items-center justify-content-center me-2" style="height: 24px; width: 24px;">
-                                    <i class="fas fa-tv text-white" style="font-size: 12px;"></i>
-                                </div>
-                                {% endif %}
-                            {% else %}
-                                <div class="bg-secondary rounded d-flex align-items-center justify-content-center me-2" style="height: 24px; width: 24px;">
-                                    <i class="fas fa-tv text-white" style="font-size: 12px;"></i>
-                                </div>
-                            {% endif %}
-                            <div class="flex-grow-1">
-                                <h6 class="mb-0 text-truncate" style="font-size: 0.9rem;">
-                                    {{ rule.name }}
-                                </h6>
-                                <small class="text-muted">
-                                    {% if channel %}
-                                        {{ channel.name }}
+            <div class="col rule-card {% if not rule.enabled %}disabled{% endif %}" data-channel-name="{% set channel = channels.get(rule.channel_id) %}{{ channel.name|lower if channel else '' }}">
+                <div class="card h-100 shadow-sm"{% if not rule.enabled %} style="opacity: 0.6;"{% endif %}>
+                    <div class="card-header d-flex align-items-start"{% if not rule.enabled %} style="background: linear-gradient(135deg, #495057 0%, #343a40 100%) !important; color: white !important; border-bottom: none !important; padding: 16px !important;"{% else %} style="background: linear-gradient(135deg, #4c63d2 0%, #6b46c1 100%) !important; color: white !important; border-bottom: none !important; padding: 16px !important;"{% endif %}>
+                        <div class="d-flex align-items-start w-100">
+                            <!-- Logo and Channel Info Section -->
+                            <div class="d-flex align-items-center flex-grow-1 me-3">
+                                {% set channel = channels.get(rule.channel_id) %}
+                                {% if channel %}
+                                    {% set logo = logos.get(channel.logo_id) if channel.logo_id else None %}
+                                    {% if logo and (logo.cache_url or logo.url) %}
+                                    <img src="{{ logo.cache_url or logo.url }}" alt="{{ channel.name }}" class="rounded me-3 shadow-sm" style="height: 48px; width: 48px; object-fit: contain; border: 2px solid rgba(255,255,255,0.4);">
                                     {% else %}
-                                        Channel #{{ rule.channel_id }}
+                                    <div class="bg-white bg-opacity-25 rounded d-flex align-items-center justify-content-center me-3 shadow-sm" style="height: 48px; width: 48px; border: 2px solid rgba(255,255,255,0.4);">
+                                        <i class="fas fa-tv text-white" style="font-size: 20px;"></i>
+                                    </div>
                                     {% endif %}
-                                </small>
+                                    <div class="flex-grow-1">
+                                        <div class="fw-bold text-white mb-1" style="font-size: 1.1rem;">{{ channel.name }}</div>
+                                        <div class="d-flex align-items-center">
+                                            <small class="text-white-50 me-2">ID: {{ channel.id }}</small>
+                                            {% if rule.enabled %}
+                                            <span class="badge bg-success bg-opacity-25 text-white border border-white border-opacity-25" style="font-size: 0.65rem;">Active</span>
+                                            {% else %}
+                                            <span class="badge bg-secondary bg-opacity-25 text-white border border-white border-opacity-25" style="font-size: 0.65rem;">Disabled</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div class="bg-white bg-opacity-25 rounded d-flex align-items-center justify-content-center me-3 shadow-sm" style="height: 48px; width: 48px; border: 2px solid rgba(255,255,255,0.4);">
+                                        <i class="fas fa-tv text-white" style="font-size: 20px;"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="fw-bold text-white mb-1" style="font-size: 1.1rem;">Channel #{{ rule.channel_id }}</div>
+                                        <div class="d-flex align-items-center">
+                                            <small class="text-white-50 me-2">ID: {{ rule.channel_id }}</small>
+                                            {% if rule.enabled %}
+                                            <span class="badge bg-success bg-opacity-25 text-white border border-white border-opacity-25" style="font-size: 0.65rem;">Active</span>
+                                            {% else %}
+                                            <span class="badge bg-secondary bg-opacity-25 text-white border border-white border-opacity-25" style="font-size: 0.65rem;">Disabled</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% endif %}
                             </div>
-                        </div>
-                        <div class="dropdown">
-                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fas fa-ellipsis-v"></i>
-                            </button>
-                            <ul class="dropdown-menu dropdown-menu-end dropup">
-                                <li><a class="dropdown-item" href="#" onclick="previewRule({{ rule.id }})"><i class="fas fa-eye me-2"></i>Preview</a></li>
-                                <li><a class="dropdown-item" href="#" onclick="executeRule({{ rule.id }})" {% if not rule.enabled %}class="disabled"{% endif %}><i class="fas fa-play me-2"></i>Execute</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="#" onclick="editRule({{ rule.id }})"><i class="fas fa-edit me-2"></i>Edit</a></li>
-                                <li><a class="dropdown-item text-danger" href="#" onclick="deleteRule({{ rule.id }})"><i class="fas fa-trash me-2"></i>Delete</a></li>
-                            </ul>
+
+                            <!-- Controls Section -->
+                            <div class="d-flex flex-column align-items-end">
+                                <!-- Enable/Disable Switch -->
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="enableRule{{ rule.id }}"
+                                           {% if rule.enabled %}checked{% endif %}
+                                           onchange="toggleRule({{ rule.id }})"
+                                           style="cursor: pointer; transform: scale(1.1);">
+                                    <label class="form-check-label text-white fw-semibold" for="enableRule{{ rule.id }}" style="font-size: 0.9rem;">
+                                        {{ rule.name }}
+                                    </label>
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="d-flex gap-1">
+                                    <button class="btn btn-info btn-sm action-btn" onclick="previewRule({{ rule.id }})" title="Preview rule">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="btn btn-success btn-sm action-btn" onclick="executeRule({{ rule.id }})"
+                                            {% if not rule.enabled %}disabled{% endif %} title="Execute rule">
+                                        <i class="fas fa-play"></i>
+                                    </button>
+                                    <button class="btn btn-warning btn-sm action-btn" onclick="editRule({{ rule.id }})" title="Edit rule">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-danger btn-sm action-btn" onclick="deleteRule({{ rule.id }})" title="Delete rule">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="card-body py-2">
-                        <div class="row g-2">
-                            <div class="col-12">
-                                {% if rule.regex_pattern %}
-                                <small class="text-muted d-block mb-1">
-                                    <i class="fas fa-search me-1"></i>
-                                    <code style="font-size: 0.75rem;">{{ rule.regex_pattern }}</code>
-                                </small>
-                                {% endif %}
-                                
-                                <div class="d-flex flex-wrap gap-1 mb-1">
-                                    {% if rule.replace_existing_streams %}
-                                    <span class="badge bg-warning" style="font-size: 0.7rem;">Replace existing</span>
-                                    {% endif %}
-                                    {% if rule.test_streams_before_sorting %}
-                                    <span class="badge bg-info" style="font-size: 0.7rem;">Test streams</span>
-                                    {% endif %}
-                                    {% if not rule.enabled %}
-                                    <span class="badge bg-secondary" style="font-size: 0.7rem;">Disabled</span>
-                                    {% else %}
-                                    <span class="badge bg-success" style="font-size: 0.7rem;">Enabled</span>
-                                    {% endif %}
+                    <div class="card-body" style="padding: 16px;">
+                        <!-- Rule Pattern -->
+                        {% if rule.regex_pattern %}
+                        <div class="mb-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-search text-muted me-2" style="font-size: 0.8rem;"></i>
+                                <small class="text-muted fw-semibold" style="font-size: 0.8rem;">PATTERN</small>
+                            </div>
+                            <div class="bg-light rounded p-2">
+                                <code class="text-dark" style="font-size: 0.75rem; word-break: break-all;">{{ rule.regex_pattern }}</code>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Rule Conditions -->
+                        {% if rule.video_bitrate_operator or rule.video_resolution or rule.video_codec or rule.audio_codec or rule.video_fps %}
+                        <div class="mb-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-filter text-muted me-2" style="font-size: 0.8rem;"></i>
+                                <small class="text-muted fw-semibold" style="font-size: 0.8rem;">CONDITIONS</small>
+                            </div>
+                            <div class="row g-2">
+                                {% if rule.video_bitrate_operator and rule.video_bitrate_value %}
+                                <div class="col-6">
+                                    <div class="d-flex align-items-center p-2 bg-light rounded" style="font-size: 0.75rem;">
+                                        <i class="fas fa-tachometer-alt text-primary me-2"></i>
+                                        <span class="text-dark fw-semibold">{{ rule.video_bitrate_operator }} {{ rule.video_bitrate_value }}k</span>
+                                    </div>
                                 </div>
+                                {% endif %}
+
+                                {% if rule.video_resolution %}
+                                <div class="col-6">
+                                    <div class="d-flex align-items-center p-2 bg-light rounded" style="font-size: 0.75rem;">
+                                        <i class="fas fa-desktop text-success me-2"></i>
+                                        <span class="text-dark fw-semibold">
+                                            {% if rule.video_resolution is iterable and rule.video_resolution is not string %}
+                                                {{ rule.video_resolution|join(', ') }}
+                                            {% else %}
+                                                {{ rule.video_resolution }}
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                {% if rule.video_codec %}
+                                <div class="col-6">
+                                    <div class="d-flex align-items-center p-2 bg-light rounded" style="font-size: 0.75rem;">
+                                        <i class="fas fa-video text-info me-2"></i>
+                                        <span class="text-dark fw-semibold">
+                                            {% if rule.video_codec is iterable and rule.video_codec is not string %}
+                                                {{ rule.video_codec|join(', ') }}
+                                            {% else %}
+                                                {{ rule.video_codec }}
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                {% if rule.audio_codec %}
+                                <div class="col-6">
+                                    <div class="d-flex align-items-center p-2 bg-light rounded" style="font-size: 0.75rem;">
+                                        <i class="fas fa-volume-up text-warning me-2"></i>
+                                        <span class="text-dark fw-semibold">
+                                            {% if rule.audio_codec is iterable and rule.audio_codec is not string %}
+                                                {{ rule.audio_codec|join(', ') }}
+                                            {% else %}
+                                                {{ rule.audio_codec }}
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                {% if rule.video_fps %}
+                                <div class="col-6">
+                                    <div class="d-flex align-items-center p-2 bg-light rounded" style="font-size: 0.75rem;">
+                                        <i class="fas fa-film text-danger me-2"></i>
+                                        <span class="text-dark fw-semibold">{{ rule.video_fps }} FPS</span>
+                                    </div>
+                                </div>
+                                {% endif %}
                             </div>
-                            
-                            {% if rule.video_bitrate_operator and rule.video_bitrate_value %}
-                            <div class="col-auto">
-                                <small class="text-muted">
-                                    <i class="fas fa-tachometer-alt me-1"></i>{{ rule.video_bitrate_operator }} {{ rule.video_bitrate_value }}k
-                                </small>
-                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Status Badges -->
+                        <div class="d-flex flex-wrap gap-1">
+                            {% if rule.replace_existing_streams %}
+                            <span class="badge bg-warning text-dark" style="font-size: 0.7rem; padding: 0.25rem 0.5rem;">
+                                <i class="fas fa-exchange-alt me-1"></i>Replace
+                            </span>
                             {% endif %}
-                            
-                            {% if rule.video_resolution %}
-                            <div class="col-auto">
-                                <small class="text-muted">
-                                    <i class="fas fa-desktop me-1"></i>
-                                    {% if rule.video_resolution is iterable and rule.video_resolution is not string %}
-                                        {{ rule.video_resolution|join(', ') }}
-                                    {% else %}
-                                        {{ rule.video_resolution }}
-                                    {% endif %}
-                                </small>
-                            </div>
+                            {% if rule.test_streams_before_sorting %}
+                            <span class="badge bg-info text-white" style="font-size: 0.7rem; padding: 0.25rem 0.5rem;">
+                                <i class="fas fa-vial me-1"></i>Test
+                            </span>
                             {% endif %}
-                            
-                            {% if rule.video_codec %}
-                            <div class="col-auto">
-                                <small class="text-muted">
-                                    <i class="fas fa-video me-1"></i>
-                                    {% if rule.video_codec is iterable and rule.video_codec is not string %}
-                                        {{ rule.video_codec|join(', ') }}
-                                    {% else %}
-                                        {{ rule.video_codec }}
-                                    {% endif %}
-                                </small>
-                            </div>
+                            {% if rule.force_retest_old_streams %}
+                            <span class="badge bg-primary text-white" style="font-size: 0.7rem; padding: 0.25rem 0.5rem;">
+                                <i class="fas fa-redo me-1"></i>Retest
+                            </span>
                             {% endif %}
                         </div>
                     </div>
@@ -727,28 +886,31 @@
     </div>
 </div>
 
-{% block extra_js %}
+{% endblock %}
+
+{% block extra_scripts %}
 <script>
 // Channel filter functionality
 document.addEventListener('DOMContentLoaded', function() {
     const channelFilter = document.getElementById('channelFilter');
     const rulesCount = document.getElementById('rulesCount');
-    const ruleCards = document.querySelectorAll('.rule-card');
+    const ruleCards = document.querySelectorAll('[data-channel-name]');
     const totalRules = ruleCards.length;
-    
+
     function updateRulesCount(visibleCount) {
         if (rulesCount) {
             rulesCount.textContent = `Showing ${visibleCount} of ${totalRules} rule${totalRules !== 1 ? 's' : ''}`;
         }
     }
-    
+
     function filterRules() {
         const filterValue = channelFilter.value.toLowerCase().trim();
         let visibleCount = 0;
         
         ruleCards.forEach(card => {
             const channelName = card.dataset.channelName || '';
-            const ruleName = card.querySelector('h6').textContent.toLowerCase();
+            const ruleNameElement = card.querySelector('.form-check-label');
+            const ruleName = ruleNameElement ? ruleNameElement.textContent.toLowerCase() : '';
             const isVisible = !filterValue || 
                             channelName.includes(filterValue) || 
                             ruleName.includes(filterValue);
@@ -762,7 +924,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initial count
     updateRulesCount(totalRules);
-    
+
     // Filter on input
     channelFilter.addEventListener('input', filterRules);
     
@@ -774,10 +936,6 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 });
 </script>
-{% endblock %}
-{% endblock %}
-
-{% block extra_scripts %}
 <script src="{{ url_for('static', filename='js/auto_assign_progress.js') }}"></script>
 <script src="{{ url_for('static', filename='js/auto_assign.js') }}"></script>
 {% endblock %}

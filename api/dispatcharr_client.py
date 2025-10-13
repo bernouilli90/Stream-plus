@@ -483,6 +483,58 @@ class DispatcharrClient:
             return result
         return result.get('results', [])
     
+    def get_logos(self, page: Optional[int] = None, page_size: Optional[int] = None) -> List[Dict[str, Any]]:
+        """
+        Get all logos
+        
+        Args:
+            page: Page number for pagination (if None, gets all pages)
+            page_size: Number of results per page
+            
+        Returns:
+            List of logos
+        """
+        if page is not None:
+            # Single page request
+            params = {}
+            if page is not None:
+                params['page'] = page
+            if page_size is not None:
+                params['page_size'] = page_size
+                
+            result = self._make_request('GET', '/api/channels/logos/', params=params)
+            # API may return direct list or paginated object
+            if isinstance(result, list):
+                return result
+            return result.get('results', [])
+        else:
+            # Get all pages
+            all_logos = []
+            current_page = 1
+            default_page_size = page_size or 100
+            
+            while True:
+                params = {'page': current_page, 'page_size': default_page_size}
+                result = self._make_request('GET', '/api/channels/logos/', params=params)
+                
+                if isinstance(result, list):
+                    logos = result
+                else:
+                    logos = result.get('results', [])
+                
+                if not logos:
+                    break
+                    
+                all_logos.extend(logos)
+                
+                # Check if there are more pages
+                if isinstance(result, dict) and not result.get('next'):
+                    break
+                    
+                current_page += 1
+                
+            return all_logos
+    
     def test_stream(self, stream_id: int, test_duration: int = None) -> Dict[str, Any]:
         """
         Test a stream using ffprobe to analyze its properties and quality.
