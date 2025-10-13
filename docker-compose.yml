@@ -17,6 +17,7 @@ services:
       # Stream testing configuration (optional)
       - STREAM_TEST_DURATION=10
       - STREAM_TEST_TIMEOUT_BUFFER=30
+      - STREAM_TEST_DELAY=3
       
       # Timezone (optional)
       - TZ=Europe/Madrid

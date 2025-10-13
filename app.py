@@ -718,16 +718,24 @@ def execute_auto_assignment_in_background(rule_id, queue):
                         
                         if result.get('success') and not result.get('save_error'):
                             tested_count += 1
-                            # Get stream stats for display
-                            stats = result.get('statistics', {})
-                            stats_message = ""
-                            if stats:
-                                bitrate = stats.get('output_bitrate') or stats.get('ffmpeg_output_bitrate')
-                                resolution = stats.get('resolution', 'Unknown')
-                                codec = stats.get('video_codec', 'Unknown')
-                                if bitrate:
-                                    stats_message = f" ({resolution}, {codec}, {bitrate:.0f}kbps)"
-                            
+                        
+                        # Add delay between tests to avoid provider detection (except for the last test)
+                        if stream_idx < len(streams_to_test):
+                            test_delay = int(os.getenv('STREAM_TEST_DELAY', '3'))
+                            if test_delay > 0:
+                                time.sleep(test_delay)
+                        
+                        # Get stream stats for display
+                        stats = result.get('statistics', {})
+                        stats_message = ""
+                        if stats:
+                            bitrate = stats.get('output_bitrate') or stats.get('ffmpeg_output_bitrate')
+                            resolution = stats.get('resolution', 'Unknown')
+                            codec = stats.get('video_codec', 'Unknown')
+                            if bitrate:
+                                stats_message = f" ({resolution}, {codec}, {bitrate:.0f}kbps)"
+                        
+                        if result.get('success') and not result.get('save_error'):
                             queue.put({
                                 'type': 'test_success',
                                 'stream_id': stream_id,
@@ -926,10 +934,20 @@ def api_bulk_create_auto_assign_rules():
             channels_to_process.append(channel_id)
 
         if not channels_to_process:
-            return jsonify({
-                'error': 'No channels to process. All channels in the group already have rules.',
-                'channels_skipped': len(group.channel_ids)
-            }), 400
+            if skip_existing:
+                # All channels already have rules and we're skipping existing ones - this is success
+                return jsonify({
+                    'message': f'All channels in group "{group.name}" already have rules. No new rules created.',
+                    'rules_created': [],
+                    'rules_updated': [],
+                    'channels_processed': 0,
+                    'channels_skipped': len(group.channel_ids)
+                }), 200
+            else:
+                return jsonify({
+                    'error': 'No channels to process. All channels in the group already have rules.',
+                    'channels_skipped': len(group.channel_ids)
+                }), 400
 
         # Get channel details for regex generation
         channels_details = {}

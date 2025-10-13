@@ -25,6 +25,43 @@
     #channelSearch {
         position: relative;
     }
+    
+    .rule-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    .rule-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+    }
+    
+    .card-header {
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .badge {
+        font-weight: 500;
+    }
+    
+    .dropdown-menu {
+        min-width: 140px;
+    }
+    
+    .rule-card .dropdown {
+        position: static;
+    }
+    
+    .rule-card .dropdown-menu {
+        z-index: 1080;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        position: absolute;
+        transform: translate3d(0, 0, 1px);
+    }
+    
+    .rule-card .dropdown-menu.show {
+        transform: translate3d(0, 0, 1px);
+    }
+</style>
 </style>
 {% endblock %}
 
@@ -49,131 +86,137 @@
     <strong>Automatically assign streams to channels</strong> based on configurable conditions like name (regex), M3U source, bitrate, codecs, resolution, and FPS.
 </div>
 
+<!-- Channel Filter -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-search"></i></span>
+            <input type="text" class="form-control" id="channelFilter" placeholder="Filter by channel name...">
+            <button class="btn btn-outline-secondary" type="button" onclick="clearChannelFilter()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+    <div class="col-md-6 text-end">
+        <small class="text-muted" id="rulesCount">
+            {% if rules %}Showing {{ rules|length }} rule{{ 's' if rules|length != 1 else '' }}{% else %}No rules{% endif %}
+        </small>
+    </div>
+</div>
+
 <!-- Rule list -->
 <div id="rulesContainer">
     {% if rules %}
-        <div class="row" id="rulesList">
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3" id="rulesList">
             {% for rule in rules %}
-            <div class="col-12 mb-3">
-                <div class="card shadow-sm">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <div class="form-check form-switch me-3">
+            <div class="col rule-card" data-channel-name="{% set channel = channels.get(rule.channel_id) %}{{ channel.name|lower if channel else '' }}">
+                <div class="card h-100 shadow-sm border-0">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
+                        <div class="d-flex align-items-center flex-grow-1">
+                            <div class="form-check form-switch me-2">
                                 <input class="form-check-input" type="checkbox" id="enableRule{{ rule.id }}" 
                                        {% if rule.enabled %}checked{% endif %} 
                                        onchange="toggleRule({{ rule.id }})"
-                                       style="cursor: pointer;">
+                                       style="cursor: pointer; transform: scale(0.8);">
                             </div>
-                            <h6 class="mb-0">
-                                <i class="fas fa-filter"></i> 
-                                {{ rule.name }}
-                                {% if not rule.enabled %}
-                                <span class="badge bg-secondary ms-2">Disabled</span>
+                            {% set channel = channels.get(rule.channel_id) %}
+                            {% if channel %}
+                                {% if channel.logo %}
+                                <img src="{{ channel.logo }}" alt="{{ channel.name }}" class="rounded me-2" style="height: 24px; width: 24px; object-fit: contain;">
                                 {% else %}
-                                <span class="badge bg-success ms-2">Enabled</span>
+                                <div class="bg-secondary rounded d-flex align-items-center justify-content-center me-2" style="height: 24px; width: 24px;">
+                                    <i class="fas fa-tv text-white" style="font-size: 12px;"></i>
+                                </div>
                                 {% endif %}
-                            </h6>
+                            {% else %}
+                                <div class="bg-secondary rounded d-flex align-items-center justify-content-center me-2" style="height: 24px; width: 24px;">
+                                    <i class="fas fa-tv text-white" style="font-size: 12px;"></i>
+                                </div>
+                            {% endif %}
+                            <div class="flex-grow-1">
+                                <h6 class="mb-0 text-truncate" style="font-size: 0.9rem;">
+                                    {{ rule.name }}
+                                </h6>
+                                <small class="text-muted">
+                                    {% if channel %}
+                                        {{ channel.name }}
+                                    {% else %}
+                                        Channel #{{ rule.channel_id }}
+                                    {% endif %}
+                                </small>
+                            </div>
                         </div>
-                        <div>
-                            <button class="btn btn-sm btn-outline-info" onclick="previewRule({{ rule.id }})">
-                                <i class="fas fa-eye"></i> Preview
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-ellipsis-v"></i>
                             </button>
-                            <button class="btn btn-sm btn-success" onclick="executeRule({{ rule.id }})" {% if not rule.enabled %}disabled{% endif %}>
-                                <i class="fas fa-play"></i> Execute
-                            </button>
-                            <button class="btn btn-sm btn-outline-primary" onclick="editRule({{ rule.id }})">
-                                <i class="fas fa-edit"></i> Edit
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteRule({{ rule.id }})">
-                                <i class="fas fa-trash"></i> Delete
-                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end dropup">
+                                <li><a class="dropdown-item" href="#" onclick="previewRule({{ rule.id }})"><i class="fas fa-eye me-2"></i>Preview</a></li>
+                                <li><a class="dropdown-item" href="#" onclick="executeRule({{ rule.id }})" {% if not rule.enabled %}class="disabled"{% endif %}><i class="fas fa-play me-2"></i>Execute</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="#" onclick="editRule({{ rule.id }})"><i class="fas fa-edit me-2"></i>Edit</a></li>
+                                <li><a class="dropdown-item text-danger" href="#" onclick="deleteRule({{ rule.id }})"><i class="fas fa-trash me-2"></i>Delete</a></li>
+                            </ul>
                         </div>
                     </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                {% set channel = channels.get(rule.channel_id) %}
-                                {% if channel %}
-                                <p class="mb-2">
-                                    <strong>Channel:</strong> 
-                                    {% if channel.logo %}
-                                    <img src="{{ channel.logo }}" alt="{{ channel.name }}" style="height: 20px; margin-right: 5px; vertical-align: middle;">
-                                    {% else %}
-                                    <i class="fas fa-tv text-muted"></i>
-                                    {% endif %}
-                                    {{ channel.name or 'Channel #' + rule.channel_id|string }}
-                                    <small class="text-muted">(ID: {{ rule.channel_id }})</small>
-                                </p>
-                                {% else %}
-                                <p class="mb-2"><strong>Channel ID:</strong> {{ rule.channel_id }}</p>
-                                {% endif %}
+                    <div class="card-body py-2">
+                        <div class="row g-2">
+                            <div class="col-12">
                                 {% if rule.regex_pattern %}
-                                <p class="mb-2"><strong>Regex Pattern:</strong> <code>{{ rule.regex_pattern }}</code></p>
+                                <small class="text-muted d-block mb-1">
+                                    <i class="fas fa-search me-1"></i>
+                                    <code style="font-size: 0.75rem;">{{ rule.regex_pattern }}</code>
+                                </small>
                                 {% endif %}
-                                {% if rule.m3u_account_ids %}
-                                <p class="mb-2"><strong>M3U Accounts:</strong> 
-                                    {% for m3u_id in rule.m3u_account_ids %}
-                                        {{ m3u_accounts.get(m3u_id, {}).get('name', m3u_id) }}{% if not loop.last %}, {% endif %}
-                                    {% endfor %}
-                                </p>
-                                {% endif %}
-                                {% if rule.replace_existing_streams %}
-                                <p class="mb-2"><span class="badge bg-warning">Replace existing streams</span></p>
-                                {% endif %}
-                            </div>
-                            <div class="col-md-6">
-                                {% if rule.video_bitrate_operator and rule.video_bitrate_value %}
-                                <p class="mb-2"><strong>Bitrate:</strong> {{ rule.video_bitrate_operator }} {{ rule.video_bitrate_value }} kbps</p>
-                                {% endif %}
-                                {% if rule.video_codec %}
-                                <p class="mb-2">
-                                    <strong>Video Codec:</strong> 
-                                    {% if rule.video_codec is iterable and rule.video_codec is not string %}
-                                        {% for codec in rule.video_codec %}
-                                            <span class="badge bg-info">{{ codec }}</span>
-                                        {% endfor %}
-                                    {% else %}
-                                        <span class="badge bg-info">{{ rule.video_codec }}</span>
+                                
+                                <div class="d-flex flex-wrap gap-1 mb-1">
+                                    {% if rule.replace_existing_streams %}
+                                    <span class="badge bg-warning" style="font-size: 0.7rem;">Replace existing</span>
                                     {% endif %}
-                                </p>
-                                {% endif %}
-                                {% if rule.video_resolution %}
-                                <p class="mb-2">
-                                    <strong>Resolution:</strong> 
+                                    {% if rule.test_streams_before_sorting %}
+                                    <span class="badge bg-info" style="font-size: 0.7rem;">Test streams</span>
+                                    {% endif %}
+                                    {% if not rule.enabled %}
+                                    <span class="badge bg-secondary" style="font-size: 0.7rem;">Disabled</span>
+                                    {% else %}
+                                    <span class="badge bg-success" style="font-size: 0.7rem;">Enabled</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            {% if rule.video_bitrate_operator and rule.video_bitrate_value %}
+                            <div class="col-auto">
+                                <small class="text-muted">
+                                    <i class="fas fa-tachometer-alt me-1"></i>{{ rule.video_bitrate_operator }} {{ rule.video_bitrate_value }}k
+                                </small>
+                            </div>
+                            {% endif %}
+                            
+                            {% if rule.video_resolution %}
+                            <div class="col-auto">
+                                <small class="text-muted">
+                                    <i class="fas fa-desktop me-1"></i>
                                     {% if rule.video_resolution is iterable and rule.video_resolution is not string %}
-                                        {% for res in rule.video_resolution %}
-                                            <span class="badge bg-success">{{ res }}</span>
-                                        {% endfor %}
+                                        {{ rule.video_resolution|join(', ') }}
                                     {% else %}
-                                        <span class="badge bg-success">{{ rule.video_resolution }}</span>
+                                        {{ rule.video_resolution }}
                                     {% endif %}
-                                </p>
-                                {% endif %}
-                                {% if rule.video_fps %}
-                                <p class="mb-2">
-                                    <strong>FPS:</strong> 
-                                    {% if rule.video_fps is iterable and rule.video_fps is not string %}
-                                        {% for fps in rule.video_fps %}
-                                            <span class="badge bg-primary">{{ fps }}</span>
-                                        {% endfor %}
-                                    {% else %}
-                                        <span class="badge bg-primary">{{ rule.video_fps }}</span>
-                                    {% endif %}
-                                </p>
-                                {% endif %}
-                                {% if rule.audio_codec %}
-                                <p class="mb-2">
-                                    <strong>Audio Codec:</strong> 
-                                    {% if rule.audio_codec is iterable and rule.audio_codec is not string %}
-                                        {% for codec in rule.audio_codec %}
-                                            <span class="badge bg-warning text-dark">{{ codec }}</span>
-                                        {% endfor %}
-                                    {% else %}
-                                        <span class="badge bg-warning text-dark">{{ rule.audio_codec }}</span>
-                                    {% endif %}
-                                </p>
-                                {% endif %}
+                                </small>
                             </div>
+                            {% endif %}
+                            
+                            {% if rule.video_codec %}
+                            <div class="col-auto">
+                                <small class="text-muted">
+                                    <i class="fas fa-video me-1"></i>
+                                    {% if rule.video_codec is iterable and rule.video_codec is not string %}
+                                        {{ rule.video_codec|join(', ') }}
+                                    {% else %}
+                                        {{ rule.video_codec }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -683,6 +726,55 @@
         <span class="visually-hidden">Cargando...</span>
     </div>
 </div>
+
+{% block extra_js %}
+<script>
+// Channel filter functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const channelFilter = document.getElementById('channelFilter');
+    const rulesCount = document.getElementById('rulesCount');
+    const ruleCards = document.querySelectorAll('.rule-card');
+    const totalRules = ruleCards.length;
+    
+    function updateRulesCount(visibleCount) {
+        if (rulesCount) {
+            rulesCount.textContent = `Showing ${visibleCount} of ${totalRules} rule${totalRules !== 1 ? 's' : ''}`;
+        }
+    }
+    
+    function filterRules() {
+        const filterValue = channelFilter.value.toLowerCase().trim();
+        let visibleCount = 0;
+        
+        ruleCards.forEach(card => {
+            const channelName = card.dataset.channelName || '';
+            const ruleName = card.querySelector('h6').textContent.toLowerCase();
+            const isVisible = !filterValue || 
+                            channelName.includes(filterValue) || 
+                            ruleName.includes(filterValue);
+            
+            card.style.display = isVisible ? '' : 'none';
+            if (isVisible) visibleCount++;
+        });
+        
+        updateRulesCount(visibleCount);
+    }
+    
+    // Initial count
+    updateRulesCount(totalRules);
+    
+    // Filter on input
+    channelFilter.addEventListener('input', filterRules);
+    
+    // Clear filter function
+    window.clearChannelFilter = function() {
+        channelFilter.value = '';
+        filterRules();
+        channelFilter.focus();
+    };
+});
+</script>
+{% endblock %}
 {% endblock %}
 
 {% block extra_scripts %}

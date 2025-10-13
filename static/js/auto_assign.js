@@ -802,7 +802,7 @@ async function createBulkRules() {
             force_retest_old_streams: document.getElementById('bulkForceRetestOldStreams').checked,
             retest_days_threshold: parseInt(document.getElementById('bulkRetestDaysThreshold').value) || 7,
             m3u_account_ids: Array.from(document.getElementById('bulkM3uAccountIds').selectedOptions).map(opt => parseInt(opt.value)).filter(id => id),
-            bitrate_operator: document.getElementById('bulkBitrateOperator').value,
+            bitrate_operator: document.getElementById('bulkBitrateOperator').value === 'No restriction...' ? null : document.getElementById('bulkBitrateOperator').value,
             bitrate_value: document.getElementById('bulkBitrateValue').value ? parseInt(document.getElementById('bulkBitrateValue').value) : null,
             video_codec: Array.from(document.getElementById('bulkVideoCodec').selectedOptions).map(opt => opt.value),
             video_resolution: Array.from(document.getElementById('bulkResolution').selectedOptions).map(opt => opt.value),
@@ -841,8 +841,10 @@ async function createBulkRules() {
             const modal = bootstrap.Modal.getInstance(document.getElementById('bulkCreateModal'));
             modal.hide();
             
-            // Reload rules list
-            loadRules();
+            // Reload page to show new rules
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
             
             // Show detailed results
             if (result.errors && result.errors.length > 0) {
