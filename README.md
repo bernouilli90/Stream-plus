@@ -2,7 +2,7 @@
 
 Web application for managing Dispatcharr channels and streams with intelligent auto-assignment and stream sorting capabilities.
 
-**Version:** v0.2.0 | **Release Date:** October 13, 2025
+**Version:** v0.2.1 | **Release Date:** October 13, 2025
 
 ## Features
 

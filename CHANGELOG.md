@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2025-10-13
+
+### Fixed
+- **Docker healthcheck**: Fixed failing healthcheck by replacing wget with curl and adding curl to Dockerfile
+
+### Technical Details
+- Added curl to Alpine Linux system dependencies
+- Changed healthcheck command from wget to curl in Dockerfile and docker-compose files
+- Healthcheck now properly verifies Flask application is running
+
 ## [0.2.0] - 2025-10-13
 
 ### Added
