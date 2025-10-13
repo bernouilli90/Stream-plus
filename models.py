@@ -30,7 +30,7 @@ class AutoAssignmentRule:
         
         # Filtering conditions (all optional):
         regex_pattern: Regular expression to filter by stream name
-        m3u_account_id: M3U account ID (None = all)
+        m3u_account_ids: List of M3U account IDs (None or empty = all)
         
         # Video stats conditions:
         video_bitrate_operator: Comparison operator (>, >=, <, <=, ==)
@@ -55,7 +55,7 @@ class AutoAssignmentRule:
     
     # Filtering conditions
     regex_pattern: Optional[str] = None
-    m3u_account_id: Optional[int] = None
+    m3u_account_ids: Optional[List[int]] = None
     
     # Video conditions
     video_bitrate_operator: Optional[str] = None  # >, >=, <, <=, ==
@@ -89,8 +89,16 @@ class AutoAssignmentRule:
             if 'video_resolution' not in data:
                 data['video_resolution'] = None
         
+        # Migrate m3u_account_id to m3u_account_ids
+        if 'm3u_account_id' in data and data['m3u_account_id'] is not None:
+            if 'm3u_account_ids' not in data or data['m3u_account_ids'] is None:
+                # Convert single ID to list
+                data['m3u_account_ids'] = [data['m3u_account_id']]
+            # Remove old field
+            data.pop('m3u_account_id', None)
+        
         # Normalize single values to lists for multi-value fields
-        multi_value_fields = ['video_codec', 'video_resolution', 'video_fps', 'audio_codec']
+        multi_value_fields = ['video_codec', 'video_resolution', 'video_fps', 'audio_codec', 'm3u_account_ids']
         for field in multi_value_fields:
             if field in data and data[field] is not None:
                 # If it's a string or number, convert to list
@@ -252,7 +260,7 @@ class StreamMatcher:
             return '2160p'
         elif height >= 1000:  # Full HD (1080p)
             return '1080p'
-        elif height >= 700:  # HD (720p)
+        elif height >= 720:  # HD (720p)
             return '720p'
         else:  # SD (anything below 720p)
             return 'SD'
@@ -355,8 +363,8 @@ class StreamMatcher:
                 return False
         
         # 2. Filter by M3U account
-        if rule.m3u_account_id is not None:
-            if stream.get('m3u_account') != rule.m3u_account_id:
+        if rule.m3u_account_ids is not None and len(rule.m3u_account_ids) > 0:
+            if stream.get('m3u_account') not in rule.m3u_account_ids:
                 return False
         
         return True
@@ -441,27 +449,89 @@ class StreamMatcher:
         return True
     
     @staticmethod
-    def preview_matches(rule: AutoAssignmentRule, streams: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def preview_matches(rule: AutoAssignmentRule, streams: List[Dict[str, Any]], m3u_accounts_dict: Optional[Dict[int, str]] = None) -> Dict[str, Any]:
         """
-        Previews which streams would match the rule
+        Previews which streams would match the rule with detailed filtering information
+        
+        For preview purposes, shows ALL streams that match the regex pattern regardless of M3U account filter.
+        This allows users to see potential matches across all M3U sources.
         
         Returns:
-            Dictionary with matching information:
+            Dictionary with detailed matching information:
             {
                 'total_streams': int,
-                'matching_streams': List[Dict],
+                'regex_matching_streams': List[Dict],  # Streams that pass regex filter (from ALL M3U sources)
+                'fully_matching_streams': List[Dict],   # Streams that pass ALL conditions
+                'partially_matching_streams': List[Dict], # Streams that pass regex but fail other conditions
+                'no_stats_streams': List[Dict],          # Streams that pass regex but lack stats for other conditions
                 'match_count': int,
+                'regex_match_count': int,
                 'conditions_applied': List[str]
             }
         """
-        matching = StreamMatcher.evaluate_rule(rule, streams)
+        # For preview, get streams that pass regex ONLY (ignore M3U account filter)
+        regex_matching = []
+        for stream in streams:
+            stream_name = stream.get('name', '')
+            try:
+                if rule.regex_pattern and re.search(rule.regex_pattern, stream_name, re.IGNORECASE):
+                    # Add M3U source information to the stream
+                    m3u_id = stream.get('m3u_account')
+                    m3u_name = m3u_accounts_dict.get(m3u_id, f'ID: {m3u_id}' if m3u_id else 'Unknown')
+                    stream_copy = stream.copy()
+                    stream_copy['m3u_source'] = m3u_name
+                    regex_matching.append(stream_copy)
+                elif not rule.regex_pattern:
+                    # If no regex pattern, include all streams for preview
+                    m3u_id = stream.get('m3u_account')
+                    m3u_name = m3u_accounts_dict.get(m3u_id, f'ID: {m3u_id}' if m3u_id else 'Unknown')
+                    stream_copy = stream.copy()
+                    stream_copy['m3u_source'] = m3u_name
+                    regex_matching.append(stream_copy)
+            except re.error:
+                # If regex is invalid, skip this stream
+                continue
+        
+        # Then, get streams that pass ALL conditions (including M3U account filter)
+        fully_matching = StreamMatcher.evaluate_rule(rule, streams)
+        
+        # Categorize the regex matching streams
+        partially_matching = []
+        no_stats_streams = []
+        
+        for stream in regex_matching:
+            # Skip if it's already in fully matching
+            if any(s['id'] == stream['id'] for s in fully_matching):
+                continue
+                
+            # Check if rule requires additional stats
+            rule_requires_stats = (
+                rule.video_bitrate_operator or
+                rule.video_codec or
+                rule.video_resolution or
+                rule.video_fps or
+                rule.audio_codec
+            )
+            
+            if rule_requires_stats:
+                stream_stats = stream.get('stream_stats')
+                if not stream_stats:
+                    # Stream lacks stats needed for evaluation
+                    no_stats_streams.append(stream)
+                else:
+                    # Stream has stats but doesn't meet other conditions
+                    partially_matching.append(stream)
+            else:
+                # Rule doesn't require additional stats, so this stream partially matches
+                partially_matching.append(stream)
         
         # List applied conditions
         conditions = []
         if rule.regex_pattern:
             conditions.append(f"Name matches regex: {rule.regex_pattern}")
-        if rule.m3u_account_id is not None:
-            conditions.append(f"M3U Account ID: {rule.m3u_account_id}")
+        if rule.m3u_account_ids is not None and len(rule.m3u_account_ids) > 0:
+            m3u_names = [m3u_accounts_dict.get(m3u_id, f'ID: {m3u_id}') for m3u_id in rule.m3u_account_ids]
+            conditions.append(f"M3U Accounts: {', '.join(m3u_names)} (ignored in preview)")
         if rule.video_bitrate_operator and rule.video_bitrate_value:
             conditions.append(f"Video bitrate {rule.video_bitrate_operator} {rule.video_bitrate_value} kbps")
         if rule.video_codec:
@@ -475,7 +545,11 @@ class StreamMatcher:
         
         return {
             'total_streams': len(streams),
-            'matching_streams': matching,
-            'match_count': len(matching),
+            'regex_matching_streams': regex_matching,
+            'fully_matching_streams': fully_matching,
+            'partially_matching_streams': partially_matching,
+            'no_stats_streams': no_stats_streams,
+            'match_count': len(fully_matching),
+            'regex_match_count': len(regex_matching),
             'conditions_applied': conditions
         }

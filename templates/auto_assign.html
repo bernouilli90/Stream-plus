@@ -105,8 +105,12 @@
                                 {% if rule.regex_pattern %}
                                 <p class="mb-2"><strong>Regex Pattern:</strong> <code>{{ rule.regex_pattern }}</code></p>
                                 {% endif %}
-                                {% if rule.m3u_account_id %}
-                                <p class="mb-2"><strong>M3U Account ID:</strong> {{ rule.m3u_account_id }}</p>
+                                {% if rule.m3u_account_ids %}
+                                <p class="mb-2"><strong>M3U Accounts:</strong> 
+                                    {% for m3u_id in rule.m3u_account_ids %}
+                                        {{ m3u_accounts.get(m3u_id, {}).get('name', m3u_id) }}{% if not loop.last %}, {% endif %}
+                                    {% endfor %}
+                                </p>
                                 {% endif %}
                                 {% if rule.replace_existing_streams %}
                                 <p class="mb-2"><span class="badge bg-warning">Replace existing streams</span></p>
@@ -279,10 +283,11 @@
 
                     <!-- M3U Account -->
                     <div class="mb-3">
-                        <label for="m3uAccountId" class="form-label">M3U Account</label>
-                        <select class="form-select" id="m3uAccountId">
+                        <label for="m3uAccountIds" class="form-label">M3U Accounts</label>
+                        <select class="form-select" id="m3uAccountIds" multiple size="3">
                             <option value="">All accounts...</option>
                         </select>
+                        <div class="form-text">Hold Ctrl/Cmd to select multiple accounts. Leave empty for all accounts.</div>
                     </div>
 
                     <!-- Video Conditions -->
@@ -333,7 +338,7 @@
                             <option value="720p">720p (HD)</option>
                             <option value="1080p">1080p (Full HD)</option>
                             <option value="2160p">2160p (4K)</option>
-                            <option value="SD">SD (Standard Definition)</option>
+                            <option value="SD">SD (&lt; 720p)</option>
                         </select>
                         <small class="form-text text-muted">Leave empty for no restriction</small>
                     </div>

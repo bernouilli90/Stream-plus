@@ -127,7 +127,7 @@ async function loadM3UAccounts() {
         
         currentM3UAccounts = await response.json();
         
-        const select = document.getElementById('m3uAccountId');
+        const select = document.getElementById('m3uAccountIds');
         select.innerHTML = '<option value="">All accounts...</option>';
         
         currentM3UAccounts.forEach(account => {
@@ -191,7 +191,13 @@ async function editRule(ruleId) {
         document.getElementById('ruleEnabled').checked = rule.enabled;
         document.getElementById('replaceExisting').checked = rule.replace_existing_streams;
         document.getElementById('regexPattern').value = rule.regex_pattern || '';
-        document.getElementById('m3uAccountId').value = rule.m3u_account_id || '';
+        
+        // Set M3U account selections
+        const m3uSelect = document.getElementById('m3uAccountIds');
+        Array.from(m3uSelect.options).forEach(option => {
+            option.selected = rule.m3u_account_ids && rule.m3u_account_ids.includes(parseInt(option.value));
+        });
+        
         document.getElementById('bitrateOperator').value = rule.video_bitrate_operator || '';
         document.getElementById('bitrateValue').value = rule.video_bitrate_value || '';
         
@@ -258,6 +264,13 @@ async function saveRule() {
         return selected.length > 0 ? selected : null;
     };
     
+    // Get selected integer values from multiple select fields
+    const getSelectedIntValues = (selectId) => {
+        const select = document.getElementById(selectId);
+        const selected = Array.from(select.selectedOptions).map(opt => parseInt(opt.value)).filter(val => !isNaN(val));
+        return selected.length > 0 ? selected : null;
+    };
+    
     // Get numeric values for FPS
     const getFpsValues = () => {
         const select = document.getElementById('videoFps');
@@ -271,9 +284,9 @@ async function saveRule() {
         enabled: document.getElementById('ruleEnabled').checked,
         replace_existing_streams: document.getElementById('replaceExisting').checked,
         regex_pattern: document.getElementById('regexPattern').value || null,
-        m3u_account_id: document.getElementById('m3uAccountId').value || null,
-        video_bitrate_operator: document.getElementById('bitrateOperator').value || null,
-        video_bitrate_value: document.getElementById('bitrateValue').value ? parseFloat(document.getElementById('bitrateValue').value) : null,
+        m3u_account_ids: getSelectedIntValues('m3uAccountIds'),
+        bitrate_operator: document.getElementById('bitrateOperator').value || null,
+        bitrate_value: document.getElementById('bitrateValue').value ? parseFloat(document.getElementById('bitrateValue').value) : null,
         video_codec: getSelectedValues('videoCodec'),
         video_resolution: getSelectedValues('resolution'),
         video_fps: getFpsValues(),
@@ -397,7 +410,9 @@ async function previewRule(ruleId) {
         let html = `
             <div class="alert alert-info">
                 <h5><i class="fas fa-info-circle"></i> Summary</h5>
-                <p class="mb-0"><strong>${preview.match_count}</strong> stream(s) match this rule.</p>
+                <p class="mb-1"><strong>${preview.match_count}</strong> stream(s) fully match all conditions.</p>
+                <p class="mb-1"><strong>${preview.regex_match_count}</strong> stream(s) match the basic regex filter.</p>
+                <p class="mb-0"><small class="text-muted">Showing all regex matches with highlighting</small></p>
             </div>
         `;
         
@@ -412,17 +427,70 @@ async function previewRule(ruleId) {
             `;
         }
         
-        if (preview.matching_streams && preview.matching_streams.length > 0) {
+        // Helper function to format stream row
+        function formatStreamRow(stream, rowClass = '', statusBadge = '') {
+            const stats = stream.stream_stats || {};
+            
+            // Format bitrate
+            let bitrateDisplay = 'N/A';
+            if (stats.output_bitrate) {
+                bitrateDisplay = `${Math.round(stats.output_bitrate)} kbps`;
+            } else if (stats.ffmpeg_output_bitrate) {
+                bitrateDisplay = `${Math.round(stats.ffmpeg_output_bitrate)} kbps`;
+            }
+            
+            // Format resolution
+            let resolutionDisplay = 'N/A';
+            if (stats.resolution) {
+                resolutionDisplay = normalizeResolution(stats.resolution);
+            }
+            
+            // Format FPS
+            let fpsDisplay = 'N/A';
+            if (stats.source_fps) {
+                fpsDisplay = Math.round(stats.source_fps);
+            }
+            
+            // Format M3U source
+            const m3uSource = stream.m3u_source || 'Unknown';
+            
+            // Format Audio Codec
+            const audioCodec = stats.audio_codec || 'N/A';
+            
+            return `
+                <tr class="${rowClass}">
+                    <td>${stream.id}</td>
+                    <td>${m3uSource}</td>
+                    <td>${stream.name || 'N/A'} ${statusBadge}</td>
+                    <td>${bitrateDisplay}</td>
+                    <td>${stats.video_codec || 'N/A'}</td>
+                    <td>${audioCodec}</td>
+                    <td>${resolutionDisplay}</td>
+                    <td>${fpsDisplay}</td>
+                </tr>
+            `;
+        }
+        
+        if (preview.regex_matching_streams && preview.regex_matching_streams.length > 0) {
             html += `
-                <h6>Matching streams:</h6>
+                <h6>Regex matching streams:</h6>
+                <div class="mb-2">
+                    <small class="text-muted">
+                        <i class="fas fa-circle text-success"></i> Fully matches all conditions &nbsp;&nbsp;
+                        <i class="fas fa-circle text-secondary"></i> Matches regex but fails other conditions &nbsp;&nbsp;
+                        <i class="fas fa-circle text-warning"></i> Matches regex but lacks required stats
+                    </small>
+                </div>
                 <div class="table-responsive">
-                    <table class="table table-sm table-striped">
+                    <table class="table table-sm">
                         <thead>
                             <tr>
                                 <th>ID</th>
+                                <th>M3U Source</th>
                                 <th>Name</th>
                                 <th>Bitrate</th>
-                                <th>Codec</th>
+                                <th>Video Codec</th>
+                                <th>Audio Codec</th>
                                 <th>Resolution</th>
                                 <th>FPS</th>
                             </tr>
@@ -430,18 +498,24 @@ async function previewRule(ruleId) {
                         <tbody>
             `;
             
-            preview.matching_streams.forEach(stream => {
-                const stats = stream.stream_stats || {};
-                html += `
-                    <tr>
-                        <td>${stream.id}</td>
-                        <td>${stream.name || 'N/A'}</td>
-                        <td>${stats.video_bitrate || 'N/A'}</td>
-                        <td>${stats.video_codec || 'N/A'}</td>
-                        <td>${stats.video_resolution || 'N/A'}</td>
-                        <td>${stats.video_fps || 'N/A'}</td>
-                    </tr>
-                `;
+            // Create sets for quick lookup
+            const fullyMatchingIds = new Set(preview.fully_matching_streams.map(s => s.id));
+            const noStatsIds = new Set(preview.no_stats_streams.map(s => s.id));
+            
+            // Sort streams by ID for consistent display
+            const sortedStreams = [...preview.regex_matching_streams].sort((a, b) => a.id - b.id);
+            
+            sortedStreams.forEach(stream => {
+                if (fullyMatchingIds.has(stream.id)) {
+                    // Fully matching - green highlight
+                    html += formatStreamRow(stream, 'table-success', '<i class="fas fa-check-circle text-success ms-1" title="Fully matches all conditions"></i>');
+                } else if (noStatsIds.has(stream.id)) {
+                    // No stats - yellow/orange highlight
+                    html += formatStreamRow(stream, 'table-warning', '<i class="fas fa-exclamation-triangle text-warning ms-1" title="Lacks required statistics"></i>');
+                } else {
+                    // Partially matching - gray highlight
+                    html += formatStreamRow(stream, 'table-secondary', '<i class="fas fa-times-circle text-secondary ms-1" title="Fails other conditions"></i>');
+                }
             });
             
             html += `
@@ -453,7 +527,7 @@ async function previewRule(ruleId) {
             html += `
                 <div class="alert alert-warning">
                     <i class="fas fa-exclamation-triangle"></i>
-                    No streams found matching this rule.
+                    No streams found matching the basic regex filter.
                 </div>
             `;
         }
@@ -593,4 +667,22 @@ function setupModalEventListeners() {
         testCheckbox.removeEventListener('change', toggleRetestOptions);
         testCheckbox.addEventListener('change', toggleRetestOptions);
     }
+}
+
+/**
+ * Normalizes a resolution string to standard format (720p, 1080p, 2160p, SD)
+ */
+function normalizeResolution(resolutionStr) {
+    if (!resolutionStr) return 'N/A';
+    
+    // Parse width x height
+    const match = resolutionStr.match(/(\d+)x(\d+)/);
+    if (!match) return resolutionStr;
+    
+    const height = parseInt(match[2]);
+    
+    if (height >= 2000) return '2160p';  // 4K
+    if (height >= 1000) return '1080p';  // Full HD
+    if (height >= 700) return '720p';    // HD
+    return 'SD';  // Standard Definition
 }

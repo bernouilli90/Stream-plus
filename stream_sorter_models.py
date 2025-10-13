@@ -347,7 +347,7 @@ class StreamSorter:
             return '2160p'
         elif height >= 1000:
             return '1080p'
-        elif height >= 700:
+        elif height >= 720:
             return '720p'
         else:
             return 'SD'

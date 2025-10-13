@@ -121,14 +121,18 @@ def auto_assign():
     try:
         rules = rules_manager.load_rules()
         channels = dispatcharr_client.get_channels()
+        m3u_accounts = dispatcharr_client.get_m3u_accounts()
         
         # Create channels dictionary by ID for easy access
         channels_dict = {channel['id']: channel for channel in channels}
         
-        return render_template('auto_assign.html', rules=rules, channels=channels_dict)
+        # Create M3U accounts dictionary by ID for easy access
+        m3u_accounts_dict = {account['id']: account for account in m3u_accounts}
+        
+        return render_template('auto_assign.html', rules=rules, channels=channels_dict, m3u_accounts=m3u_accounts_dict)
     except Exception as e:
         flash(f'Error loading rules: {str(e)}', 'error')
-        return render_template('auto_assign.html', rules=[], channels={})
+        return render_template('auto_assign.html', rules=[], channels={}, m3u_accounts={})
 
 @app.route('/api/channels', methods=['GET'])
 def api_get_channels():
@@ -286,7 +290,7 @@ def api_auto_assign_rules():
                 enabled=data.get('enabled', True),
                 replace_existing_streams=data.get('replace_existing_streams', False),
                 regex_pattern=data.get('regex_pattern'),
-                m3u_account_id=int(data['m3u_account_id']) if data.get('m3u_account_id') else None,
+                m3u_account_ids=data.get('m3u_account_ids'),
                 video_bitrate_operator=data.get('bitrate_operator'),
                 video_bitrate_value=int(data['bitrate_value']) if data.get('bitrate_value') else None,
                 video_codec=data.get('video_codec'),
@@ -349,7 +353,7 @@ def api_auto_assign_rule(rule_id):
                 enabled=data.get('enabled', True),
                 replace_existing_streams=data.get('replace_existing_streams', False),
                 regex_pattern=data.get('regex_pattern'),
-                m3u_account_id=int(data['m3u_account_id']) if data.get('m3u_account_id') else None,
+                m3u_account_ids=data.get('m3u_account_ids'),
                 video_bitrate_operator=data.get('bitrate_operator'),
                 video_bitrate_value=int(data['bitrate_value']) if data.get('bitrate_value') else None,
                 video_codec=data.get('video_codec'),
@@ -403,8 +407,12 @@ def api_preview_rule(rule_id):
         # Get all streams
         streams = dispatcharr_client.get_streams()
         
+        # Get M3U accounts for name mapping
+        m3u_accounts = dispatcharr_client.get_m3u_accounts()
+        m3u_accounts_dict = {account['id']: account['name'] for account in m3u_accounts}
+        
         # Preview matches
-        preview = StreamMatcher.preview_matches(rule, streams)
+        preview = StreamMatcher.preview_matches(rule, streams, m3u_accounts_dict)
         
         return jsonify(preview)
         

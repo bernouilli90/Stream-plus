@@ -196,9 +196,13 @@ function updateConditionInputs(conditionId) {
                 `<option value="${account.id}">${account.name || 'Account #' + account.id}</option>`
             ).join('');
         } else {
-            options = config.values.map(val => 
-                `<option value="${val}">${val.toUpperCase()}</option>`
-            ).join('');
+            options = config.values.map(val => {
+                let displayText = val.toUpperCase();
+                if (val === 'SD') {
+                    displayText = 'SD (&lt; 720p)';
+                }
+                return `<option value="${val}">${displayText}</option>`;
+            }).join('');
         }
         
         valueContainer.innerHTML = `
@@ -637,9 +641,10 @@ async function previewSortingRule(ruleId) {
         // Get assigned channel IDs from both direct assignments and groups
         const assignedChannelIds = rule.channel_ids || [];
         const assignedGroupIds = rule.channel_group_ids || [];
+        const ruleAppliesToAllChannels = rule.all_channels || false;
         
-        // If no channels or groups are assigned, show error
-        if (assignedChannelIds.length === 0 && assignedGroupIds.length === 0) {
+        // If no channels or groups are assigned and not all_channels, show error
+        if (assignedChannelIds.length === 0 && assignedGroupIds.length === 0 && !ruleAppliesToAllChannels) {
             showAlert('This rule has no assigned channels. Please assign at least one channel.');
             return;
         }
@@ -660,31 +665,36 @@ async function previewSortingRule(ruleId) {
         // Collect all assigned channels (from direct assignment and groups)
         let assignedChannels = [];
         
-        // Add directly assigned channels
-        if (assignedChannelIds.length > 0) {
-            assignedChannels = assignedChannels.concat(
-                allChannels.filter(ch => assignedChannelIds.includes(ch.id))
-            );
-        }
-        
-        // Add channels from assigned groups
-        if (assignedGroupIds.length > 0) {
-            for (const groupId of assignedGroupIds) {
-                const group = allChannelGroups.find(g => g.id === groupId);
-                if (group && group.channel_ids) {
-                    const groupChannels = allChannels.filter(ch => group.channel_ids.includes(ch.id));
-                    assignedChannels = assignedChannels.concat(groupChannels);
+        // If rule applies to all channels, use all available channels
+        if (ruleAppliesToAllChannels) {
+            assignedChannels = allChannels;
+        } else {
+            // Add directly assigned channels
+            if (assignedChannelIds.length > 0) {
+                assignedChannels = assignedChannels.concat(
+                    allChannels.filter(ch => assignedChannelIds.includes(ch.id))
+                );
+            }
+            
+            // Add channels from assigned groups
+            if (assignedGroupIds.length > 0) {
+                for (const groupId of assignedGroupIds) {
+                    const group = allChannelGroups.find(g => g.id === groupId);
+                    if (group && group.channel_ids) {
+                        const groupChannels = allChannels.filter(ch => group.channel_ids.includes(ch.id));
+                        assignedChannels = assignedChannels.concat(groupChannels);
+                    }
                 }
             }
-        }
-        // Remove duplicates
-        assignedChannels = assignedChannels.filter((channel, index, self) => 
-            index === self.findIndex(c => c.id === channel.id)
-        );
-        
-        if (assignedChannels.length === 0) {
-            showAlert('No channels found in the assigned groups. Please check your group assignments.');
-            return;
+            // Remove duplicates
+            assignedChannels = assignedChannels.filter((channel, index, self) => 
+                index === self.findIndex(c => c.id === channel.id)
+            );
+            
+            if (assignedChannels.length === 0) {
+                showAlert('No channels found in the assigned groups. Please check your group assignments.');
+                return;
+            }
         }
         
         // If only one channel is assigned, load preview directly without showing selector
@@ -717,8 +727,15 @@ async function previewSortingRule(ruleId) {
             const channelSelectContainer = document.getElementById('previewChannelSelectContainer');
             
             // Build channel selector with only assigned channels
+            const ruleScopeText = ruleAppliesToAllChannels ? 
+                'This rule applies to ALL channels' : 
+                `This rule applies to ${assignedChannels.length} assigned channel${assignedChannels.length !== 1 ? 's' : ''}`;
+            
             let selectHtml = `
                 <div class="mb-3">
+                    <div class="alert alert-info mb-2">
+                        <i class="fas fa-info-circle"></i> ${ruleScopeText}
+                    </div>
                     <label class="form-label">Select Channel to Preview</label>
                     <select class="form-select" id="previewChannelSelect">
                         <option value="">Choose a channel...</option>
