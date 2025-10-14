@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] - 2025-10-14
+
+### Enhanced
+- **Docker UID/GID configuration**: Improved user permission handling following LinuxServer.io patterns
+- **Stream testing error logging**: Significantly improved error logging when stream tests fail with detailed diagnostic information
+
+### Fixed
+- **Docker user permissions**: Fixed UID/GID change functionality to work properly with runtime environment variables
+- **File ownership**: Fixed ownership of automatically created rule files to match configured user instead of root
+- **Channel logo borders**: Removed white borders from channel logos in rule cards for cleaner appearance
+
+### Technical Details
+- Converted USER_UID and USER_GID from build args to runtime environment variables
+- Modified docker-entrypoint.sh to run UID/GID changes as root, then switch to application user
+- Added proper file ownership handling for rule files created during container startup
+- Enhanced stream testing error messages with structured error details and context information
+- Removed border styling from channel logo images and placeholders in auto-assign templates
+
 ## [0.2.1] - 2025-10-13
 
 ### Fixed
