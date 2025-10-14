@@ -118,5 +118,6 @@ echo "  Iniciando Stream Plus..."
 echo "=========================================="
 echo ""
 
-# Ejecutar el comando proporcionado
-exec "$@"
+# Ejecutar el comando proporcionado como usuario streamplus
+exec su-exec streamplus "$@"
+

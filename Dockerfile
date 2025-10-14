@@ -61,17 +61,14 @@ VOLUME ["/app/rules"]
 EXPOSE 5000
 
 # Custom entry point script
-COPY --chown=streamplus:streamplus docker-entrypoint.sh /usr/local/bin/
+COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
-# Switch to non-root user
-USER streamplus
 
 # Healthcheck to verify application is running
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:5000/ || exit 1
 
-# Entry point
+# Entry point (runs as root, then switches to streamplus user)
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 # Default command (start application)
