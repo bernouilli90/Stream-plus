@@ -113,6 +113,12 @@ if [ -f "/app/rules/sorting_rules.json" ] && [ ! -f "/app/sorting_rules.json" ];
     ln -sf /app/rules/sorting_rules.json /app/sorting_rules.json
 fi
 
+# Cambiar ownership de archivos creados al usuario correcto
+echo "Ajustando ownership de archivos..."
+chown -R streamplus:streamplus /app/rules 2>/dev/null || true
+chown streamplus:streamplus /app/auto_assignment_rules.json 2>/dev/null || true
+chown streamplus:streamplus /app/sorting_rules.json 2>/dev/null || true
+
 echo "=========================================="
 echo "  Iniciando Stream Plus..."
 echo "=========================================="
