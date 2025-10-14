@@ -23,6 +23,7 @@ RUN apk add --no-cache \
     ffmpeg-libs \
     curl \
     su-exec \
+    shadow \
     && rm -rf /var/cache/apk/*
 
 # Create non-root user with customizable UID/GID
