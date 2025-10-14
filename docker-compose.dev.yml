@@ -3,9 +3,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        USER_UID: 1000
-        USER_GID: 1000
 
     container_name: stream-plus-dev
     restart: unless-stopped
@@ -19,6 +16,10 @@ services:
       - PORT=5000
       - FLASK_DEBUG=true
       - SECRET_KEY=change-this-secret-key-in-production
+
+      # User configuration (optional)
+      - USER_UID=1000
+      - USER_GID=1000
 
       # Stream testing configuration (optional)
       - STREAM_TEST_DURATION=10

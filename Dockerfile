@@ -9,9 +9,11 @@ LABEL description="Stream Plus - Stream management and sorting for Dispatcharr"
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    USER_UID=1000 \
+    USER_GID=1000
 
-# Arguments for UID/GID (customizable at build time)
+# Arguments for UID/GID (for backwards compatibility during build)
 ARG USER_UID=1000
 ARG USER_GID=1000
 

@@ -7,6 +7,57 @@ echo "  Stream Plus Docker Container"
 echo "=========================================="
 echo ""
 
+# Función para cambiar UID/GID si es necesario (estilo LinuxServer)
+change_uid_gid() {
+    # Valores por defecto durante el build
+    DEFAULT_UID=1000
+    DEFAULT_GID=1000
+
+    # Valores actuales del usuario
+    CURRENT_UID=$(id -u streamplus)
+    CURRENT_GID=$(id -g streamplus)
+
+    # Verificar si necesitamos cambiar UID/GID
+    if [ "$USER_UID" != "$DEFAULT_UID" ] || [ "$USER_GID" != "$DEFAULT_GID" ]; then
+        echo "Cambiando UID:GID de $CURRENT_UID:$CURRENT_GID a $USER_UID:$USER_GID..."
+
+        # Cambiar GID si es necesario
+        if [ "$USER_GID" != "$CURRENT_GID" ]; then
+            # Verificar si el grupo ya existe con otro GID
+            if getent group $USER_GID >/dev/null 2>&1; then
+                # El grupo existe, cambiar el nombre del grupo existente
+                EXISTING_GROUP=$(getent group $USER_GID | cut -d: -f1)
+                groupmod -n streamplus_temp "$EXISTING_GROUP" 2>/dev/null || true
+            fi
+
+            # Cambiar GID del grupo streamplus
+            groupmod -g $USER_GID streamplus
+        fi
+
+        # Cambiar UID si es necesario
+        if [ "$USER_UID" != "$CURRENT_UID" ]; then
+            # Verificar si el usuario ya existe con otro UID
+            if getent passwd $USER_UID >/dev/null 2>&1; then
+                # El usuario existe, cambiar el nombre del usuario existente
+                EXISTING_USER=$(getent passwd $USER_UID | cut -d: -f1)
+                usermod -l streamplus_temp "$EXISTING_USER" 2>/dev/null || true
+            fi
+
+            # Cambiar UID del usuario streamplus
+            usermod -u $USER_UID streamplus
+        fi
+
+        # Cambiar ownership de todos los archivos en /app
+        echo "Actualizando ownership de archivos..."
+        chown -R streamplus:streamplus /app
+
+        echo "UID:GID actualizado exitosamente a $USER_UID:$USER_GID"
+    fi
+}
+
+# Cambiar UID/GID si es necesario
+change_uid_gid
+
 # Verificar variables de entorno requeridas
 if [ -z "$DISPATCHARR_API_URL" ]; then
     echo "ERROR: DISPATCHARR_API_URL no está configurada"
