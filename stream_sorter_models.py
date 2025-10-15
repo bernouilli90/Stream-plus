@@ -150,9 +150,9 @@ class SortingRule:
 class SortingRulesManager:
     """Manager for sorting rules persistence"""
     
-    def __init__(self, rules_file: str = 'sorting_rules.json', groups_file: str = 'channel_groups.json'):
+    def __init__(self, rules_file: str = 'sorting_rules.json', groups_file: str = 'channel_groups.json', dispatcharr_client=None):
         self.rules_file = rules_file
-        self.groups_manager = ChannelGroupsManager(groups_file)
+        self.groups_manager = ChannelGroupsManager(dispatcharr_client, groups_file)
         self._ensure_file_exists()
     
     def _ensure_file_exists(self):

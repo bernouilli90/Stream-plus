@@ -26,13 +26,13 @@ class RuleExecutor:
     
     def __init__(self):
         """Initialize rule executor"""
-        self.assignment_manager = RulesManager()
-        self.sorting_manager = SortingRulesManager()
         self.dispatcharr_client = DispatcharrClient(
             base_url=os.getenv('DISPATCHARR_API_URL', 'http://localhost:8080'),
             username=os.getenv('DISPATCHARR_API_USER'),
             password=os.getenv('DISPATCHARR_API_PASSWORD')
         )
+        self.assignment_manager = RulesManager()
+        self.sorting_manager = SortingRulesManager(dispatcharr_client=self.dispatcharr_client)
         
     def execute_assignment_rules(self, rule_ids: Optional[List[int]] = None, verbose: bool = False) -> dict:
         """
