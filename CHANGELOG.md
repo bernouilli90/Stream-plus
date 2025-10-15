@@ -5,23 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.3] - 2025-10-14
+## [0.2.4] - 2025-10-15
 
-### Enhanced
-- **Docker UID/GID configuration**: Improved user permission handling following LinuxServer.io patterns
-- **Stream testing error logging**: Significantly improved error logging when stream tests fail with detailed diagnostic information
+### Fixed
+- **Sorting rules CLI channel selection**: Fixed channel selection logic in CLI sorting rules execution to properly handle `channel_group_ids`
+- **Channel groups resolution**: CLI now correctly resolves channel groups to their member channels instead of applying rules to all channels
+- **Group-based rule execution**: Sorting rules with `channel_group_ids` now apply only to channels within specified groups
+
+### Technical Details
+- Updated `execute_sorting_rules()` in `execute_rules.py` to check `rule.channel_group_ids` before defaulting to all channels
+- Added group-to-channel resolution logic using `groups_manager.groups[group_id].channel_ids`
+- Improved CLI output to show which groups are being processed and how many channels they contain
+- Maintains backwards compatibility with existing `all_channels` and `channel_ids` configurations
+
+## [0.2.3] - 2025-10-14
 
 ### Fixed
 - **Docker user permissions**: Fixed UID/GID change functionality to work properly with runtime environment variables
 - **File ownership**: Fixed ownership of automatically created rule files to match configured user instead of root
-- **Channel logo borders**: Removed white borders from channel logos in rule cards for cleaner appearance
-
-### Technical Details
-- Converted USER_UID and USER_GID from build args to runtime environment variables
-- Modified docker-entrypoint.sh to run UID/GID changes as root, then switch to application user
-- Added proper file ownership handling for rule files created during container startup
-- Enhanced stream testing error messages with structured error details and context information
-- Removed border styling from channel logo images and placeholders in auto-assign templates
 
 ## [0.2.1] - 2025-10-13
 
