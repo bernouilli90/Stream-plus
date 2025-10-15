@@ -239,11 +239,33 @@ class RuleExecutor:
             
             try:
                 # Determine target channels
-                if rule.channel_ids:
+                if rule.all_channels:
+                    # Apply to all channels
+                    all_channels = self.dispatcharr_client.get_channels()
+                    channel_ids = [ch['id'] for ch in all_channels]
+                    print(f"    Target channels: All ({len(channel_ids)} channel(s))")
+                elif rule.channel_ids:
+                    # Apply to specific channels
                     channel_ids = rule.channel_ids
                     print(f"    Target channels: {len(channel_ids)} specific channel(s)")
+                elif rule.channel_group_ids:
+                    # Apply to channels in specified groups
+                    channel_ids = []
+                    for group_id in rule.channel_group_ids:
+                        if group_id in self.sorting_manager.groups_manager.groups:
+                            group = self.sorting_manager.groups_manager.groups[group_id]
+                            channel_ids.extend(group.channel_ids)
+                            print(f"    Target group '{group.name}' (ID: {group_id}): {len(group.channel_ids)} channel(s)")
+                        else:
+                            print(f"    ⚠️  Group {group_id} not found or has no channels")
+                    
+                    if channel_ids:
+                        print(f"    Target channels: {len(channel_ids)} channel(s) from {len(rule.channel_group_ids)} group(s)")
+                    else:
+                        print(f"    ⚠️  No channels found in specified groups, skipping rule")
+                        continue
                 else:
-                    # Apply to all channels
+                    # Default: apply to all channels
                     all_channels = self.dispatcharr_client.get_channels()
                     channel_ids = [ch['id'] for ch in all_channels]
                     print(f"    Target channels: All ({len(channel_ids)} channel(s))")
