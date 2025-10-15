@@ -359,6 +359,34 @@
                         </div>
                         {% endif %}
 
+                        <!-- Manual Stream Inclusion/Exclusion -->
+                        {% if rule.force_include_stream_ids or rule.force_exclude_stream_ids %}
+                        <div class="mb-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-hand-paper text-muted me-2" style="font-size: 0.8rem;"></i>
+                                <small class="text-muted fw-semibold" style="font-size: 0.8rem;">MANUAL OVERRIDES</small>
+                            </div>
+                            <div class="row g-2">
+                                {% if rule.force_include_stream_ids %}
+                                <div class="col-6">
+                                    <div class="d-flex align-items-center p-2 bg-success bg-opacity-10 rounded" style="font-size: 0.75rem;">
+                                        <i class="fas fa-plus-circle text-success me-2"></i>
+                                        <span class="text-dark fw-semibold">{{ rule.force_include_stream_ids|length }} forced include</span>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                {% if rule.force_exclude_stream_ids %}
+                                <div class="col-6">
+                                    <div class="d-flex align-items-center p-2 bg-danger bg-opacity-10 rounded" style="font-size: 0.75rem;">
+                                        <i class="fas fa-minus-circle text-danger me-2"></i>
+                                        <span class="text-dark fw-semibold">{{ rule.force_exclude_stream_ids|length }} forced exclude</span>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+
                         <!-- Status Badges -->
                         <div class="d-flex flex-wrap gap-1">
                             {% if rule.replace_existing_streams %}
@@ -583,6 +611,53 @@
                             <option value="opus">Opus</option>
                         </select>
                         <small class="form-text text-muted">Leave empty for no restriction</small>
+                    </div>
+
+                    <!-- Manual Stream Inclusion/Exclusion -->
+                    <h6 class="border-bottom pb-2 mb-3">Manual Stream Overrides</h6>
+
+                    <!-- Force Include Streams -->
+                    <div class="mb-3">
+                        <label for="forceIncludeStreams" class="form-label">
+                            Force Include Streams
+                            <small class="text-success">Streams to include even if they don't match conditions</small>
+                        </label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="forceIncludeStreamsSearch"
+                                   placeholder="Search streams by name or ID...">
+                            <button class="btn btn-success" type="button" onclick="showStreamSelector('include')">
+                                <i class="fas fa-plus"></i> Add
+                            </button>
+                        </div>
+                        <div id="forceIncludeStreamsList" class="mt-2">
+                            <!-- Selected streams will be displayed here -->
+                        </div>
+                        <input type="hidden" id="forceIncludeStreamIds" value="[]">
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> These streams will be included in the channel regardless of whether they match the rule conditions above.
+                        </small>
+                    </div>
+
+                    <!-- Force Exclude Streams -->
+                    <div class="mb-3">
+                        <label for="forceExcludeStreams" class="form-label">
+                            Force Exclude Streams
+                            <small class="text-danger">Streams to exclude even if they match conditions</small>
+                        </label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="forceExcludeStreamsSearch"
+                                   placeholder="Search streams by name or ID...">
+                            <button class="btn btn-danger" type="button" onclick="showStreamSelector('exclude')">
+                                <i class="fas fa-minus"></i> Add
+                            </button>
+                        </div>
+                        <div id="forceExcludeStreamsList" class="mt-2">
+                            <!-- Selected streams will be displayed here -->
+                        </div>
+                        <input type="hidden" id="forceExcludeStreamIds" value="[]">
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> These streams will be excluded from the channel even if they match all the rule conditions above.
+                        </small>
                     </div>
                 </form>
             </div>
@@ -873,6 +948,33 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" id="closeProgressBtn" data-bs-dismiss="modal" disabled>
                     Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for stream selection -->
+<div class="modal fade" id="streamSelectorModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="streamSelectorTitle">Select Streams</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <input type="text" class="form-control" id="streamSearchInput"
+                           placeholder="Search streams by name or ID...">
+                </div>
+                <div id="streamList" class="border rounded" style="max-height: 400px; overflow-y: auto;">
+                    <!-- Streams will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmStreamSelection">
+                    <i class="fas fa-check"></i> Add Selected
                 </button>
             </div>
         </div>

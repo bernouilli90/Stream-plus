@@ -20,7 +20,7 @@ from stream_sorter_models import (
 load_dotenv()
 
 # Application version
-APP_VERSION = "v.0.2.4"
+APP_VERSION = "v.0.2.5"
 
 # Execution state file
 EXECUTION_STATE_FILE = 'execution_state.json'
@@ -311,7 +311,9 @@ def api_auto_assign_rules():
                 audio_codec=data.get('audio_codec'),
                 test_streams_before_sorting=data.get('test_streams_before_sorting', False),
                 force_retest_old_streams=data.get('force_retest_old_streams', False),
-                retest_days_threshold=int(data.get('retest_days_threshold', 7))
+                retest_days_threshold=int(data.get('retest_days_threshold', 7)),
+                force_include_stream_ids=data.get('force_include_stream_ids', []),
+                force_exclude_stream_ids=data.get('force_exclude_stream_ids', [])
             )
             
             # Save rule
@@ -374,7 +376,9 @@ def api_auto_assign_rule(rule_id):
                 audio_codec=data.get('audio_codec'),
                 test_streams_before_sorting=data.get('test_streams_before_sorting', False),
                 force_retest_old_streams=data.get('force_retest_old_streams', False),
-                retest_days_threshold=int(data.get('retest_days_threshold', 7))
+                retest_days_threshold=int(data.get('retest_days_threshold', 7)),
+                force_include_stream_ids=data.get('force_include_stream_ids', []),
+                force_exclude_stream_ids=data.get('force_exclude_stream_ids', [])
             )
             
             # Update rule
@@ -630,25 +634,46 @@ def execute_auto_assignment_in_background(rule_id, queue):
                 'message': f'Found {len(streams)} total streams'
             })
             
-            # Pre-filter streams by basic conditions (regex, m3u_account) before testing
-            # This avoids testing streams that won't match anyway
+            # Pre-filter streams by basic conditions (regex, m3u_account) AND forced overrides before testing
+            # This avoids testing streams that won't match anyway or are explicitly excluded
             queue.put({
                 'type': 'info',
-                'message': 'Pre-filtering streams by basic conditions (regex, M3U account)...'
+                'message': 'Pre-filtering streams by basic conditions and forced overrides...'
             })
             
-            pre_filtered_streams = StreamMatcher.evaluate_basic_conditions(rule, streams)
-            filtered_out_count = len(streams) - len(pre_filtered_streams)
+            # Apply the same logic as execute_rules.py for consistency
+            pre_filtered_streams = []
+            excluded_count = 0
+            included_count = 0
+            regex_matches = 0
             
-            if filtered_out_count > 0:
-                queue.put({
-                    'type': 'info',
-                    'message': f'Filtered out {filtered_out_count} stream(s) that don\'t match basic conditions'
-                })
+            for stream in streams:
+                stream_id = stream.get('id')
+                
+                # Skip streams that are explicitly excluded (don't test them)
+                if stream_id in rule.force_exclude_stream_ids:
+                    excluded_count += 1
+                    continue
+                
+                # Include streams that are explicitly included (test them even if they don't match basic conditions)
+                if stream_id in rule.force_include_stream_ids:
+                    pre_filtered_streams.append(stream)
+                    included_count += 1
+                    continue
+                
+                # For remaining streams, check basic conditions
+                if StreamMatcher._stream_matches_basic_conditions(rule, stream):
+                    pre_filtered_streams.append(stream)
+                    regex_matches += 1
             
             queue.put({
                 'type': 'info',
-                'message': f'{len(pre_filtered_streams)} stream(s) passed basic filtering'
+                'message': f'Filtering summary: {excluded_count} excluded, {included_count} forced included, {regex_matches} regex matches'
+            })
+            
+            queue.put({
+                'type': 'info',
+                'message': f'{len(pre_filtered_streams)} stream(s) passed basic filtering (including forced includes, excluding forced excludes)'
             })
             
             if len(pre_filtered_streams) == 0:
@@ -779,8 +804,24 @@ def execute_auto_assignment_in_background(rule_id, queue):
                 all_streams = dispatcharr_client.get_streams()
                 all_streams = [s for s in all_streams if s is not None and isinstance(s, dict)]
                 
-                # Re-apply basic filtering to the reloaded streams
-                pre_filtered_streams = StreamMatcher.evaluate_basic_conditions(rule, all_streams)
+                # Re-apply basic filtering + forced overrides to the reloaded streams
+                # This ensures forced includes are maintained after testing
+                pre_filtered_streams = []
+                for stream in all_streams:
+                    stream_id = stream.get('id')
+                    
+                    # Skip streams that are explicitly excluded
+                    if stream_id in rule.force_exclude_stream_ids:
+                        continue
+                    
+                    # Include streams that are explicitly included (even if they don't match basic conditions)
+                    if stream_id in rule.force_include_stream_ids:
+                        pre_filtered_streams.append(stream)
+                        continue
+                    
+                    # For remaining streams, check basic conditions
+                    if StreamMatcher._stream_matches_basic_conditions(rule, stream):
+                        pre_filtered_streams.append(stream)
             
             # Find matching streams (evaluate ALL conditions including stats-based ones)
             queue.put({
@@ -1282,6 +1323,10 @@ def execute_sorting_in_background(rule_id, channel_ids, queue):
             queue.put(None)
             return
         
+        # Get M3U accounts for stream enrichment
+        m3u_accounts = dispatcharr_client.get_m3u_accounts()
+        m3u_accounts_dict = {account['id']: account for account in m3u_accounts}
+        
         total_sorted = 0
         total_tested = 0
         total_failed = 0
@@ -1337,6 +1382,14 @@ def execute_sorting_in_background(rule_id, channel_ids, queue):
                     continue
                 
                 streams = [s for s in streams if s is not None and isinstance(s, dict)]
+                
+                # Enrich streams with M3U account information for sorting conditions
+                for stream in streams:
+                    m3u_id = stream.get('m3u_account_id')  # Some APIs use m3u_account_id
+                    if m3u_id is None:
+                        m3u_id = stream.get('m3u_account')  # Others use m3u_account
+                    if m3u_id is not None and m3u_id in m3u_accounts_dict:
+                        stream['m3u_account'] = m3u_id
                 if not streams:
                     continue
 
@@ -1573,8 +1626,6 @@ def execute_sorting_rule(rule_id):
                 if valid_group_ids:
                     expanded_group_channels = channel_groups_manager.expand_group_ids(valid_group_ids)
                     channel_ids.extend(expanded_group_channels)
-                expanded_group_channels = channel_groups_manager.expand_group_ids(valid_group_ids)
-                channel_ids.extend(expanded_group_channels)
             
             # Remove duplicates and ensure we have channels
             channel_ids = list(set(channel_ids))
@@ -2015,6 +2066,16 @@ def preview_sorting_rule(rule_id):
         except Exception as e:
             app.logger.error(f"Error getting streams for channel {channel_id}: {str(e)}")
             return jsonify({'error': f'Error getting streams: {str(e)}'}), 500
+        
+        # Enrich streams with M3U account information for sorting conditions
+        m3u_accounts = dispatcharr_client.get_m3u_accounts()
+        m3u_accounts_dict = {account['id']: account for account in m3u_accounts}
+        for stream in streams:
+            m3u_id = stream.get('m3u_account_id')  # Some APIs use m3u_account_id
+            if m3u_id is None:
+                m3u_id = stream.get('m3u_account')  # Others use m3u_account
+            if m3u_id is not None and m3u_id in m3u_accounts_dict:
+                stream['m3u_account'] = m3u_id
         
         # Generate preview
         try:

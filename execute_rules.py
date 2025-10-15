@@ -96,14 +96,26 @@ class RuleExecutor:
                     if verbose:
                         print(f"    Testing streams to get stats...")
                     
-                    # Filter streams by basic conditions first
-                    basic_matches = [
-                        s for s in streams 
-                        if StreamMatcher._stream_matches_basic_conditions(rule, s)
-                    ]
+                    # Filter streams by basic conditions first, but also consider forced inclusions/exclusions
+                    basic_matches = []
+                    for stream in streams:
+                        stream_id = stream.get('id')
+                        
+                        # Skip streams that are explicitly excluded (don't test them)
+                        if stream_id in rule.force_exclude_stream_ids:
+                            continue
+                        
+                        # Include streams that are explicitly included (test them even if they don't match basic conditions)
+                        if stream_id in rule.force_include_stream_ids:
+                            basic_matches.append(stream)
+                            continue
+                        
+                        # For remaining streams, check basic conditions
+                        if StreamMatcher._stream_matches_basic_conditions(rule, stream):
+                            basic_matches.append(stream)
                     
                     if verbose:
-                        print(f"    {len(basic_matches)} stream(s) passed basic filtering")
+                        print(f"    {len(basic_matches)} stream(s) passed basic filtering (including forced includes, excluding forced excludes)")
                     
                     # Test streams
                     tested = 0
@@ -122,7 +134,7 @@ class RuleExecutor:
                         
                         if needs_test:
                             if verbose:
-                                print(f"      Testing: {stream.get('name', 'unknown')}")
+                                print(f"      Testing: {stream.get('name', 'unknown')} (ID: {stream.get('id')})")
                             
                             success = self.dispatcharr_client.test_stream(stream['id'])
                             if success:
@@ -319,6 +331,10 @@ class RuleExecutor:
                     if verbose or tested > 0 or failed > 0:
                         print(f"    Stream testing: {tested} tested, {failed} failed, {skipped} skipped")
                 
+                # Get M3U accounts for stream enrichment
+                m3u_accounts = self.dispatcharr_client.get_m3u_accounts()
+                m3u_accounts_dict = {account['id']: account for account in m3u_accounts}
+                
                 # Sort each channel
                 sorted_count = 0
                 for channel_id in channel_ids:
@@ -332,6 +348,14 @@ class RuleExecutor:
                         if verbose:
                             print(f"        (empty channel, skipped)")
                         continue
+                    
+                    # Enrich streams with M3U account information for sorting conditions
+                    for stream in channel_streams:
+                        m3u_id = stream.get('m3u_account_id')  # Some APIs use m3u_account_id
+                        if m3u_id is None:
+                            m3u_id = stream.get('m3u_account')  # Others use m3u_account
+                        if m3u_id is not None and m3u_id in m3u_accounts_dict:
+                            stream['m3u_account'] = m3u_id
                     
                     # Score and sort streams
                     sorted_streams = StreamSorter.sort_streams(rule, channel_streams)
@@ -409,6 +433,10 @@ class RuleExecutor:
                 if verbose:
                     print(f"    Target channels: {len(channel_ids)} from group(s)")
         
+        # Get M3U accounts for stream enrichment
+        m3u_accounts = self.dispatcharr_client.get_m3u_accounts()
+        m3u_accounts_dict = {account['id']: account for account in m3u_accounts}
+        
         if not channel_ids:
             return {'channels_sorted': 0, 'error': 'No channels to sort'}
         
@@ -478,6 +506,14 @@ class RuleExecutor:
                     if verbose:
                         print(f"        (empty channel, skipped)")
                     continue
+                
+                # Enrich streams with M3U account information for sorting conditions
+                for stream in channel_streams:
+                    m3u_id = stream.get('m3u_account_id')  # Some APIs use m3u_account_id
+                    if m3u_id is None:
+                        m3u_id = stream.get('m3u_account')  # Others use m3u_account
+                    if m3u_id is not None and m3u_id in m3u_accounts_dict:
+                        stream['m3u_account'] = m3u_id
                 
                 # Score and sort streams
                 sorted_streams = StreamSorter.sort_streams(rule, channel_streams)

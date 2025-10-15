@@ -3,6 +3,8 @@
 let currentChannels = [];
 let currentM3UAccounts = [];
 let currentRuleId = null;
+let currentStreams = [];
+let streamSelectorMode = null; // 'include' or 'exclude'
 
 // Load initial data
 document.addEventListener('DOMContentLoaded', function() {
@@ -159,6 +161,12 @@ function showCreateRuleModal() {
     document.getElementById('forceRetestOldStreams').checked = false;
     document.getElementById('retestDaysThreshold').value = 7;
     
+    // Clear manual stream overrides
+    document.getElementById('forceIncludeStreamIds').value = '[]';
+    document.getElementById('forceExcludeStreamIds').value = '[]';
+    document.getElementById('forceIncludeStreamsList').innerHTML = '';
+    document.getElementById('forceExcludeStreamsList').innerHTML = '';
+    
     // Setup event listeners for modal
     setupModalEventListeners();
     toggleRetestOptions();
@@ -233,6 +241,13 @@ async function editRule(ruleId) {
         document.getElementById('forceRetestOldStreams').checked = rule.force_retest_old_streams || false;
         document.getElementById('retestDaysThreshold').value = rule.retest_days_threshold || 7;
         
+        // Load manual stream overrides
+        document.getElementById('forceIncludeStreamIds').value = JSON.stringify(rule.force_include_stream_ids || []);
+        document.getElementById('forceExcludeStreamIds').value = JSON.stringify(rule.force_exclude_stream_ids || []);
+        
+        // Populate stream lists
+        populateStreamLists(rule.force_include_stream_ids || [], rule.force_exclude_stream_ids || []);
+        
         // Setup event listeners for modal
         setupModalEventListeners();
         toggleRetestOptions();
@@ -293,7 +308,9 @@ async function saveRule() {
         audio_codec: getSelectedValues('audioCodec'),
         test_streams_before_sorting: testStreamsBeforeSorting,
         force_retest_old_streams: testStreamsBeforeSorting && forceRetestOldStreams,
-        retest_days_threshold: retestDaysThreshold
+        retest_days_threshold: retestDaysThreshold,
+        force_include_stream_ids: JSON.parse(document.getElementById('forceIncludeStreamIds').value || '[]'),
+        force_exclude_stream_ids: JSON.parse(document.getElementById('forceExcludeStreamIds').value || '[]')
     };
     
     try {
@@ -452,7 +469,11 @@ async function previewRule(ruleId) {
             }
             
             // Format M3U source
-            const m3uSource = stream.m3u_source || 'Unknown';
+            let m3uSource = 'Unknown';
+            if (stream.m3u_source) {
+                const m3uAccount = currentM3UAccounts.find(acc => acc.id === parseInt(stream.m3u_source));
+                m3uSource = m3uAccount ? m3uAccount.name : `M3U Account #${stream.m3u_source}`;
+            }
             
             // Format Audio Codec
             const audioCodec = stats.audio_codec || 'N/A';
@@ -891,9 +912,234 @@ async function createBulkRules() {
     }
 }
 
+// Stream selection functionality
+async function loadStreams() {
+    try {
+        const response = await fetch('/api/streams');
+        if (!response.ok) throw new Error('Error loading streams');
+        
+        currentStreams = await response.json();
+    } catch (error) {
+        console.error('Error loading streams:', error);
+        showToast('Error loading streams', 'danger');
+    }
+}
+
+function showStreamSelector(mode) {
+    streamSelectorMode = mode;
+    const modal = new bootstrap.Modal(document.getElementById('streamSelectorModal'));
+    const title = mode === 'include' ? 'Select Streams to Force Include' : 'Select Streams to Force Exclude';
+    document.getElementById('streamSelectorTitle').textContent = title;
+    
+    // Load streams if not already loaded
+    if (currentStreams.length === 0) {
+        loadStreams().then(() => {
+            renderStreamList('');
+            modal.show();
+        });
+    } else {
+        renderStreamList('');
+        modal.show();
+    }
+}
+
+function renderStreamList(searchTerm) {
+    const streamList = document.getElementById('streamList');
+    const filteredStreams = currentStreams.filter(stream => 
+        stream.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        stream.id.toString().includes(searchTerm)
+    );
+    
+    streamList.innerHTML = '';
+    
+    if (filteredStreams.length === 0) {
+        streamList.innerHTML = '<div class="p-3 text-muted">No streams found</div>';
+        return;
+    }
+    
+    filteredStreams.forEach(stream => {
+        const streamItem = document.createElement('div');
+        streamItem.className = 'p-2 border-bottom d-flex align-items-center';
+        streamItem.innerHTML = `
+            <div class="form-check me-3">
+                <input class="form-check-input stream-checkbox" type="checkbox" 
+                       value="${stream.id}" id="stream_${stream.id}">
+            </div>
+            <div class="flex-grow-1">
+                <strong>${stream.name}</strong>
+                <small class="text-muted d-block">ID: ${stream.id}</small>
+            </div>
+        `;
+        streamList.appendChild(streamItem);
+    });
+}
+
+function addSelectedStreams() {
+    const selectedCheckboxes = document.querySelectorAll('#streamList .stream-checkbox:checked');
+    const selectedStreamIds = Array.from(selectedCheckboxes).map(cb => parseInt(cb.value));
+    
+    if (selectedStreamIds.length === 0) {
+        showToast('No streams selected', 'warning');
+        return;
+    }
+    
+    const selectedStreams = currentStreams.filter(stream => selectedStreamIds.includes(stream.id));
+    
+    if (streamSelectorMode === 'include') {
+        addStreamsToIncludeList(selectedStreams);
+    } else {
+        addStreamsToExcludeList(selectedStreams);
+    }
+    
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('streamSelectorModal'));
+    modal.hide();
+}
+
+function addStreamsToIncludeList(streams) {
+    const listContainer = document.getElementById('forceIncludeStreamsList');
+    const hiddenInput = document.getElementById('forceIncludeStreamIds');
+    
+    let currentIds = JSON.parse(hiddenInput.value || '[]');
+    
+    streams.forEach(stream => {
+        if (!currentIds.includes(stream.id)) {
+            currentIds.push(stream.id);
+            
+            const streamBadge = document.createElement('span');
+            streamBadge.className = 'badge bg-success me-1 mb-1';
+            streamBadge.innerHTML = `
+                ${stream.name} 
+                <button type="button" class="btn-close btn-close-white ms-1" 
+                        onclick="removeStreamFromInclude(${stream.id})" 
+                        style="font-size: 0.6rem;"></button>
+            `;
+            listContainer.appendChild(streamBadge);
+        }
+    });
+    
+    hiddenInput.value = JSON.stringify(currentIds);
+}
+
+function addStreamsToExcludeList(streams) {
+    const listContainer = document.getElementById('forceExcludeStreamsList');
+    const hiddenInput = document.getElementById('forceExcludeStreamIds');
+    
+    let currentIds = JSON.parse(hiddenInput.value || '[]');
+    
+    streams.forEach(stream => {
+        if (!currentIds.includes(stream.id)) {
+            currentIds.push(stream.id);
+            
+            const streamBadge = document.createElement('span');
+            streamBadge.className = 'badge bg-danger me-1 mb-1';
+            streamBadge.innerHTML = `
+                ${stream.name} 
+                <button type="button" class="btn-close btn-close-white ms-1" 
+                        onclick="removeStreamFromExclude(${stream.id})" 
+                        style="font-size: 0.6rem;"></button>
+            `;
+            listContainer.appendChild(streamBadge);
+        }
+    });
+    
+    hiddenInput.value = JSON.stringify(currentIds);
+}
+
+function removeStreamFromInclude(streamId) {
+    const listContainer = document.getElementById('forceIncludeStreamsList');
+    const hiddenInput = document.getElementById('forceIncludeStreamIds');
+    
+    let currentIds = JSON.parse(hiddenInput.value || '[]');
+    currentIds = currentIds.filter(id => id !== streamId);
+    hiddenInput.value = JSON.stringify(currentIds);
+    
+    // Remove badge
+    const badges = listContainer.querySelectorAll('.badge');
+    badges.forEach(badge => {
+        if (badge.textContent.includes(`ID: ${streamId}`) || badge.innerHTML.includes(`removeStreamFromInclude(${streamId})`)) {
+            badge.remove();
+        }
+    });
+}
+
+function removeStreamFromExclude(streamId) {
+    const listContainer = document.getElementById('forceExcludeStreamsList');
+    const hiddenInput = document.getElementById('forceExcludeStreamIds');
+    
+    let currentIds = JSON.parse(hiddenInput.value || '[]');
+    currentIds = currentIds.filter(id => id !== streamId);
+    hiddenInput.value = JSON.stringify(currentIds);
+    
+    // Remove badge
+    const badges = listContainer.querySelectorAll('.badge');
+    badges.forEach(badge => {
+        if (badge.textContent.includes(`ID: ${streamId}`) || badge.innerHTML.includes(`removeStreamFromExclude(${streamId})`)) {
+            badge.remove();
+        }
+    });
+}
+
+async function populateStreamLists(includeIds, excludeIds) {
+    // Load streams if not already loaded
+    if (currentStreams.length === 0) {
+        await loadStreams();
+    }
+    
+    // Clear existing lists
+    document.getElementById('forceIncludeStreamsList').innerHTML = '';
+    document.getElementById('forceExcludeStreamsList').innerHTML = '';
+    
+    // Populate include list
+    if (includeIds && includeIds.length > 0) {
+        const includeStreams = currentStreams.filter(stream => includeIds.includes(stream.id));
+        includeStreams.forEach(stream => {
+            const streamBadge = document.createElement('span');
+            streamBadge.className = 'badge bg-success me-1 mb-1';
+            streamBadge.innerHTML = `
+                ${stream.name} 
+                <button type="button" class="btn-close btn-close-white ms-1" 
+                        onclick="removeStreamFromInclude(${stream.id})" 
+                        style="font-size: 0.6rem;"></button>
+            `;
+            document.getElementById('forceIncludeStreamsList').appendChild(streamBadge);
+        });
+    }
+    
+    // Populate exclude list
+    if (excludeIds && excludeIds.length > 0) {
+        const excludeStreams = currentStreams.filter(stream => excludeIds.includes(stream.id));
+        excludeStreams.forEach(stream => {
+            const streamBadge = document.createElement('span');
+            streamBadge.className = 'badge bg-danger me-1 mb-1';
+            streamBadge.innerHTML = `
+                ${stream.name} 
+                <button type="button" class="btn-close btn-close-white ms-1" 
+                        onclick="removeStreamFromExclude(${stream.id})" 
+                        style="font-size: 0.6rem;"></button>
+            `;
+            document.getElementById('forceExcludeStreamsList').appendChild(streamBadge);
+        });
+    }
+}
+
 // Initialize bulk functionality when page loads
 document.addEventListener('DOMContentLoaded', function() {
     loadChannels();
     loadM3UAccounts();
     loadChannelGroups();  // Load groups for bulk creation
+    
+    // Setup stream search
+    const streamSearchInput = document.getElementById('streamSearchInput');
+    if (streamSearchInput) {
+        streamSearchInput.addEventListener('input', function() {
+            renderStreamList(this.value);
+        });
+    }
+    
+    // Setup stream selection confirmation
+    const confirmBtn = document.getElementById('confirmStreamSelection');
+    if (confirmBtn) {
+        confirmBtn.addEventListener('click', addSelectedStreams);
+    }
 });

@@ -5,12 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.5] - 2025-10-15
+
+### Added
+- **Manual Stream Inclusion/Exclusion**: New feature allowing users to force-include or force-exclude specific streams in auto-assignment rules
+  - Force Include: Streams added to channel regardless of rule conditions
+  - Force Exclude: Streams excluded from channel even if they match all conditions
+  - UI components: Search and select streams with visual badges in rule cards and modals
+  - Logic improvements: Forced includes/excludes applied during both testing and evaluation phases
+
+### Fixed
+- **Sorting rules M3U source evaluation**: Fixed sorting rules with `m3u_source` conditions not being evaluated because streams lacked M3U account information
+- **Consistent filtering logic**: Ensured all execution paths (CLI, web interface, background) use the same stream filtering logic
+
+### Configuration
+Manual stream overrides can be configured through the web interface or API:
+```json
+{
+  "force_include_stream_ids": [1620],
+  "force_exclude_stream_ids": [2314, 2313]
+}
+```
+
 ## [0.2.4] - 2025-10-15
 
 ### Fixed
-- **Sorting rules CLI channel selection**: Fixed channel selection logic in CLI sorting rules execution to properly handle `channel_group_ids`
-- **Channel groups resolution**: CLI now correctly resolves channel groups to their member channels instead of applying rules to all channels
-- **Group-based rule execution**: Sorting rules with `channel_group_ids` now apply only to channels within specified groups
+
+- **Stream enrichment for sorting**: Added M3U account information enrichment to streams before sorting evaluation
+- **Consistent M3U data**: Ensured all sorting execution paths (CLI, web interface, background) have access to M3U account data for condition evaluation
 
 ### Technical Details
 - Updated `execute_sorting_rules()` in `execute_rules.py` to check `rule.channel_group_ids` before defaulting to all channels

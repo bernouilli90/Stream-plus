@@ -15,6 +15,12 @@
     {% set _ = channel_groups_dict.update({group.id: group}) %}
 {% endfor %}
 
+{# Create a dictionary of M3U accounts for easy lookup #}
+{% set m3u_accounts_dict = {} %}
+{% for account in m3u_accounts %}
+    {% set _ = m3u_accounts_dict.update({account.id: account}) %}
+{% endfor %}
+
 <div class="container-fluid mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>
@@ -108,7 +114,11 @@
                                     <span class="ms-1">
                                         {{ condition.condition_type|replace('_', ' ')|title }}
                                         {% if condition.operator %}{{ condition.operator }}{% endif %}
-                                        {{ condition.value }}
+                                        {% if condition.condition_type == 'm3u_source' %}
+                                            {{ m3u_accounts_dict.get(condition.value|int).name if m3u_accounts_dict.get(condition.value|int) else 'M3U Account #' + condition.value }}
+                                        {% else %}
+                                            {{ condition.value }}
+                                        {% endif %}
                                     </span>
                                 </div>
                                 {% endfor %}

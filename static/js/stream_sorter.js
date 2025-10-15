@@ -835,11 +835,19 @@ async function loadPreviewForChannel(ruleId, channelId) {
         html += `</ul><h6>Sorted Streams (Top 10):</h6><div class="list-group">`;
         
         preview.sorted_streams.slice(0, 10).forEach((stream, index) => {
+            // Format M3U source name
+            let m3uSourceName = 'Unknown';
+            if (stream.m3u_account) {
+                const m3uAccount = m3uAccounts.find(acc => acc.id === parseInt(stream.m3u_account));
+                m3uSourceName = m3uAccount ? m3uAccount.name : `M3U Account #${stream.m3u_account}`;
+            }
+            
             html += `
                 <div class="list-group-item">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <strong>#${index + 1}</strong> - ${stream.name || 'Stream #' + stream.id}
+                            <br><small class="text-muted">${m3uSourceName}</small>
                         </div>
                         <span class="badge bg-primary">${stream.score} pts</span>
                     </div>

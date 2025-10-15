@@ -413,8 +413,21 @@ class StreamSorter:
         
         # M3U Source condition
         if condition.condition_type == 'm3u_source':
-            if stream.get('m3u_account') == condition.value:
-                return condition.points
+            stream_m3u = stream.get('m3u_account')
+            condition_value = condition.value
+            
+            # Convert both to same type for comparison
+            if stream_m3u is not None:
+                try:
+                    # Try to convert both to int for comparison
+                    stream_m3u_int = int(stream_m3u)
+                    condition_value_int = int(condition_value)
+                    if stream_m3u_int == condition_value_int:
+                        return condition.points
+                except (ValueError, TypeError):
+                    # If conversion fails, compare as strings
+                    if str(stream_m3u) == str(condition_value):
+                        return condition.points
         
         # Video Bitrate condition
         elif condition.condition_type == 'video_bitrate':

@@ -5,7 +5,7 @@ import json
 import os
 import re
 from typing import List, Optional, Dict, Any
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 
 # Import Stream Sorter models
 from stream_sorter_models import (
@@ -71,6 +71,10 @@ class AutoAssignmentRule:
     test_streams_before_sorting: bool = False
     force_retest_old_streams: bool = False
     retest_days_threshold: int = 7
+    
+    # Manual stream inclusion/exclusion
+    force_include_stream_ids: List[int] = field(default_factory=list)  # Streams to include even if they don't match criteria
+    force_exclude_stream_ids: List[int] = field(default_factory=list)  # Streams to exclude even if they match criteria
     
     def to_dict(self) -> Dict[str, Any]:
         """Converts rule to dictionary"""
@@ -315,11 +319,27 @@ class StreamMatcher:
             streams: List of streams (dictionaries with stream data)
         
         Returns:
-            List of streams that meet ALL rule conditions
+            List of streams that meet ALL rule conditions, plus forced inclusions, minus forced exclusions
         """
         matching_streams = []
         
+        # Create sets for faster lookup
+        force_exclude_ids = set(rule.force_exclude_stream_ids)
+        force_include_ids = set(rule.force_include_stream_ids)
+        
         for stream in streams:
+            stream_id = stream.get('id')
+            
+            # Skip streams that are explicitly excluded
+            if stream_id in force_exclude_ids:
+                continue
+            
+            # Include streams that are explicitly included (even if they don't match conditions)
+            if stream_id in force_include_ids:
+                matching_streams.append(stream)
+                continue
+            
+            # For remaining streams, check if they match the rule conditions
             if StreamMatcher._stream_matches_rule(rule, stream):
                 matching_streams.append(stream)
         
