@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Total number of streams available
   - Number of streams assigned to channels
   - Real-time data loaded on each page access
+  - Fixed calculation logic to correctly count streams referenced in channel objects
 
 ### Configuration
 Add to your `.env` file:
