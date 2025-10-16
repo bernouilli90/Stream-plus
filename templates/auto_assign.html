@@ -622,13 +622,9 @@
                             Force Include Streams
                             <small class="text-success">Streams to include even if they don't match conditions</small>
                         </label>
-                        <div class="input-group">
-                            <input type="text" class="form-control" id="forceIncludeStreamsSearch"
-                                   placeholder="Search streams by name or ID...">
-                            <button class="btn btn-success" type="button" onclick="showStreamSelector('include')">
-                                <i class="fas fa-plus"></i> Add
-                            </button>
-                        </div>
+                        <button class="btn btn-success" type="button" onclick="showStreamSelector('include')">
+                            <i class="fas fa-plus"></i> Select Streams to Include
+                        </button>
                         <div id="forceIncludeStreamsList" class="mt-2">
                             <!-- Selected streams will be displayed here -->
                         </div>
@@ -644,13 +640,9 @@
                             Force Exclude Streams
                             <small class="text-danger">Streams to exclude even if they match conditions</small>
                         </label>
-                        <div class="input-group">
-                            <input type="text" class="form-control" id="forceExcludeStreamsSearch"
-                                   placeholder="Search streams by name or ID...">
-                            <button class="btn btn-danger" type="button" onclick="showStreamSelector('exclude')">
-                                <i class="fas fa-minus"></i> Add
-                            </button>
-                        </div>
+                        <button class="btn btn-danger" type="button" onclick="showStreamSelector('exclude')">
+                            <i class="fas fa-minus"></i> Select Streams to Exclude
+                        </button>
                         <div id="forceExcludeStreamsList" class="mt-2">
                             <!-- Selected streams will be displayed here -->
                         </div>
