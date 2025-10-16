@@ -642,6 +642,8 @@ class DispatcharrClient:
                 '-'
             ]
 
+            print(f"FFmpeg command: {' '.join(ffmpeg_cmd)}")
+
             ffmpeg_result = subprocess.run(
                 ffmpeg_cmd,
                 capture_output=True,
@@ -723,6 +725,8 @@ class DispatcharrClient:
                 '-show_streams',
                 stream_url
             ]
+
+            print(f"FFprobe command: {' '.join(ffprobe_cmd)}")
 
             # Run ffprobe
             result = subprocess.run(

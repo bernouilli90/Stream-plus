@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Default user-agent: Chrome 132.0.0.0 Windows
   - Environment variable: `STREAM_TEST_USER_AGENT`
   - Prevents stream provider detection by mimicking browser requests
+- **Enhanced Stream Testing Logging**: Added detailed command logging for ffmpeg and ffprobe operations
+  - FFmpeg command logged before bitrate calculation
+  - FFprobe command logged before metadata analysis
+  - Full command strings with all parameters including user-agent
 
 ### Configuration
 Add to your `.env` file:
