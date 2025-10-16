@@ -2,6 +2,206 @@
 
 {% block title %}Stream Sorter - Stream Plus{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Sorting Rule Cards - Same style as auto-assign rule cards */
+    .sorting-rule-card {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 16px;
+        overflow: hidden;
+        border: none;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    .sorting-rule-card:hover {
+        transform: translateY(-8px) scale(1.02);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+
+    .sorting-rule-card .card {
+        border-radius: 16px;
+        border: none;
+        height: 100%;
+    }
+
+    .sorting-rule-card .card-header {
+        border-radius: 16px 16px 0 0 !important;
+        position: relative !important;
+        overflow: hidden !important;
+        background: linear-gradient(135deg, #4c63d2 0%, #6b46c1 100%) !important;
+        background-color: transparent !important;
+        color: white !important;
+        border-bottom: none !important;
+        padding: 16px !important;
+    }
+
+    .sorting-rule-card .card-body {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        border-radius: 0 0 16px 16px;
+        position: relative;
+        padding: 20px !important;
+    }
+
+    .sorting-rule-card .card-body .list-group-item {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        border: none;
+        border-radius: 8px;
+        margin-bottom: 4px;
+    }
+
+    .sorting-rule-card .card-header .form-check-input {
+        filter: brightness(1.2) contrast(1.1);
+        border: 2px solid rgba(255, 255, 255, 0.8);
+    }
+
+    .sorting-rule-card .card-header .form-check-input:checked {
+        background-color: rgba(255, 255, 255, 0.9);
+        border-color: rgba(255, 255, 255, 0.9);
+    }
+
+    .sorting-rule-card .card-header .form-check-input:focus {
+        box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.25);
+    }
+
+    .sorting-rule-card.disabled {
+        opacity: 0.7;
+        filter: grayscale(0.3);
+    }
+
+    .sorting-rule-card.disabled:hover {
+        transform: none;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    /* Modal Section Styling - Same as auto-assign modal */
+    .modal-section {
+        margin-bottom: 1.5rem;
+        padding: 1rem;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 12px;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .modal-section h6 {
+        color: #4c63d2;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        border-bottom: 2px solid #4c63d2;
+        padding-bottom: 0.5rem;
+    }
+
+    .modal-section .form-text i {
+        opacity: 0.8;
+    }
+
+    /* Modal Rule Card - Similar to main rule cards */
+    .modal-rule-card {
+        margin-bottom: 1rem;
+        border-radius: 16px;
+        overflow: hidden;
+        border: none;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+    }
+
+    .modal-rule-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .modal-rule-card .card {
+        border-radius: 16px;
+        border: none;
+        height: 100%;
+    }
+
+    #sortingRuleModalContent .modal-rule-card .card-header {
+        background: linear-gradient(135deg, #4c63d2 0%, #6b46c1 100%);
+        background-color: transparent;
+        color: white;
+        border-bottom: none;
+        border-radius: 16px 16px 0 0;
+        position: relative;
+        overflow: hidden;
+        padding: 16px;
+    }
+
+    .modal-rule-card .card-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+        pointer-events: none;
+    }
+
+    .modal-rule-card .card-body {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        border-radius: 0 0 16px 16px;
+        position: relative;
+    }
+
+    .modal-rule-card .card-header h6 {
+        color: white;
+        font-weight: 600;
+        margin: 0;
+        position: relative;
+        z-index: 1;
+    }
+
+    .sorting-rule-card .card-header .form-check-input {
+        filter: brightness(1.2) contrast(1.1);
+        border: 2px solid rgba(255, 255, 255, 0.8);
+    }
+
+    .sorting-rule-card .card-header .form-check-input:checked {
+        background-color: rgba(255, 255, 255, 0.9);
+        border-color: rgba(255, 255, 255, 0.9);
+    }
+
+    .sorting-rule-card .card-header .form-check-input:focus {
+        box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.25);
+    }
+
+    /* Badge styling */
+    .badge {
+        font-weight: 500;
+        border-radius: 6px;
+    }
+
+    /* Action buttons */
+    .action-buttons {
+        display: flex;
+        gap: 6px;
+    }
+
+    .action-btn {
+        border-radius: 6px;
+        padding: 4px 8px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Switch container */
+    .switch-container {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .switch-container .form-check-input {
+        margin-right: 8px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 {# Create a dictionary of channels for easy lookup #}
 {% set channels_dict = {} %}
@@ -49,19 +249,57 @@
             {% for rule in sorting_rules %}
             <div class="col-md-6 col-lg-4 mb-4">
                 <div class="card h-100 sorting-rule-card" data-rule-id="{{ rule.id }}">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <h5 class="card-title mb-0">{{ rule.name }}</h5>
-                            <div class="text-end">
-                                <small class="text-muted d-block">Order: {{ rule.execution_order }}</small>
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" 
-                                           id="ruleToggle{{ rule.id }}"
+                    <div class="card-header d-flex align-items-start"{% if not rule.enabled %} style="background: linear-gradient(135deg, #495057 0%, #343a40 100%) !important; color: white !important; border-bottom: none !important; padding: 16px !important;"{% else %} style="background: linear-gradient(135deg, #4c63d2 0%, #6b46c1 100%) !important; color: white !important; border-bottom: none !important; padding: 16px !important;"{% endif %}>
+                        <div class="d-flex align-items-start w-100">
+                            <!-- Title and Info Section -->
+                            <div class="d-flex align-items-center flex-grow-1 me-3">
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold text-white mb-1" style="font-size: 1.1rem;">{{ rule.name }}</div>
+                                    <div class="d-flex align-items-center">
+                                        <small class="text-white-50 me-2">Order: {{ rule.execution_order }}</small>
+                                        {% if rule.enabled %}
+                                        <span class="badge bg-success bg-opacity-25 text-white border border-white border-opacity-25" style="font-size: 0.65rem;">Active</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary bg-opacity-25 text-white border border-white border-opacity-25" style="font-size: 0.65rem;">Disabled</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Controls Section -->
+                            <div class="d-flex flex-column align-items-end">
+                                <!-- Enable/Disable Switch -->
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="ruleToggle{{ rule.id }}"
                                            {% if rule.enabled %}checked{% endif %}
-                                           onchange="toggleSortingRule({{ rule.id }})">
+                                           onchange="toggleSortingRule({{ rule.id }})"
+                                           style="cursor: pointer; transform: scale(1.1);">
+                                    <label class="form-check-label text-white fw-semibold" for="ruleToggle{{ rule.id }}" style="font-size: 0.9rem;">
+                                        Enable
+                                    </label>
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="d-flex gap-1">
+                                    <button class="btn btn-info btn-sm action-btn" onclick="previewSortingRule({{ rule.id }})" title="Preview rule">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="btn btn-success btn-sm action-btn" onclick="executeSortingRule({{ rule.id }})"
+                                            {% if not rule.enabled %}disabled{% endif %} title="Execute rule">
+                                        <i class="fas fa-play"></i>
+                                    </button>
+                                    <button class="btn btn-warning btn-sm action-btn" onclick="editSortingRule({{ rule.id }})" title="Edit rule">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-danger btn-sm action-btn" onclick="deleteSortingRule({{ rule.id }})" title="Delete rule">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    <div class="card-body">
 
                         {% if rule.description %}
                         <p class="text-muted small mb-2">{{ rule.description }}</p>
@@ -126,27 +364,6 @@
                             {% else %}
                             <span class="text-muted small">No conditions defined</span>
                             {% endif %}
-                        </div>
-                    </div>
-
-                    <div class="card-footer bg-transparent">
-                        <div class="btn-group w-100" role="group">
-                            <button class="btn btn-sm btn-outline-primary" 
-                                    onclick="editSortingRule({{ rule.id }})">
-                                <i class="fas fa-edit"></i> Edit
-                            </button>
-                            <button class="btn btn-sm btn-outline-info" 
-                                    onclick="previewSortingRule({{ rule.id }})">
-                                <i class="fas fa-eye"></i> Preview
-                            </button>
-                            <button class="btn btn-sm btn-outline-success" 
-                                    onclick="executeSortingRule({{ rule.id }})">
-                                <i class="fas fa-play"></i> Execute
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger" 
-                                    onclick="deleteSortingRule({{ rule.id }})">
-                                <i class="fas fa-trash"></i>
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -420,13 +637,29 @@
     </div>
 </div>
 
+{% block extra_scripts %}
 <!-- M3U Accounts and other data for JavaScript -->
 <script>
-    const m3uAccounts = {{ m3u_accounts|tojson|safe }};
-    const allChannels = {{ channels|tojson|safe }};
-    const allChannelGroups = {{ channel_groups|tojson|safe }};
+    var m3uAccounts = {{ m3u_accounts|tojson|safe }};
+    var allChannels = {{ channels|tojson|safe }};
+    var allChannelGroups = {{ channel_groups|tojson|safe }};
+</script>
+
+<script>
+// Fix channel tags positioning - remove problematic inline styles from old design
+document.addEventListener('DOMContentLoaded', function() {
+    const channelTagsContainers = document.querySelectorAll('[id^="channelTags"]');
+    channelTagsContainers.forEach(container => {
+        // Remove problematic inline styles from old pseudo-element design
+        container.style.removeProperty('position');
+        container.style.removeProperty('z-index');
+        container.style.removeProperty('margin-top');
+        container.style.removeProperty('margin-bottom');
+    });
+});
 </script>
 
 <script src="{{ url_for('static', filename='js/stream_sorter_progress.js') }}"></script>
 <script src="{{ url_for('static', filename='js/stream_sorter.js') }}"></script>
+{% endblock %}
 {% endblock %}

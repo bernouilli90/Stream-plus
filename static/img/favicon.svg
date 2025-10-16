@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4c63d2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6b46c1;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="4" fill="url(#grad1)"/>
+  <!-- Stream icon from FontAwesome -->
+  <path d="M16 4c-1.1 0-2 .9-2 2v4c0 1.1.9 2 2 2s2-.9 2-2V6c0-1.1-.9-2-2-2zM8 8c-1.1 0-2 .9-2 2v4c0 1.1.9 2 2 2s2-.9 2-2v-4c0-1.1-.9-2-2-2zm8 0c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2s2-.9 2-2V10c0-1.1-.9-2-2-2zM8 16c-1.1 0-2 .9-2 2v4c0 1.1.9 2 2 2s2-.9 2-2v-4c0-1.1-.9-2-2-2zm8 0c-1.1 0-2 .9-2 2v4c0 1.1.9 2 2 2s2-.9 2-2v-4c0-1.1-.9-2-2-2z" fill="white"/>
+</svg>

@@ -147,6 +147,195 @@
     .switch-container .form-check-input {
         margin-right: 8px;
     }
+
+    /* Manual Stream Overrides Styling */
+    .manual-overrides-section {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+        border: 2px solid #dee2e6 !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    .manual-overrides-section h6 {
+        border-bottom: 3px solid #0d6efd !important;
+        font-weight: 600 !important;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+
+    .manual-overrides-section .btn-success {
+        background: linear-gradient(135deg, #198754 0%, #157347 100%) !important;
+        border: none !important;
+        font-weight: 600 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
+    }
+
+    .manual-overrides-section .btn-success:hover {
+        background: linear-gradient(135deg, #157347 0%, #0f5132 100%) !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px rgba(25, 135, 84, 0.4) !important;
+    }
+
+    .manual-overrides-section .btn-danger {
+        background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%) !important;
+        border: none !important;
+        font-weight: 600 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
+    }
+
+    .manual-overrides-section .btn-danger:hover {
+        background: linear-gradient(135deg, #b02a37 0%, #8b1d2a 100%) !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4) !important;
+    }
+
+    .manual-overrides-section .btn i {
+        font-size: 1.1em !important;
+    }
+
+    .manual-overrides-section hr {
+        border: 0 !important;
+        height: 2px !important;
+        background: linear-gradient(90deg, transparent 0%, #dee2e6 20%, #dee2e6 80%, transparent 100%) !important;
+        margin: 2rem 0 !important;
+    }
+
+    .manual-overrides-section .bg-white {
+        background: rgba(255, 255, 255, 0.8) !important;
+        backdrop-filter: blur(10px) !important;
+        border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    }
+
+    .manual-overrides-section .form-text i {
+        opacity: 0.8;
+    }
+
+    /* Modal Section Styling */
+    .modal-section {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+        border: 2px solid #dee2e6 !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    .modal-section h6 {
+        border-bottom: 3px solid #0d6efd !important;
+        font-weight: 600 !important;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+
+    .modal-section .form-text i {
+        opacity: 0.8;
+    }
+
+    /* Modal Rule Card - Similar to main rule cards */
+    .modal-rule-card {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 16px;
+        overflow: hidden;
+        border: none;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        margin-bottom: 1.5rem !important;
+        width: 100% !important;
+        max-width: 768px !important;
+    }
+
+    .modal-rule-card:hover {
+        transform: translateY(-4px) scale(1.01);
+        box-shadow: 0 12px 20px -3px rgba(0, 0, 0, 0.15), 0 6px 8px -2px rgba(0, 0, 0, 0.08);
+    }
+
+    .modal-rule-card .card {
+        border-radius: 16px;
+        border: none;
+        height: 100%;
+    }
+
+    #ruleModalContent .modal-rule-card .card-header {
+        border-radius: 16px 16px 0 0 !important;
+        position: relative !important;
+        overflow: hidden !important;
+        background: linear-gradient(135deg, #4c63d2 0%, #6b46c1 100%) !important;
+        background-color: transparent !important;
+        color: white !important;
+        border-bottom: none !important;
+        padding: 16px !important;
+    }
+
+    .modal-rule-card .card-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+        pointer-events: none;
+    }
+
+    .modal-rule-card .card-body {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        border-radius: 0 0 16px 16px;
+        position: relative;
+        padding: 20px !important;
+    }
+
+    .modal-rule-card .card-header h6 {
+        color: white !important;
+        margin: 0 !important;
+        font-weight: 600 !important;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        border-bottom: none !important;
+    }
+
+    .modal-rule-card .card-body .form-text i {
+        opacity: 0.8;
+    }
+
+    /* Navigation bar gradient styling - REMOVED: Now in base.html */
+    /*
+    .navbar {
+        background: linear-gradient(135deg, #4c63d2 0%, #6b46c1 100%) !important;
+        border-bottom: none;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .navbar-brand {
+        font-weight: 600;
+        color: white !important;
+    }
+
+    .navbar-nav .nav-link {
+        color: rgba(255, 255, 255, 0.9) !important;
+        font-weight: 500;
+        transition: color 0.3s ease;
+    }
+
+    .navbar-nav .nav-link:hover {
+        color: white !important;
+        transform: translateY(-1px);
+    }
+
+    .navbar-nav .nav-link.active {
+        color: white !important;
+        font-weight: 600;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        padding: 8px 12px;
+    }
+
+    .btn-outline-light {
+        border-color: rgba(255, 255, 255, 0.8) !important;
+        color: white !important;
+        transition: all 0.3s ease;
+    }
+
+    .btn-outline-light:hover {
+        background-color: rgba(255, 255, 255, 0.2) !important;
+        border-color: white !important;
+        color: white !important;
+        transform: translateY(-1px);
+    }
+    */
 </style>
 {% endblock %}
 
@@ -194,8 +383,8 @@
     {% if rules %}
         <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4" id="rulesList">
             {% for rule in rules %}
-            <div class="col rule-card {% if not rule.enabled %}disabled{% endif %}" data-channel-name="{% set channel = channels.get(rule.channel_id) %}{{ channel.name|lower if channel else '' }}">
-                <div class="card h-100 shadow-sm"{% if not rule.enabled %} style="opacity: 0.6;"{% endif %}>
+            <div class="col" data-channel-name="{% set channel = channels.get(rule.channel_id) %}{{ channel.name|lower if channel else '' }}">
+                <div class="card h-100 shadow-sm rule-card{% if not rule.enabled %} disabled{% endif %}"{% if not rule.enabled %} style="opacity: 0.6;"{% endif %}>
                     <div class="card-header d-flex align-items-start"{% if not rule.enabled %} style="background: linear-gradient(135deg, #495057 0%, #343a40 100%) !important; color: white !important; border-bottom: none !important; padding: 16px !important;"{% else %} style="background: linear-gradient(135deg, #4c63d2 0%, #6b46c1 100%) !important; color: white !important; border-bottom: none !important; padding: 16px !important;"{% endif %}>
                         <div class="d-flex align-items-start w-100">
                             <!-- Logo and Channel Info Section -->
@@ -422,7 +611,7 @@
 <!-- Modal for creating/editing rule -->
 <div class="modal fade" id="ruleModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
-        <div class="modal-content">
+        <div class="modal-content" id="ruleModalContent">
             <div class="modal-header">
                 <h5 class="modal-title" id="ruleModalTitle">New Rule</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -431,102 +620,176 @@
                 <form id="ruleForm">
                     <input type="hidden" id="ruleId">
                     
-                    <!-- Name and Channel -->
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="ruleName" class="form-label">Rule Name *</label>
-                            <input type="text" class="form-control" id="ruleName" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="channelSearch" class="form-label">Channel *</label>
-                            <input type="text" class="form-control" id="channelSearch" 
-                                   placeholder="Search channel by name or ID..." 
-                                   autocomplete="off" required>
-                            <input type="hidden" id="channelId" required>
-                            <div id="channelDropdown" class="dropdown-menu" style="max-height: 300px; overflow-y: auto; width: 100%;">
-                                <!-- Channels will be loaded dynamically -->
+                    <!-- Name and Channel Section -->
+                    <div class="modal-rule-card mb-4">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-tag me-2"></i>Basic Information
+                                </h6>
                             </div>
-                            <small class="form-text text-muted">Type to search or click to see all</small>
-                        </div>
-                    </div>
-
-                    <!-- Status and Replace -->
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="ruleEnabled" checked>
-                                <label class="form-check-label" for="ruleEnabled">
-                                    Rule enabled
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="replaceExisting">
-                                <label class="form-check-label" for="replaceExisting">
-                                    Replace existing streams
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Test Streams Option -->
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="testStreamsBeforeSorting">
-                            <label class="form-check-label" for="testStreamsBeforeSorting">
-                                <i class="fas fa-flask"></i> Test streams before assigning (obtains stats via ffmpeg)
-                            </label>
-                        </div>
-                        <small class="form-text text-muted">
-                            <i class="fas fa-info-circle"></i> Only tests streams without stats or with outdated stats. Each stream will be started for 10 seconds to obtain stats (bitrate, codec, resolution, etc.).
-                        </small>
+                            <div class="card-body">
                         
-                        <!-- Force Retest All Streams Sub-option -->
-                        <div class="mt-2 ms-4">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="forceRetestOldStreams" disabled>
-                                <label class="form-check-label" for="forceRetestOldStreams">
-                                    <i class="fas fa-redo"></i> Force retest of ALL streams (even with recent stats)
+                        <!-- Name and Channel -->
+                        <div class="row mb-0">
+                            <div class="col-md-6">
+                                <label for="ruleName" class="form-label fw-bold">
+                                    <i class="fas fa-signature text-primary me-2"></i>Rule Name *
                                 </label>
+                                <input type="text" class="form-control" id="ruleName" required>
                             </div>
-                            <small class="form-text text-muted">
-                                <i class="fas fa-exclamation-triangle text-warning"></i> <strong>Warning:</strong> This will test ALL streams, even those with recent stats. Only use if you need to refresh all statistics.
-                            </small>
-                            <div class="mt-2" id="retestThresholdContainer">
-                                <small class="text-muted">
-                                    <i class="fas fa-clock"></i> By default, only streams without stats or with stats older than 
-                                    <input type="number" id="retestDaysThreshold" class="form-control form-control-sm d-inline-block" 
-                                           style="width: 60px;" min="1" value="7" disabled>
-                                    days will be tested.
+                            <div class="col-md-6">
+                                <label for="channelSearch" class="form-label fw-bold">
+                                    <i class="fas fa-tv text-info me-2"></i>Channel *
+                                </label>
+                                <input type="text" class="form-control" id="channelSearch" 
+                                       placeholder="Search channel by name or ID..." 
+                                       autocomplete="off" required>
+                                <input type="hidden" id="channelId" required>
+                                <div id="channelDropdown" class="dropdown-menu" style="max-height: 300px; overflow-y: auto; width: 100%;">
+                                    <!-- Channels will be loaded dynamically -->
+                                </div>
+                                <small class="form-text text-muted">
+                                    <i class="fas fa-search text-muted me-1"></i>Type to search or click to see all
                                 </small>
                             </div>
                         </div>
                     </div>
-
-                    <!-- Filters -->
-                    <h6 class="border-bottom pb-2 mb-3">Search Filters</h6>
-
-                    <!-- Regex Pattern -->
-                    <div class="mb-3">
-                        <label for="regexPattern" class="form-label">
-                            Regex Pattern (stream name)
-                            <small class="text-muted">Example: ^ESPN.*HD$</small>
-                        </label>
-                        <input type="text" class="form-control" id="regexPattern" placeholder="Regex pattern...">
+                    </div>
                     </div>
 
-                    <!-- M3U Account -->
-                    <div class="mb-3">
-                        <label for="m3uAccountIds" class="form-label">M3U Accounts</label>
-                        <select class="form-select" id="m3uAccountIds" multiple size="3">
-                            <option value="">All accounts...</option>
-                        </select>
-                        <div class="form-text">Hold Ctrl/Cmd to select multiple accounts. Leave empty for all accounts.</div>
+                    <!-- Status and Replace Section -->
+                    <div class="modal-rule-card mb-4">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-cogs me-2"></i>Rule Configuration
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                        
+                        <!-- Status and Replace -->
+                        <div class="row mb-0">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="ruleEnabled" checked>
+                                    <label class="form-check-label fw-bold" for="ruleEnabled">
+                                        <i class="fas fa-toggle-on text-success me-2"></i>Rule enabled
+                                    </label>
+                                </div>
+                                <small class="form-text text-muted ms-4">
+                                    <i class="fas fa-info-circle text-info me-1"></i>Enable or disable this auto-assignment rule
+                                </small>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="replaceExisting">
+                                    <label class="form-check-label fw-bold" for="replaceExisting">
+                                        <i class="fas fa-exchange-alt text-warning me-2"></i>Replace existing streams
+                                    </label>
+                                </div>
+                                <small class="form-text text-muted ms-4">
+                                    <i class="fas fa-exclamation-triangle text-warning me-1"></i>Replace current streams in the channel
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
                     </div>
 
-                    <!-- Video Conditions -->
-                    <h6 class="border-bottom pb-2 mb-3">Video Conditions</h6>
+                    <!-- Test Streams Option Section -->
+                    <div class="modal-rule-card mb-4">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-flask me-2"></i>Stream Testing
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                        
+                        <!-- Test Streams Option -->
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="testStreamsBeforeSorting">
+                                <label class="form-check-label fw-bold" for="testStreamsBeforeSorting">
+                                    <i class="fas fa-flask text-info me-2"></i> Test streams before assigning (obtains stats via ffmpeg)
+                                </label>
+                            </div>
+                            <small class="form-text text-muted ms-4">
+                                <i class="fas fa-info-circle text-info me-1"></i> Only tests streams without stats or with outdated stats. Each stream will be started for 10 seconds to obtain stats (bitrate, codec, resolution, etc.).
+                            </small>
+                            
+                            <!-- Force Retest All Streams Sub-option -->
+                            <div class="mt-3 ms-4 p-3 bg-white rounded border">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="forceRetestOldStreams" disabled>
+                                    <label class="form-check-label fw-bold" for="forceRetestOldStreams">
+                                        <i class="fas fa-redo text-danger me-2"></i> Force retest of ALL streams (even with recent stats)
+                                    </label>
+                                </div>
+                                <small class="form-text text-muted">
+                                    <i class="fas fa-exclamation-triangle text-warning me-1"></i> <strong>Warning:</strong> This will test ALL streams, even those with recent stats. Only use if you need to refresh all statistics.
+                                </small>
+                                <div class="mt-3" id="retestThresholdContainer">
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock text-secondary me-1"></i> By default, only streams without stats or with stats older than 
+                                        <input type="number" id="retestDaysThreshold" class="form-control form-control-sm d-inline-block" 
+                                               style="width: 60px;" min="1" value="7" disabled>
+                                        days will be tested.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
+                    </div>
+
+                    <!-- Search Filters Section -->
+                    <div class="modal-rule-card mb-4">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-search me-2"></i>Search Filters
+                                </h6>
+                            </div>
+                            <div class="card-body">
+
+                        <!-- Regex Pattern -->
+                        <div class="mb-4">
+                            <label for="regexPattern" class="form-label fw-bold">
+                                <i class="fas fa-code text-warning me-2"></i>Regex Pattern (stream name)
+                            </label>
+                            <small class="text-muted d-block mb-2">
+                                <i class="fas fa-lightbulb text-warning me-1"></i>Example: ^ESPN.*HD$
+                            </small>
+                            <input type="text" class="form-control" id="regexPattern" placeholder="Regex pattern...">
+                        </div>
+
+                        <!-- M3U Account -->
+                        <div class="mb-0">
+                            <label for="m3uAccountIds" class="form-label fw-bold">
+                                <i class="fas fa-server text-info me-2"></i>M3U Accounts
+                            </label>
+                            <select class="form-select" id="m3uAccountIds" multiple size="3">
+                                <option value="">All accounts...</option>
+                            </select>
+                            <small class="form-text text-muted">
+                                <i class="fas fa-mouse-pointer text-muted me-1"></i>Hold Ctrl/Cmd to select multiple accounts. Leave empty for all accounts.
+                            </small>
+                        </div>
+                    </div>
+                    </div>
+                    </div>
+
+                    <!-- Video Conditions Section -->
+                    <div class="modal-rule-card mb-4">
+                        <div class="card h-100">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-video me-2"></i>Video Conditions
+                            </h6>
+                        </div>
+                        <div class="card-body">
 
                     <!-- Bitrate -->
                     <div class="row mb-3">
@@ -593,17 +856,29 @@
                         </select>
                         <small class="form-text text-muted">Leave empty for no restriction</small>
                     </div>
+                        </div>
+                    </div>
+                    </div>
 
-                    <!-- Audio Conditions -->
-                    <h6 class="border-bottom pb-2 mb-3">Audio Conditions</h6>
+                    <!-- Audio Conditions Section -->
+                    <div class="modal-rule-card mb-4">
+                        <div class="card h-100">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-volume-up me-2"></i>Audio Conditions
+                            </h6>
+                        </div>
+                        <div class="card-body">
 
-                    <!-- Audio Codec -->
-                    <div class="mb-3">
-                        <label for="audioCodec" class="form-label">
-                            Audio Codec 
-                            <small class="text-muted">(hold Ctrl/Cmd to select multiple)</small>
-                        </label>
-                        <select class="form-select" id="audioCodec" multiple size="5">
+                        <!-- Audio Codec -->
+                        <div class="mb-0">
+                            <label for="audioCodec" class="form-label fw-bold">
+                                <i class="fas fa-music text-warning me-2"></i>Audio Codec
+                            </label>
+                            <small class="text-muted d-block mb-2">
+                                <i class="fas fa-mouse-pointer text-muted me-1"></i>(hold Ctrl/Cmd to select multiple)
+                            </small>
+                            <select class="form-select" id="audioCodec" multiple size="5">
                             <option value="aac">AAC</option>
                             <option value="ac3">AC3 (Dolby Digital)</option>
                             <option value="eac3">E-AC3 (Dolby Digital Plus)</option>
@@ -612,44 +887,70 @@
                         </select>
                         <small class="form-text text-muted">Leave empty for no restriction</small>
                     </div>
-
-                    <!-- Manual Stream Inclusion/Exclusion -->
-                    <h6 class="border-bottom pb-2 mb-3">Manual Stream Overrides</h6>
-
-                    <!-- Force Include Streams -->
-                    <div class="mb-3">
-                        <label for="forceIncludeStreams" class="form-label">
-                            Force Include Streams
-                            <small class="text-success">Streams to include even if they don't match conditions</small>
-                        </label>
-                        <button class="btn btn-success" type="button" onclick="showStreamSelector('include')">
-                            <i class="fas fa-plus"></i> Select Streams to Include
-                        </button>
-                        <div id="forceIncludeStreamsList" class="mt-2">
-                            <!-- Selected streams will be displayed here -->
                         </div>
-                        <input type="hidden" id="forceIncludeStreamIds" value="[]">
-                        <small class="form-text text-muted">
-                            <i class="fas fa-info-circle"></i> These streams will be included in the channel regardless of whether they match the rule conditions above.
-                        </small>
+                    </div>
+                        </div>
                     </div>
 
-                    <!-- Force Exclude Streams -->
-                    <div class="mb-3">
-                        <label for="forceExcludeStreams" class="form-label">
-                            Force Exclude Streams
-                            <small class="text-danger">Streams to exclude even if they match conditions</small>
-                        </label>
-                        <button class="btn btn-danger" type="button" onclick="showStreamSelector('exclude')">
-                            <i class="fas fa-minus"></i> Select Streams to Exclude
-                        </button>
-                        <div id="forceExcludeStreamsList" class="mt-2">
-                            <!-- Selected streams will be displayed here -->
+                    <!-- Manual Stream Inclusion/Exclusion -->
+                    <div class="modal-rule-card mb-4">
+                        <div class="card h-100">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-hand-paper me-2"></i>Manual Stream Overrides
+                            </h6>
                         </div>
-                        <input type="hidden" id="forceExcludeStreamIds" value="[]">
-                        <small class="form-text text-muted">
-                            <i class="fas fa-info-circle"></i> These streams will be excluded from the channel even if they match all the rule conditions above.
-                        </small>
+                        <div class="card-body">
+
+                        <!-- Force Include Streams -->
+                        <div class="mb-4">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="flex-grow-1">
+                                    <label for="forceIncludeStreams" class="form-label fw-bold mb-1">
+                                        <i class="fas fa-plus-circle text-success me-2"></i>Force Include Streams
+                                    </label>
+                                    <small class="text-success d-block">Streams to include even if they don't match conditions</small>
+                                </div>
+                            </div>
+                            <button class="btn btn-success shadow-sm d-flex align-items-center" type="button" onclick="showStreamSelector('include')" style="transition: all 0.3s ease;">
+                                <i class="fas fa-plus me-2"></i>
+                                <span>Select Streams to Include</span>
+                            </button>
+                            <div id="forceIncludeStreamsList" class="mt-3 p-3 bg-white rounded border">
+                                <!-- Selected streams will be displayed here -->
+                            </div>
+                            <input type="hidden" id="forceIncludeStreamIds" value="[]">
+                            <small class="form-text text-muted mt-2">
+                                <i class="fas fa-info-circle text-info me-1"></i> These streams will be included in the channel regardless of whether they match the rule conditions above.
+                            </small>
+                        </div>
+
+                        <!-- Visual separator -->
+                        <hr class="my-4">
+
+                        <!-- Force Exclude Streams -->
+                        <div class="mb-0">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="flex-grow-1">
+                                    <label for="forceExcludeStreams" class="form-label fw-bold mb-1">
+                                        <i class="fas fa-minus-circle text-danger me-2"></i>Force Exclude Streams
+                                    </label>
+                                    <small class="text-danger d-block">Streams to exclude even if they match conditions</small>
+                                </div>
+                            </div>
+                            <button class="btn btn-danger shadow-sm d-flex align-items-center" type="button" onclick="showStreamSelector('exclude')" style="transition: all 0.3s ease;">
+                                <i class="fas fa-minus me-2"></i>
+                                <span>Select Streams to Exclude</span>
+                            </button>
+                            <div id="forceExcludeStreamsList" class="mt-3 p-3 bg-white rounded border">
+                                <!-- Selected streams will be displayed here -->
+                            </div>
+                            <input type="hidden" id="forceExcludeStreamIds" value="[]">
+                            <small class="form-text text-muted mt-2">
+                                <i class="fas fa-info-circle text-warning me-1"></i> These streams will be excluded from the channel even if they match all the rule conditions above.
+                            </small>
+                        </div>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -1032,4 +1333,61 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 <script src="{{ url_for('static', filename='js/auto_assign_progress.js') }}"></script>
 <script src="{{ url_for('static', filename='js/auto_assign.js') }}"></script>
+
+<script>
+// Apply gradient styles to modal card headers when modal is shown
+document.getElementById('ruleModal').addEventListener('shown.bs.modal', function () {
+    // Force consistent positioning with continuous application and specific targeting
+    const applyStyles = () => {
+        const modalSections = document.querySelectorAll('#ruleModalContent .modal-rule-card');
+        modalSections.forEach((section, index) => {
+            // Special handling for Manual Stream Overrides section
+            if (section.querySelector('h6') && section.querySelector('h6').textContent.includes('Manual Stream Overrides')) {
+                // Force absolute positioning to override any layout issues
+                section.style.setProperty('position', 'relative', 'important');
+                section.style.setProperty('left', '16px', 'important'); // Compensate for the 16px offset
+                section.style.setProperty('margin-left', '0', 'important');
+            } else {
+                section.style.setProperty('position', 'relative', 'important');
+                section.style.setProperty('left', '0', 'important');
+                section.style.setProperty('margin-left', '0', 'important');
+            }
+            
+            section.style.setProperty('width', '768px', 'important');
+            section.style.setProperty('max-width', '768px', 'important');
+            section.style.setProperty('min-width', '768px', 'important');
+            section.style.setProperty('margin-right', '0', 'important');
+            section.style.setProperty('transform', 'none', 'important');
+            section.style.setProperty('float', 'none', 'important');
+            section.style.setProperty('display', 'block', 'important');
+        });
+    };
+    
+    // Apply immediately
+    applyStyles();
+    
+    // Apply multiple times with increasing delays
+    let count = 0;
+    const interval = setInterval(() => {
+        applyStyles();
+        count++;
+        if (count >= 15) { // Stop after 15 applications (3 seconds)
+            clearInterval(interval);
+        }
+    }, 200);
+    
+    const modalHeaders = document.querySelectorAll('#ruleModalContent .modal-rule-card .card-header');
+    modalHeaders.forEach(header => {
+        header.style.background = 'linear-gradient(135deg, #4c63d2 0%, #6b46c1 100%)';
+        header.style.backgroundColor = 'transparent';
+        header.style.color = 'white';
+        header.style.borderBottom = 'none';
+        header.style.borderRadius = '16px 16px 0 0';
+        header.style.position = 'relative';
+        header.style.overflow = 'hidden';
+        header.style.padding = '16px';
+    });
+});
+</script>
+
 {% endblock %}

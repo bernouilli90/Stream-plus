@@ -3,11 +3,11 @@
  * Handles real-time execution progress via Server-Sent Events
  */
 
-let currentEventSource = null;
-let totalStreamsToTest = 0;
-let currentStreamsTested = 0;
-let totalChannels = 0;
-let currentChannel = 0;
+var currentEventSource = null;
+var totalStreamsToTest = 0;
+var currentStreamsTested = 0;
+var totalChannels = 0;
+var currentChannel = 0;
 
 /**
  * Show execution progress modal and connect to SSE

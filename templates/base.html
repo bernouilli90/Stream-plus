@@ -4,13 +4,66 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Stream Plus - Dispatcharr Manager{% endblock %}</title>
-    
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/favicon.svg') }}">
+
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <!-- Custom CSS -->
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    
+    {% block extra_css %}{% endblock %}
+    
+    <style>
+        /* Navigation bar gradient styling */
+        .navbar {
+            background: linear-gradient(135deg, #4c63d2 0%, #6b46c1 100%) !important;
+            border-bottom: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar-brand {
+            font-weight: 600;
+            color: white !important;
+        }
+
+        .navbar-nav .nav-link {
+            color: rgba(255, 255, 255, 0.9) !important;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .navbar-nav .nav-link:hover {
+            color: white !important;
+            transform: translateY(-1px);
+        }
+
+        .navbar-nav .nav-link.active {
+            color: white !important;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 8px 12px;
+        }
+
+        .btn-outline-light {
+            border-color: rgba(255, 255, 255, 0.8) !important;
+            color: white !important;
+            transition: all 0.3s ease;
+        }
+
+        .btn-outline-light:hover {
+            background-color: rgba(255, 255, 255, 0.2) !important;
+            border-color: white !important;
+            color: white !important;
+            transform: translateY(-1px);
+        }
+    </style>
     
     {% block extra_head %}{% endblock %}
 </head>
@@ -76,9 +129,13 @@
     </main>
 
     <!-- Footer -->
-    <footer class="bg-dark text-light text-center py-3 mt-5">
+    <footer class="text-light text-center py-4 mt-5" style="background: linear-gradient(135deg, #4c63d2 0%, #6b46c1 100%); border-top: 1px solid rgba(255, 255, 255, 0.1);">
         <div class="container">
-            <p>&copy; 2025 Stream Plus - Dispatcharr Manager <span class="text-white">| {{ app_version }}</span></p>
+            <h6 class="mb-1">
+                <i class="fas fa-stream text-white me-2"></i>
+                Stream Plus
+            </h6>
+            <p class="mb-0 small opacity-75">{{ app_version }}</p>
         </div>
     </footer>
 

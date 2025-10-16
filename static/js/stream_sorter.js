@@ -3,14 +3,14 @@
  * Handles sorting rules management with scoring system
  */
 
-let currentRuleId = null;
-let conditionCounter = 0;
-let selectedChannelIds = [];
-let selectedChannelGroupIds = [];
-let allChannelsSelected = false;  // New flag for "all channels" mode
+var currentRuleId = null;
+var conditionCounter = 0;
+var selectedChannelIds = [];
+var selectedChannelGroupIds = [];
+var allChannelsSelected = false;  // New flag for "all channels" mode
 
 // Condition type configurations
-const conditionTypes = {
+var conditionTypes = {
     m3u_source: {
         label: 'M3U Source',
         hasOperator: false,
@@ -627,7 +627,7 @@ async function toggleSortingRule(ruleId) {
 /**
  * Preview sorting rule
  */
-let currentPreviewRuleId = null;
+var currentPreviewRuleId = null;
 
 async function previewSortingRule(ruleId) {
     currentPreviewRuleId = ruleId;
