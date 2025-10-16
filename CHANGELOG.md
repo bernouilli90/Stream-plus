@@ -29,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Real-time data loaded on each page access
   - Fixed calculation logic to correctly count streams referenced in channel objects
   - Fixed Jinja2 template filter error preventing dashboard display
+- **UI Cleanup**: Removed useless text inputs from stream selector modals
+  - Eliminated redundant search inputs in force include/exclude sections
+  - Streamlined modal interface with descriptive action buttons
+  - Improved user experience by removing confusing UI elements
 
 ### Configuration
 Add to your `.env` file:
