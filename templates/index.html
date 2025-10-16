@@ -111,6 +111,47 @@
     </div>
 </div>
 
+<!-- Dispatcharr Statistics -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-info">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-bar"></i> Dispatcharr Overview
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3 mb-3">
+                        <div class="border rounded p-3">
+                            <div class="h4 text-info mb-1" id="groups-count">{{ dispatcharr_stats.groups_with_channels }}</div>
+                            <small class="text-muted">Groups with Channels</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="border rounded p-3">
+                            <div class="h4 text-primary mb-1" id="channels-count">{{ dispatcharr_stats.total_channels }}</div>
+                            <small class="text-muted">Total Channels</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="border rounded p-3">
+                            <div class="h4 text-warning mb-1" id="streams-total-count">{{ dispatcharr_stats.total_streams }}</div>
+                            <small class="text-muted">Total Streams</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="border rounded p-3">
+                            <div class="h4 text-success mb-1" id="streams-assigned-count">{{ dispatcharr_stats.streams_with_channels }}</div>
+                            <small class="text-muted">Streams Assigned</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Quick Actions -->
 <div class="row">
     <div class="col-12">

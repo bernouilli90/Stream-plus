@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Groups refresh when accessing index, auto-assign, and stream-sorter pages
   - Ensures UI reflects real-time changes to channel groups
   - Prevents stale group data during application runtime
+- **Dispatcharr Statistics Dashboard**: Added comprehensive overview statistics to the home page
+  - Number of groups with channels assigned
+  - Total number of channels in Dispatcharr
+  - Total number of streams available
+  - Number of streams assigned to channels
+  - Real-time data loaded on each page access
 
 ### Configuration
 Add to your `.env` file:

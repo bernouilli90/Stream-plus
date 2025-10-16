@@ -94,6 +94,30 @@ def index():
         # Reload channel groups to ensure they are up to date
         channel_groups_manager.load_groups()
 
+        # Load Dispatcharr statistics
+        print("Loading Dispatcharr statistics...")
+        channels = dispatcharr_client.get_channels()
+        streams = dispatcharr_client.get_streams()
+        
+        # Calculate statistics
+        total_channels = len(channels)
+        total_streams = len(streams)
+        
+        # Count streams associated with channels (streams that have channel_id)
+        streams_with_channels = sum(1 for stream in streams if stream.get('channel_id'))
+        
+        # Count groups with channels (from the reloaded groups manager)
+        groups_with_channels = len(channel_groups_manager.groups)
+        
+        dispatcharr_stats = {
+            'groups_with_channels': groups_with_channels,
+            'total_channels': total_channels,
+            'total_streams': total_streams,
+            'streams_with_channels': streams_with_channels
+        }
+        
+        print(f"Dispatcharr stats: {dispatcharr_stats}")
+
         # Load execution state
         execution_state = load_execution_state()
 
@@ -113,7 +137,8 @@ def index():
         return render_template('index.html',
                              auto_assignment_rules=auto_assignment_rules,
                              sorting_rules=sorting_rules,
-                             execution_state=execution_state)
+                             execution_state=execution_state,
+                             dispatcharr_stats=dispatcharr_stats)
     except Exception as e:
         print(f"Error loading index data: {e}")
         import traceback
@@ -124,7 +149,8 @@ def index():
                              execution_state={
                                  "auto_assignment": {"last_execution": None, "rules_count": 0},
                                  "stream_sorter": {"last_execution": None, "rules_count": 0}
-                             })
+                             },
+                             dispatcharr_stats={"groups_with_channels": 0, "total_channels": 0, "total_streams": 0, "streams_with_channels": 0})
 
 @app.route('/auto-assign')
 def auto_assign():
