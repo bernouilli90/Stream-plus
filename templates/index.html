@@ -42,7 +42,7 @@
                             <div class="small text-muted mb-1">Last Run</div>
                             <div class="small" id="auto-assignment-last-run">
                                 {% if execution_state.auto_assignment.last_execution %}
-                                    {% set dt = execution_state.auto_assignment.last_execution | str %}
+                                    {% set dt = execution_state.auto_assignment.last_execution %}
                                     {{ dt[:16] }}
                                 {% else %}
                                     <em>Never</em>
@@ -87,7 +87,7 @@
                             <div class="small text-muted mb-1">Last Run</div>
                             <div class="small" id="stream-sorter-last-run">
                                 {% if execution_state.stream_sorter.last_execution %}
-                                    {% set dt = execution_state.stream_sorter.last_execution | str %}
+                                    {% set dt = execution_state.stream_sorter.last_execution %}
                                     {{ dt[:16] }}
                                 {% else %}
                                     <em>Never</em>
