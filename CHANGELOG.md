@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.6] - 2025-10-16
+
+### Added
+- **Stream Testing User-Agent**: Added configurable user-agent for ffmpeg/ffprobe stream testing
+  - Default user-agent: Chrome 132.0.0.0 Windows
+  - Environment variable: `STREAM_TEST_USER_AGENT`
+  - Prevents stream provider detection by mimicking browser requests
+
+### Configuration
+Add to your `.env` file:
+```bash
+STREAM_TEST_USER_AGENT=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.3
+```
+
 ## [0.2.5] - 2025-10-15
 
 ### Added
@@ -13,10 +27,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Force Exclude: Streams excluded from channel even if they match all conditions
   - UI components: Search and select streams with visual badges in rule cards and modals
   - Logic improvements: Forced includes/excludes applied during both testing and evaluation phases
-- **Stream Testing User-Agent**: Added configurable user-agent for ffmpeg/ffprobe stream testing
-  - Default user-agent: Chrome 132.0.0.0 Windows
-  - Environment variable: `STREAM_TEST_USER_AGENT`
-  - Prevents stream provider detection by mimicking browser requests
 
 ### Fixed
 - **Sorting rules M3U source evaluation**: Fixed sorting rules with `m3u_source` conditions not being evaluated because streams lacked M3U account information
