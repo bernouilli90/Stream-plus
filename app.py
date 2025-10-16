@@ -103,8 +103,13 @@ def index():
         total_channels = len(channels)
         total_streams = len(streams)
         
-        # Count streams associated with channels (streams that have channel_id)
-        streams_with_channels = sum(1 for stream in streams if stream.get('channel_id'))
+        # Count streams associated with channels (streams referenced in channels)
+        channel_stream_ids = set()
+        for channel in channels:
+            if 'streams' in channel and channel['streams']:
+                channel_stream_ids.update(channel['streams'])
+        
+        streams_with_channels = len(channel_stream_ids)
         
         # Count groups with channels (from the reloaded groups manager)
         groups_with_channels = len(channel_groups_manager.groups)
