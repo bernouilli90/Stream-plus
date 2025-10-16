@@ -642,7 +642,14 @@ class DispatcharrClient:
                 '-'
             ]
 
-            print(f"FFmpeg command: {' '.join(ffmpeg_cmd)}")
+            # Print command with proper quoting for readability
+            quoted_cmd = []
+            for arg in ffmpeg_cmd:
+                if ' ' in arg or '(' in arg or ')' in arg:
+                    quoted_cmd.append(f'"{arg}"')
+                else:
+                    quoted_cmd.append(arg)
+            print(f"FFmpeg command: {' '.join(quoted_cmd)}")
 
             ffmpeg_result = subprocess.run(
                 ffmpeg_cmd,
@@ -726,7 +733,14 @@ class DispatcharrClient:
                 stream_url
             ]
 
-            print(f"FFprobe command: {' '.join(ffprobe_cmd)}")
+            # Print command with proper quoting for readability
+            quoted_cmd = []
+            for arg in ffprobe_cmd:
+                if ' ' in arg or '(' in arg or ')' in arg:
+                    quoted_cmd.append(f'"{arg}"')
+                else:
+                    quoted_cmd.append(arg)
+            print(f"FFprobe command: {' '.join(quoted_cmd)}")
 
             # Run ffprobe
             result = subprocess.run(

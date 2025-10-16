@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - FFmpeg command logged before bitrate calculation
   - FFprobe command logged before metadata analysis
   - Full command strings with all parameters including user-agent
+  - Improved readability with proper argument quoting
 
 ### Configuration
 Add to your `.env` file:
