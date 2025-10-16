@@ -546,12 +546,16 @@ class DispatcharrClient:
             
         Returns:
             Dict with test results
+            
+        Environment Variables:
+            STREAM_TEST_USER_AGENT: User-Agent string to use for ffmpeg/ffprobe requests (default: Chrome 132 user agent)
         """
         # Get configurable parameters from environment
         if test_duration is None:
             test_duration = int(os.getenv('STREAM_TEST_DURATION', '10'))
         
         timeout_buffer = int(os.getenv('STREAM_TEST_TIMEOUT_BUFFER', '30'))
+        user_agent = os.getenv('STREAM_TEST_USER_AGENT', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.3')
         import subprocess
         import time
         
@@ -630,6 +634,7 @@ class DispatcharrClient:
 
             ffmpeg_cmd = [
                 ffmpeg_executable,
+                '-user_agent', user_agent,
                 '-t', str(test_duration),  # Read for test_duration seconds
                 '-i', stream_url,
                 '-c', 'copy',  # Copy without re-encoding
@@ -709,6 +714,7 @@ class DispatcharrClient:
 
             ffprobe_cmd = [
                 ffprobe_executable,
+                '-user_agent', user_agent,
                 '-analyzeduration', str(test_duration * 2000000),  # Increased for Docker (2x)
                 '-probesize', str(test_duration * 10000000),  # Increased for Docker (2x)
                 '-v', 'error',

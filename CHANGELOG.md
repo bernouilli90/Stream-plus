@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Force Exclude: Streams excluded from channel even if they match all conditions
   - UI components: Search and select streams with visual badges in rule cards and modals
   - Logic improvements: Forced includes/excludes applied during both testing and evaluation phases
+- **Stream Testing User-Agent**: Added configurable user-agent for ffmpeg/ffprobe stream testing
+  - Default user-agent: Chrome 132.0.0.0 Windows
+  - Environment variable: `STREAM_TEST_USER_AGENT`
+  - Prevents stream provider detection by mimicking browser requests
 
 ### Fixed
 - **Sorting rules M3U source evaluation**: Fixed sorting rules with `m3u_source` conditions not being evaluated because streams lacked M3U account information
