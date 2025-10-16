@@ -91,6 +91,9 @@ def index():
         auto_assignment_rules = rules_manager.load_rules()
         sorting_rules = sorting_rules_manager.load_rules()
 
+        # Reload channel groups to ensure they are up to date
+        channel_groups_manager.load_groups()
+
         # Load execution state
         execution_state = load_execution_state()
 
@@ -131,6 +134,9 @@ def auto_assign():
         channels = dispatcharr_client.get_channels()
         m3u_accounts = dispatcharr_client.get_m3u_accounts()
         logos = dispatcharr_client.get_logos()
+        
+        # Reload channel groups to ensure they are up to date
+        channel_groups_manager.load_groups()
         
         # Create channels dictionary by ID for easy access
         channels_dict = {channel['id']: channel for channel in channels}
@@ -1123,6 +1129,10 @@ def stream_sorter():
         channels = dispatcharr_client.get_channels()
         sorting_rules = sorting_rules_manager.load_rules()
         m3u_accounts = dispatcharr_client.get_m3u_accounts()
+        
+        # Reload channel groups to ensure they are up to date
+        channel_groups_manager.load_groups()
+        
         channel_groups = [group.to_dict() for group in channel_groups_manager.groups.values()]
         print(f"Passing to template: {len(channels)} channels, {len(channel_groups)} groups")
         print(f"Channel groups data: {channel_groups}")

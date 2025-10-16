@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - FFprobe command logged before metadata analysis
   - Full command strings with all parameters including user-agent
   - Improved readability with proper argument quoting
+- **Dynamic Channel Groups Loading**: Channel groups are now reloaded on each page access
+  - Groups refresh when accessing index, auto-assign, and stream-sorter pages
+  - Ensures UI reflects real-time changes to channel groups
+  - Prevents stale group data during application runtime
 
 ### Configuration
 Add to your `.env` file:
