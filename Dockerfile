@@ -17,14 +17,17 @@ ENV PYTHONUNBUFFERED=1 \
 ARG USER_UID=1000
 ARG USER_GID=1000
 
-# Install system dependencies (ffmpeg and ffprobe)
+# Install system dependencies including ffmpeg and ffprobe for stream testing
 RUN apk add --no-cache \
     ffmpeg \
     ffmpeg-libs \
     curl \
     su-exec \
     shadow \
-    && rm -rf /var/cache/apk/*
+    && rm -rf /var/cache/apk/* \
+    && echo "FFmpeg installed successfully:" \
+    && ffmpeg -version | head -1 \
+    && ffprobe -version | head -1
 
 # Create non-root user with customizable UID/GID
 RUN addgroup -g ${USER_GID} streamplus && \
@@ -49,7 +52,7 @@ COPY --chown=streamplus:streamplus api/ ./api/
 COPY --chown=streamplus:streamplus static/ ./static/
 COPY --chown=streamplus:streamplus templates/ ./templates/
 
-# Create file for ffprobe path
+# Create configuration file for ffprobe path (used by the application to locate ffprobe)
 RUN mkdir -p /app/tools && \
     echo "/usr/bin/ffprobe" > /app/tools/ffprobe_path.txt && \
     chown -R streamplus:streamplus /app/tools
