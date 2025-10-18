@@ -20,10 +20,13 @@ from stream_sorter_models import (
 load_dotenv()
 
 # Application version
-APP_VERSION = "v.0.2.6"
+APP_VERSION = "v.0.2.7"
 
 # Execution state file
 EXECUTION_STATE_FILE = 'execution_state.json'
+
+# M3U refresh state file
+M3U_REFRESH_STATE_FILE = 'm3u_refresh_state.json'
 
 def load_execution_state():
     """Load execution state from file"""
@@ -46,6 +49,33 @@ def save_execution_state(state):
     except Exception as e:
         print(f"Error saving execution state: {e}")
 
+def load_m3u_refresh_state():
+    """Load M3U refresh state from file"""
+    if os.path.exists(M3U_REFRESH_STATE_FILE):
+        try:
+            with open(M3U_REFRESH_STATE_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            pass
+    return {"last_refresh": None}
+
+def save_m3u_refresh_state(state):
+    """Save M3U refresh state to file"""
+    try:
+        with open(M3U_REFRESH_STATE_FILE, 'w') as f:
+            json.dump(state, f, indent=2)
+    except Exception as e:
+        print(f"Error saving M3U refresh state: {e}")
+
+def update_m3u_refresh_time():
+    """Update the last M3U refresh timestamp"""
+    state = load_m3u_refresh_state()
+    from datetime import datetime, timezone
+    # Always save in UTC
+    utc_now = datetime.now(timezone.utc)
+    state["last_refresh"] = utc_now.isoformat().replace('+00:00', 'Z')
+    save_m3u_refresh_state(state)
+
 def update_execution_timestamp(feature):
     """Update the last execution timestamp for a feature"""
     state = load_execution_state()
@@ -58,6 +88,13 @@ app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
 # Enable CORS for all routes
 CORS(app)
+
+# Add strftime filter for datetime formatting in templates
+@app.template_filter('strftime')
+def strftime_filter(dt, format_str):
+    if dt is None:
+        return ""
+    return dt.strftime(format_str)
 
 # Add version to template context
 @app.context_processor
@@ -88,16 +125,29 @@ def index():
     """Main page with application overview"""
     try:
         # Load rules counts
-        auto_assignment_rules = rules_manager.load_rules()
-        sorting_rules = sorting_rules_manager.load_rules()
-
+        try:
+            auto_assignment_rules = rules_manager.load_rules()
+            sorting_rules = sorting_rules_manager.load_rules()
+        except Exception as e:
+            print(f"Error loading rules: {e}")
+            auto_assignment_rules = []
+            sorting_rules = []
+        
         # Reload channel groups to ensure they are up to date
-        channel_groups_manager.load_groups()
+        try:
+            channel_groups_manager.load_groups()
+        except Exception as e:
+            print(f"Error loading channel groups: {e}")
 
         # Load Dispatcharr statistics
         print("Loading Dispatcharr statistics...")
-        channels = dispatcharr_client.get_channels()
-        streams = dispatcharr_client.get_streams()
+        try:
+            channels = dispatcharr_client.get_channels() or []
+            streams = dispatcharr_client.get_streams() or []
+        except Exception as e:
+            print(f"Error loading Dispatcharr statistics: {e}")
+            channels = []
+            streams = []
         
         # Calculate statistics
         total_channels = len(channels)
@@ -123,6 +173,59 @@ def index():
         
         print(f"Dispatcharr stats: {dispatcharr_stats}")
 
+        # Get last M3U refresh time
+        try:
+            last_m3u_refresh_str = dispatcharr_client.get_last_m3u_refresh_time()
+            if last_m3u_refresh_str:
+                # Parse the ISO timestamp string to datetime object
+                from datetime import datetime, timezone, timedelta
+                import os
+
+                # Parse as UTC datetime
+                utc_dt = datetime.fromisoformat(last_m3u_refresh_str.replace('Z', '+00:00'))
+
+                # Convert to local timezone if configured
+                tz_name = os.getenv('TZ', 'UTC')
+                try:
+                    from zoneinfo import ZoneInfo
+                    local_tz = ZoneInfo(tz_name)
+                    last_m3u_refresh = utc_dt.astimezone(local_tz)
+                except Exception as tz_error:
+                    # Try common timezone mappings
+                    tz_mappings = {
+                        'Europe/Madrid': 'CET',  # Central European Time
+                        'America/New_York': 'EST',  # Eastern Standard Time
+                        'America/Los_Angeles': 'PST',  # Pacific Standard Time
+                    }
+
+                    alt_tz = tz_mappings.get(tz_name, tz_name)
+                    try:
+                        from zoneinfo import ZoneInfo
+                        local_tz = ZoneInfo(alt_tz)
+                        last_m3u_refresh = utc_dt.astimezone(local_tz)
+                    except Exception:
+                        # Try offset-based timezones
+                        if tz_name.startswith('UTC'):
+                            try:
+                                offset_str = tz_name[3:]  # Remove 'UTC' prefix
+                                if offset_str.startswith('+') or offset_str.startswith('-'):
+                                    hours = int(offset_str)
+                                    local_tz = timezone(timedelta(hours=hours))
+                                    last_m3u_refresh = utc_dt.astimezone(local_tz)
+                                else:
+                                    raise ValueError("Invalid UTC offset format")
+                            except Exception:
+                                print(f"Warning: Could not parse timezone '{tz_name}' as offset, using UTC")
+                                last_m3u_refresh = utc_dt
+                        else:
+                            print(f"Warning: Could not set timezone '{tz_name}' or alternative '{alt_tz}': {tz_error}, using UTC")
+                            last_m3u_refresh = utc_dt
+            else:
+                last_m3u_refresh = None
+        except Exception as e:
+            print(f"Error getting last M3U refresh time: {e}")
+            last_m3u_refresh = None
+
         # Load execution state
         execution_state = load_execution_state()
 
@@ -131,19 +234,12 @@ def index():
         execution_state["stream_sorter"]["rules_count"] = len(sorting_rules)
         save_execution_state(execution_state)
 
-        print(f"DEBUG: Auto assignment rules: {len(auto_assignment_rules)}")
-        print(f"DEBUG: Sorting rules: {len(sorting_rules)}")
-        print(f"DEBUG: Execution state: {execution_state}")
-
-        print(f"DEBUG: Auto assignment rules: {len(auto_assignment_rules)}")
-        print(f"DEBUG: Sorting rules: {len(sorting_rules)}")
-        print(f"DEBUG: Execution state: {execution_state}")
-
         return render_template('index.html',
                              auto_assignment_rules=auto_assignment_rules,
                              sorting_rules=sorting_rules,
                              execution_state=execution_state,
-                             dispatcharr_stats=dispatcharr_stats)
+                             dispatcharr_stats=dispatcharr_stats,
+                             last_m3u_refresh=last_m3u_refresh)
     except Exception as e:
         print(f"Error loading index data: {e}")
         import traceback
@@ -155,7 +251,8 @@ def index():
                                  "auto_assignment": {"last_execution": None, "rules_count": 0},
                                  "stream_sorter": {"last_execution": None, "rules_count": 0}
                              },
-                             dispatcharr_stats={"groups_with_channels": 0, "total_channels": 0, "total_streams": 0, "streams_with_channels": 0})
+                             dispatcharr_stats={"groups_with_channels": 0, "total_channels": 0, "total_streams": 0, "streams_with_channels": 0},
+                             last_m3u_refresh=None)
 
 @app.route('/auto-assign')
 def auto_assign():
@@ -952,6 +1049,26 @@ def api_get_m3u_accounts():
     try:
         accounts = dispatcharr_client.get_m3u_accounts()
         return jsonify(accounts)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/m3u-refresh', methods=['POST'])
+def api_refresh_m3u_sources():
+    """API endpoint to refresh all M3U sources"""
+    try:
+        result = dispatcharr_client.refresh_m3u_sources()
+        # Update the refresh timestamp after successful refresh
+        update_m3u_refresh_time()
+        return jsonify({'success': True, 'message': 'M3U sources refresh initiated', 'data': result})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/m3u-last-refresh', methods=['GET'])
+def api_get_last_m3u_refresh():
+    """API endpoint to get the last M3U refresh timestamp"""
+    try:
+        last_refresh = dispatcharr_client.get_last_m3u_refresh_time()
+        return jsonify({'last_refresh': last_refresh})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -2042,6 +2159,7 @@ def execute_all_sorting_rules_in_background(execution_id, queue):
         for idx, rule in enumerate(enabled_rules, 1):
             queue.put({
                 'type': 'rule_start',
+               
                 'rule_index': idx,
                 'total_rules': len(enabled_rules),
                 'rule_name': rule.name,

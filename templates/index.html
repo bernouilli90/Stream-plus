@@ -152,6 +152,40 @@
     </div>
 </div>
 
+<!-- M3U Management -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">
+                    <i class="fas fa-sync-alt"></i> M3U Sources Management
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-3">Refresh all M3U sources to update streams and channels from your configured M3U accounts.</p>
+                
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <button type="button" class="btn btn-warning" onclick="refreshM3USources()" id="refresh-m3u-btn">
+                            <i class="fas fa-sync-alt"></i> Refresh All M3U Sources
+                        </button>
+                        <small class="text-muted ms-2" id="refresh-status">Ready to refresh</small>
+                    </div>
+                    <div class="text-end">
+                        <small class="text-muted">Last refresh: <span id="last-refresh-time">
+                            {% if last_m3u_refresh %}
+                                {{ last_m3u_refresh | strftime('%Y-%m-%d %H:%M:%S') }}
+                            {% else %}
+                                Never
+                            {% endif %}
+                        </span></small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Loading indicator -->
 <div id="loading" class="text-center mt-4" style="display: none;">
     <div class="spinner-border text-primary" role="status">
@@ -280,6 +314,76 @@ function executeAllSortingRules() {
         button.disabled = false;
         button.innerHTML = originalText;
     });
+}
+
+function refreshM3USources() {
+    if (!confirm('Are you sure you want to refresh all M3U sources? This will update all streams and channels from your configured M3U accounts.')) {
+        return;
+    }
+
+    const button = document.getElementById('refresh-m3u-btn');
+    const statusElement = document.getElementById('refresh-status');
+    const originalText = button.innerHTML;
+    
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+    statusElement.textContent = 'Refreshing M3U sources...';
+    statusElement.className = 'text-warning ms-2';
+
+    fetch('/api/m3u-refresh', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            statusElement.textContent = 'Refresh completed successfully!';
+            statusElement.className = 'text-success ms-2';
+            
+            // Wait a moment for the refresh to complete, then update the timestamp
+            setTimeout(() => {
+                updateLastRefreshTime();
+                // Update dispatcharr statistics
+                updateDispatcharrStats();
+                
+                alert('M3U sources refreshed successfully!\n' + (data.message || ''));
+            }, 2000);
+        } else {
+            statusElement.textContent = 'Refresh failed';
+            statusElement.className = 'text-danger ms-2';
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        statusElement.textContent = 'Refresh failed';
+        statusElement.className = 'text-danger ms-2';
+        alert('Error refreshing M3U sources: ' + error.message);
+    })
+    .finally(() => {
+        button.disabled = false;
+        button.innerHTML = originalText;
+        
+        // Reset status after 5 seconds
+        setTimeout(() => {
+            statusElement.textContent = 'Ready to refresh';
+            statusElement.className = 'text-muted ms-2';
+        }, 5000);
+    });
+}
+
+function updateLastRefreshTime() {
+    // Instead of fetching and formatting here, reload the page to get updated data
+    // This ensures consistent timezone formatting with the server-side rendering
+    window.location.reload();
+}
+
+function updateDispatcharrStats() {
+    // Reload the page to update all statistics (simpler approach)
+    // In a more complex implementation, we could update each stat individually
+    window.location.reload();
 }
 
 // Load execution state on page load

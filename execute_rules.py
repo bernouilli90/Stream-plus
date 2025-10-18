@@ -6,7 +6,8 @@ Execute auto-assignment and sorting rules from command line
 import argparse
 import sys
 import os
-from datetime import datetime
+import json
+from datetime import datetime, timezone
 from typing import List, Optional
 from dotenv import load_dotenv
 
@@ -19,6 +20,35 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from models import RulesManager, StreamMatcher, AutoAssignmentRule
 from stream_sorter_models import SortingRulesManager, StreamSorter, SortingRule
 from api.dispatcharr_client import DispatcharrClient
+
+# M3U refresh state file
+M3U_REFRESH_STATE_FILE = 'm3u_refresh_state.json'
+
+def load_m3u_refresh_state():
+    """Load M3U refresh state from file"""
+    if os.path.exists(M3U_REFRESH_STATE_FILE):
+        try:
+            with open(M3U_REFRESH_STATE_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            pass
+    return {"last_refresh": None}
+
+def save_m3u_refresh_state(state):
+    """Save M3U refresh state to file"""
+    try:
+        with open(M3U_REFRESH_STATE_FILE, 'w') as f:
+            json.dump(state, f, indent=2)
+    except Exception as e:
+        print(f"Error saving M3U refresh state: {e}")
+
+def update_m3u_refresh_time():
+    """Update the last M3U refresh timestamp"""
+    state = load_m3u_refresh_state()
+    # Always save in UTC
+    utc_now = datetime.now(timezone.utc)
+    state["last_refresh"] = utc_now.isoformat().replace('+00:00', 'Z')
+    save_m3u_refresh_state(state)
 
 
 class RuleExecutor:
@@ -48,6 +78,21 @@ class RuleExecutor:
         print("\n" + "="*80)
         print("EXECUTING AUTO-ASSIGNMENT RULES")
         print("="*80 + "\n")
+        
+        # Refresh M3U sources before executing rules
+        print("🔄 Refreshing M3U sources...")
+        try:
+            refresh_result = self.dispatcharr_client.refresh_m3u_sources()
+            # Update the refresh timestamp
+            update_m3u_refresh_time()
+            print("✅ M3U sources refreshed successfully")
+            if verbose:
+                print(f"   Refresh result: {refresh_result}")
+        except Exception as e:
+            print(f"⚠️  Warning: Failed to refresh M3U sources: {e}")
+            print("   Continuing with rule execution...")
+        
+        print()  # Add blank line
         
         # Load rules
         all_rules = self.assignment_manager.load_rules()
@@ -226,6 +271,16 @@ class RuleExecutor:
         print("\n" + "="*80)
         print("EXECUTING SORTING RULES")
         print("="*80 + "\n")
+        
+        # Refresh M3U sources before executing rules
+        print("🔄 Refreshing M3U sources...")
+        try:
+            self.dispatcharr_client.refresh_m3u_sources()
+            # Update the refresh timestamp
+            update_m3u_refresh_time()
+            print("✅ M3U sources refreshed successfully\n")
+        except Exception as e:
+            print(f"⚠️  Failed to refresh M3U sources: {e}\n")
         
         # Load rules
         all_rules = self.sorting_manager.load_rules()

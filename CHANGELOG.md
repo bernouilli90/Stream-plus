@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.7] - 2025-10-18
+
+### Added
+- **CLI M3U Refresh Integration**: M3U sources are now automatically refreshed before executing rules via CLI
+  - Auto-assignment rules (`execute_rules.py --assignment`) now refresh M3U sources first
+  - Sorting rules (`execute_rules.py --sorting`) now refresh M3U sources first
+  - Ensures rules execute against the most current stream data
+  - Graceful error handling: rules execute even if M3U refresh fails
+- **M3U Refresh Timestamp Persistence**: CLI rule execution now saves M3U refresh timestamps
+  - Timestamp stored in `m3u_refresh_state.json` after successful refresh
+  - UTC timezone format for consistent storage
+  - Web UI displays accurate "Last M3U Refresh" times from CLI operations
+  - Same timestamp logic used across web interface and CLI execution
+
+### Enhanced
+- **Rule Execution Workflow**: Improved CLI rule execution with integrated M3U refresh
+  - Clear console output showing refresh status before rule processing
+  - Timestamp updates only on successful M3U refresh operations
+  - Maintains backward compatibility with existing rule execution behavior
+
 ## [0.2.6] - 2025-10-16
 
 ### Added

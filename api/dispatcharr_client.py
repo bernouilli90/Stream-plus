@@ -470,6 +470,64 @@ class DispatcharrClient:
             return result
         return result.get('results', [])
     
+    def refresh_m3u_sources(self) -> Dict[str, Any]:
+        """
+        Refresh all M3U sources
+        
+        Returns:
+            Response from the API
+        """
+        return self._make_request('POST', '/api/m3u/refresh/')
+    
+    def get_last_m3u_refresh_time(self) -> Optional[str]:
+        """
+        Get the last time M3U sources were refreshed
+
+        Returns:
+            ISO timestamp string of the most recent M3U account update, or None if no accounts
+        """
+        # First check if we have a stored refresh time
+        import os
+        state_file = os.path.join(os.path.dirname(__file__), '..', 'm3u_refresh_state.json')
+        if os.path.exists(state_file):
+            try:
+                with open(state_file, 'r') as f:
+                    state = json.load(f)
+                    if state.get('last_refresh'):
+                        return state['last_refresh']
+            except Exception as e:
+                print(f"Error reading M3U refresh state: {e}")
+
+        try:
+            # Try to get the last refresh time from M3U accounts
+            accounts = self.get_m3u_accounts()
+            if accounts:
+                # Look for the most recent update time among all accounts
+                latest_time = None
+                for account in accounts:
+                    if 'updated_at' in account and account['updated_at']:
+                        account_time = account['updated_at']
+                        if latest_time is None or account_time > latest_time:
+                            latest_time = account_time
+                    elif 'created_at' in account and account['created_at']:
+                        # Fallback to created_at if updated_at not available
+                        account_time = account['created_at']
+                        if latest_time is None or account_time > latest_time:
+                            latest_time = account_time
+
+                if latest_time:
+                    return latest_time
+
+            # Fallback: return current time as last refresh (since we just refreshed)
+            from datetime import datetime
+            return datetime.now().isoformat() + 'Z'
+
+        except Exception as e:
+            print(f"Error getting last M3U refresh time: {e}")
+            # Return current time as fallback
+            from datetime import datetime
+            return datetime.now().isoformat() + 'Z'
+    
     def get_channel_groups(self) -> List[Dict[str, Any]]:
         """
         Get all channel groups
