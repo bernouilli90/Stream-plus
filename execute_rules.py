@@ -172,11 +172,16 @@ class RuleExecutor:
                         stream_stats = stream.get('stream_stats')
                         
                         # Check if we need to test
-                        needs_test = StreamMatcher._needs_stream_testing(
-                            stream_stats,
-                            rule.force_retest_old_streams,
-                            rule.retest_days_threshold
-                        )
+                        # If test_streams_before_sorting is enabled, test ALL candidate streams
+                        # Otherwise, only test streams that need it according to _needs_stream_testing
+                        if rule.test_streams_before_sorting:
+                            needs_test = True
+                        else:
+                            needs_test = StreamMatcher._needs_stream_testing(
+                                stream_stats,
+                                rule.force_retest_old_streams,
+                                rule.retest_days_threshold
+                            )
                         
                         if needs_test:
                             if verbose:
