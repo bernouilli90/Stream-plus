@@ -33,7 +33,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated `tools/ffprobe_path.txt` to use correct Windows path for local ffmpeg installation
   - Changed from Linux path (`/usr/bin/ffprobe`) to Windows relative path (`tools\ffmpeg\ffmpeg-7.1-essentials_build\bin\ffprobe.exe`)
   - Resolves "ffprobe executable not found" error on Windows systems
-  - Ensures stream testing works properly on Windows platforms
+- **Stream Stats Clearing on Test Failures**: Fixed issue where failed stream tests didn't clear stale statistics
+  - Modified `clear_stream_stats()` to only update `stream_stats` field, avoiding API issues with timestamp
+  - Removed problematic `stream_stats_updated_at: None` that could cause API rejection
+  - Added explicit logging to show when stats are cleared or clearing fails
+  - Ensures failed streams have their invalid stats properly removed from Dispatcharr
 
 ### Enhanced
 - **FFprobe Stream Selection**: Primary ffprobe command now focuses on first video stream
