@@ -137,6 +137,7 @@ class RuleExecutor:
                     print(f"    Found {len(streams)} total streams")
                 
                 # Test streams if required
+                failed_test_stream_ids = set()  # Track streams that failed testing
                 if rule.test_streams_before_sorting:
                     if verbose:
                         print(f"    Testing streams to get stats...")
@@ -181,11 +182,12 @@ class RuleExecutor:
                             if verbose:
                                 print(f"      Testing: {stream.get('name', 'unknown')} (ID: {stream.get('id')})")
                             
-                            success = self.dispatcharr_client.test_stream(stream['id'])
-                            if success:
+                            test_result = self.dispatcharr_client.test_stream(stream['id'])
+                            if test_result and test_result.get('success'):
                                 tested += 1
                             else:
                                 failed += 1
+                                failed_test_stream_ids.add(stream['id'])  # Track failed streams
                                 if verbose:
                                     print(f"        ❌ Test failed")
                         else:
@@ -198,7 +200,7 @@ class RuleExecutor:
                     streams = self.dispatcharr_client.get_streams()
                 
                 # Find matching streams
-                matches = StreamMatcher.evaluate_rule(rule, streams)
+                matches = StreamMatcher.evaluate_rule(rule, streams, failed_test_stream_ids)
                 print(f"    ✓ Found {len(matches)} matching stream(s)")
                 
                 if len(matches) > 0:

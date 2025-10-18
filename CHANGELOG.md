@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.8] - 2025-10-18
+## [0.2.9] - 2025-10-18
 
 ### Added
 - **Score Breakdown Tooltips in Stream Sorter Preview**: Enhanced preview modal with detailed score information
@@ -20,6 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `StreamSorter.score_stream()` now returns detailed breakdown alongside total score
   - Maintains backward compatibility with existing sorting functionality
   - Enables future enhancements for score analysis and debugging
+
+### Fixed
+- **Stream Assignment Bug**: Fixed issue where streams that failed testing were still added to channels
+  - When "replace existing streams" is selected and rules require stats (like resolution), streams that fail testing are now properly excluded
+  - Added tracking of failed test streams and exclusion logic in rule evaluation
+  - Prevents incorrect stream assignments when stream analysis fails due to connectivity or format issues
+  - Improved reliability of auto-assignment rules with stream testing enabled
 
 ### Enhanced
 - **FFprobe Stream Selection**: Primary ffprobe command now focuses on first video stream

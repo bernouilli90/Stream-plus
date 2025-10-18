@@ -310,17 +310,21 @@ class StreamMatcher:
         return False
     
     @staticmethod
-    def evaluate_rule(rule: AutoAssignmentRule, streams: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def evaluate_rule(rule: AutoAssignmentRule, streams: List[Dict[str, Any]], failed_test_stream_ids: Optional[set] = None) -> List[Dict[str, Any]]:
         """
         Evaluates a rule against a list of streams and returns matching ones
         
         Args:
             rule: Auto-assignment rule
             streams: List of streams (dictionaries with stream data)
+            failed_test_stream_ids: Set of stream IDs that failed testing (should be excluded if rule requires stats)
         
         Returns:
             List of streams that meet ALL rule conditions, plus forced inclusions, minus forced exclusions
         """
+        if failed_test_stream_ids is None:
+            failed_test_stream_ids = set()
+        
         matching_streams = []
         
         # Create sets for faster lookup
@@ -337,6 +341,18 @@ class StreamMatcher:
             # Include streams that are explicitly included (even if they don't match conditions)
             if stream_id in force_include_ids:
                 matching_streams.append(stream)
+                continue
+            
+            # Skip streams that failed testing if the rule requires statistics
+            rule_requires_stats = (
+                rule.video_bitrate_operator or
+                rule.video_codec or
+                rule.video_resolution or
+                rule.video_fps or
+                rule.audio_codec
+            )
+            
+            if rule_requires_stats and stream_id in failed_test_stream_ids:
                 continue
             
             # For remaining streams, check if they match the rule conditions
