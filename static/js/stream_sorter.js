@@ -849,7 +849,11 @@ async function loadPreviewForChannel(ruleId, channelId) {
                             <strong>#${index + 1}</strong> - ${stream.name || 'Stream #' + stream.id}
                             <br><small class="text-muted">${m3uSourceName}</small>
                         </div>
-                        <span class="badge bg-primary">${stream.score} pts</span>
+                        <span class="badge bg-primary score-badge" 
+                              data-bs-toggle="tooltip" 
+                              data-bs-placement="left"
+                              data-bs-html="true"
+                              title="${generateScoreBreakdown(stream.score_breakdown)}">${stream.score} pts</span>
                     </div>
                 </div>
             `;
@@ -862,6 +866,12 @@ async function loadPreviewForChannel(ruleId, channelId) {
         }
         
         resultsDiv.innerHTML = html;
+        
+        // Initialize tooltips for score badges
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('.score-badge'));
+        const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
         
     } catch (error) {
         console.error('Error loading preview:', error);
@@ -1516,4 +1526,25 @@ function listenForAllRulesExecutionProgress(executionId) {
         `;
         eventSource.close();
     };
+}
+
+/**
+ * Generate HTML for score breakdown tooltip
+ */
+function generateScoreBreakdown(scoreBreakdown) {
+    if (!scoreBreakdown || scoreBreakdown.length === 0) {
+        return '<strong>No conditions matched</strong>';
+    }
+    
+    let html = '<strong>Score Breakdown:</strong><br>';
+    scoreBreakdown.forEach(item => {
+        const conditionType = item.condition_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+        const operator = item.operator ? ` ${item.operator} ` : ' ';
+        const value = item.value;
+        const points = item.points;
+        
+        html += `• ${conditionType}${operator}${value}: <strong>+${points} pts</strong><br>`;
+    });
+    
+    return html;
 }

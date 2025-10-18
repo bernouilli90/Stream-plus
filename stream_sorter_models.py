@@ -502,30 +502,43 @@ class StreamSorter:
         return 0
     
     @staticmethod
-    def score_stream(rule: SortingRule, stream: Dict[str, Any]) -> int:
+    def score_stream(rule: SortingRule, stream: Dict[str, Any]) -> Dict[str, Any]:
         """
         Calculates total score for a stream based on all conditions in a rule
-        Returns sum of points from all matching conditions
+        Returns dict with total score and breakdown of individual conditions
         """
         total_score = 0
+        score_breakdown = []
         
         for condition in rule.conditions:
-            total_score += StreamSorter._evaluate_condition(condition, stream)
+            points = StreamSorter._evaluate_condition(condition, stream)
+            if points > 0:
+                total_score += points
+                score_breakdown.append({
+                    'condition_type': condition.condition_type,
+                    'operator': getattr(condition, 'operator', None),
+                    'value': condition.value,
+                    'points': points
+                })
         
-        return total_score
+        return {
+            'total_score': total_score,
+            'score_breakdown': score_breakdown
+        }
     
     @staticmethod
     def sort_streams(rule: SortingRule, streams: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
         Sorts streams by their total score (highest to lowest)
-        Returns list of streams with added 'score' field
+        Returns list of streams with added 'score' and 'score_breakdown' fields
         """
         # Calculate score for each stream
         scored_streams = []
         for stream in streams:
-            score = StreamSorter.score_stream(rule, stream)
+            score_result = StreamSorter.score_stream(rule, stream)
             stream_with_score = stream.copy()
-            stream_with_score['score'] = score
+            stream_with_score['score'] = score_result['total_score']
+            stream_with_score['score_breakdown'] = score_result['score_breakdown']
             scored_streams.append(stream_with_score)
         
         # Sort by score (descending)
