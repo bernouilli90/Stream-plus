@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Clear console output showing refresh status before rule processing
   - Timestamp updates only on successful M3U refresh operations
   - Maintains backward compatibility with existing rule execution behavior
+- **FFprobe Stream Testing**: Improved stream compatibility with VLC-style ffprobe command
+  - Primary command now uses VLC-style format for better stream compatibility
+  - JSON format command available as fallback for detailed stream analysis
+  - Enhanced error handling with dual command approach
+  - Better success rate for streams with user-agent restrictions
 
 ### Fixed
 - **FFprobe User-Agent Consistency**: Alternative VLC-style ffprobe command now uses the same user-agent as primary command
