@@ -29,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Stream stats are now properly updated** when testing succeeds or cleared when testing fails
   - Fixed issue where stale stats prevented proper rule evaluation
   - Improved reliability of auto-assignment rules with stream testing enabled
+- **FFprobe Path Configuration**: Fixed Windows compatibility issue with ffprobe executable path
+  - Updated `tools/ffprobe_path.txt` to use correct Windows path for local ffmpeg installation
+  - Changed from Linux path (`/usr/bin/ffprobe`) to Windows relative path (`tools\ffmpeg\ffmpeg-7.1-essentials_build\bin\ffprobe.exe`)
+  - Resolves "ffprobe executable not found" error on Windows systems
+  - Ensures stream testing works properly on Windows platforms
 
 ### Enhanced
 - **FFprobe Stream Selection**: Primary ffprobe command now focuses on first video stream
