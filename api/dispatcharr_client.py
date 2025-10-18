@@ -789,15 +789,14 @@ class DispatcharrClient:
             # Step 2: Use ffprobe to get codec information
             print(f"Analyzing stream metadata with ffprobe...")
 
-            # Try primary ffprobe command (VLC-style format for better compatibility)
+            # Try primary ffprobe command (VLC-style parameters with JSON output for better compatibility)
             ffprobe_cmd = [
                 ffprobe_executable,
                 '-user_agent', user_agent,
                 '-v', 'error',
                 '-skip_frame', 'nokey',
-                '-select_streams', 'v:0',
-                '-show_entries', 'stream=codec_name,profile,width,height,level,bit_rate,r_frame_rate,avg_frame_rate',
-                '-of', 'default=noprint_wrappers=1',
+                '-print_format', 'json',
+                '-show_streams',
                 stream_url
             ]
 
@@ -818,9 +817,9 @@ class DispatcharrClient:
                 timeout=test_duration + timeout_buffer
             )
 
-            # If primary command fails, try alternative JSON format command
+            # If primary command fails, try alternative JSON format command with detailed analysis
             if result.returncode != 0:
-                print(f"⚠️  Primary ffprobe command failed, trying alternative JSON format command...")
+                print(f"⚠️  Primary ffprobe command failed, trying alternative detailed analysis command...")
                 alt_ffprobe_cmd = [
                     ffprobe_executable,
                     '-user_agent', user_agent,  # Use same user-agent as primary command
@@ -851,14 +850,8 @@ class DispatcharrClient:
                 if alt_result.returncode == 0:
                     print(f"✅ Alternative ffprobe command succeeded")
                     result = alt_result
-                    # Use JSON parsing for alternative command
-                    use_json_parsing = True
                 else:
                     print(f"❌ Alternative ffprobe command also failed")
-                    use_json_parsing = False
-            else:
-                # Primary command succeeded, use key=value parsing
-                use_json_parsing = False
 
             if result.returncode != 0:
                 error_msg = result.stderr if result.stderr else "Unknown error"
@@ -875,37 +868,15 @@ class DispatcharrClient:
                     'command': ffprobe_cmd
                 }
             
-            # Parse ffprobe output
+            # Parse ffprobe output (both commands use JSON format)
             probe_data = None
-            if use_json_parsing:
-                # Alternative command succeeded, parse JSON
-                try:
-                    import json as json_lib
-                    probe_data = json_lib.loads(result.stdout)
-                    print(f"✅ Parsed ffprobe JSON output successfully")
-                except json_lib.JSONDecodeError as e:
-                    print(f"❌ JSON parsing failed: {e}")
-                    probe_data = None
-            else:
-                # Primary command succeeded, parse key=value format
-                try:
-                    probe_data = {'streams': []}
-                    stream_data = {}
-                    for line in result.stdout.strip().split('\n'):
-                        line = line.strip()
-                        if '=' in line:
-                            key, value = line.split('=', 1)
-                            key = key.strip()
-                            value = value.strip()
-                            stream_data[key] = value
-                    if stream_data:
-                        probe_data['streams'].append(stream_data)
-                        print(f"✅ Parsed ffprobe key=value format successfully")
-                    else:
-                        raise ValueError("No valid key=value data found")
-                except Exception as e:
-                    print(f"❌ Key=value parsing failed: {e}")
-                    probe_data = None
+            try:
+                import json as json_lib
+                probe_data = json_lib.loads(result.stdout)
+                print(f"✅ Parsed ffprobe JSON output successfully")
+            except json_lib.JSONDecodeError as e:
+                print(f"❌ JSON parsing failed: {e}")
+                probe_data = None
 
             if not probe_data or 'streams' not in probe_data:
                 return {
