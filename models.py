@@ -426,7 +426,8 @@ class StreamMatcher:
         stream_stats = stream.get('stream_stats')
         
         # If rule requires stats but stream doesn't have them, fail immediately
-        if rule_requires_stats and not stream_stats:
+        # Consider empty dict {} as no stats (cleared after failed test)
+        if rule_requires_stats and (not stream_stats or stream_stats == {}):
             return False
         
         # 3. Filter by video bitrate

@@ -402,27 +402,38 @@ class DispatcharrClient:
         """
         return self._make_request('PUT', f'/api/channels/streams/{stream_id}/', stream_data)
     
-    def clear_stream_stats(self, stream_id: int) -> Dict[str, Any]:
+    def patch_stream(self, stream_id: int, stream_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Clear stream statistics for a stream that failed testing
-        
+        Partially update an existing stream
         Args:
             stream_id: Stream ID (int)
-            
+            stream_data: Partial stream data to update
         Returns:
             Updated stream information
         """
-        # Get current stream
-        stream = self.get_stream(stream_id)
-        
-        # Remove stream_stats and stream_stats_updated_at if they exist
-        if 'stream_stats' in stream:
-            del stream['stream_stats']
-        if 'stream_stats_updated_at' in stream:
-            del stream['stream_stats_updated_at']
-        
-        # Update the stream
-        return self.update_stream(stream_id, stream)
+        return self._make_request('PATCH', f'/api/channels/streams/{stream_id}/', stream_data)
+    
+    def clear_stream_stats(self, stream_id: int) -> Dict[str, Any]:
+        """
+        Clear stream statistics for a stream that failed testing
+
+        Since Dispatcharr API doesn't allow complete removal of stream_stats field,
+        we mark the stats as invalid by setting them to an empty dict and clearing the timestamp.
+
+        Args:
+            stream_id: Stream ID (int)
+
+        Returns:
+            Updated stream information
+        """
+        # Mark stats as invalid rather than trying to delete them
+        # Dispatcharr API doesn't seem to support complete field removal
+        patch_data = {
+            'stream_stats': {},
+            'stream_stats_updated_at': None
+        }
+
+        return self.patch_stream(stream_id, patch_data)
     
     def start_stream(self, stream_id: str) -> Dict[str, Any]:
         """

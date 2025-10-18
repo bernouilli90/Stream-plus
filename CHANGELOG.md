@@ -25,7 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Stream Assignment Bug**: Fixed issue where streams that failed testing were still added to channels
   - When "replace existing streams" is selected and rules require stats (like resolution), streams that fail testing are now properly excluded
   - Added tracking of failed test streams and exclusion logic in rule evaluation
-  - **Stream stats are now cleared** when testing fails to prevent using stale statistics
+  - **Stream stats are now marked as invalid** when testing fails (set to empty dict) since complete removal isn't supported by Dispatcharr API
+  - Empty stats dict `{}` is treated as invalid stats, preventing use of stale data
   - Prevents incorrect stream assignments when stream analysis fails due to connectivity or format issues
   - Improved reliability of auto-assignment rules with stream testing enabled
 
