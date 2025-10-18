@@ -25,6 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Timestamp updates only on successful M3U refresh operations
   - Maintains backward compatibility with existing rule execution behavior
 
+### Fixed
+- **FFprobe User-Agent Consistency**: Alternative VLC-style ffprobe command now uses the same user-agent as primary command
+  - Ensures consistent user-agent behavior between primary and fallback ffprobe commands
+  - Removes hardcoded VLC user-agent from alternative command
+  - Improves stream testing reliability for user-agent sensitive streams
+
 ## [0.2.6] - 2025-10-16
 
 ### Added
