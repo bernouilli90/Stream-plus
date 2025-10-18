@@ -716,6 +716,16 @@ class DispatcharrClient:
                 timeout=test_duration + timeout_buffer
             )
 
+            # Check for ffmpeg errors
+            if ffmpeg_result.returncode != 0:
+                error_msg = ffmpeg_result.stderr if ffmpeg_result.stderr else "Unknown error"
+                print(f"❌ FFmpeg failed with return code {ffmpeg_result.returncode}")
+                print(f"   Error: {error_msg}")
+                if ffmpeg_result.stdout:
+                    print(f"   Stdout: {ffmpeg_result.stdout}")
+                print(f"   Command: {' '.join(ffmpeg_cmd)}")
+                # Continue anyway - some streams might still provide useful stderr info
+
             # Parse bitrate from ffmpeg stderr output
             # Look for output size line like: "video:5607KiB audio:125KiB"
             calculated_bitrate = None
@@ -779,6 +789,7 @@ class DispatcharrClient:
             # Step 2: Use ffprobe to get codec information
             print(f"Analyzing stream metadata with ffprobe...")
 
+            # Try primary ffprobe command (JSON format)
             ffprobe_cmd = [
                 ffprobe_executable,
                 '-user_agent', user_agent,
@@ -800,7 +811,7 @@ class DispatcharrClient:
                     quoted_cmd.append(arg)
             print(f"FFprobe command: {' '.join(quoted_cmd)}")
 
-            # Run ffprobe
+            # Run primary ffprobe command
             result = subprocess.run(
                 ffprobe_cmd,
                 capture_output=True,
@@ -808,18 +819,97 @@ class DispatcharrClient:
                 timeout=test_duration + timeout_buffer
             )
 
+            # If primary command fails, try alternative VLC-style command
+            if result.returncode != 0:
+                print(f"⚠️  Primary ffprobe command failed, trying alternative VLC-style command...")
+                alt_user_agent = 'VLC/3.0.21 LibVLC/3.0.21'
+                alt_ffprobe_cmd = [
+                    ffprobe_executable,
+                    '-user_agent', alt_user_agent,
+                    '-v', 'error',
+                    '-skip_frame', 'nokey',
+                    '-select_streams', 'v:0',
+                    '-show_entries', 'stream=codec_name,profile,width,height,level,bit_rate,r_frame_rate,avg_frame_rate',
+                    '-of', 'default=noprint_wrappers=1',
+                    stream_url
+                ]
+
+                quoted_alt_cmd = []
+                for arg in alt_ffprobe_cmd:
+                    if ' ' in arg or '(' in arg or ')' in arg:
+                        quoted_alt_cmd.append(f'"{arg}"')
+                    else:
+                        quoted_alt_cmd.append(arg)
+                print(f"Alternative FFprobe command: {' '.join(quoted_alt_cmd)}")
+
+                alt_result = subprocess.run(
+                    alt_ffprobe_cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=test_duration + timeout_buffer
+                )
+
+                if alt_result.returncode == 0:
+                    print(f"✅ Alternative ffprobe command succeeded")
+                    result = alt_result
+                    # Parse alternative format (key=value format instead of JSON)
+                    probe_data = {'streams': []}
+                    for line in alt_result.stdout.strip().split('\n'):
+                        if '=' in line:
+                            key, value = line.split('=', 1)
+                            # For now, create a minimal stream object
+                            if not probe_data['streams']:
+                                probe_data['streams'].append({})
+                            probe_data['streams'][0][key] = value
+                else:
+                    print(f"❌ Alternative ffprobe command also failed")
+
             if result.returncode != 0:
                 error_msg = result.stderr if result.stderr else "Unknown error"
+                print(f"❌ FFprobe failed with return code {result.returncode}")
+                print(f"   Error: {error_msg}")
+                if result.stdout:
+                    print(f"   Stdout: {result.stdout}")
+                print(f"   Command: {' '.join(ffprobe_cmd)}")
                 return {
                     'success': False,
                     'message': f'ffprobe failed: {error_msg}',
                     'stdout': result.stdout,
-                    'stderr': result.stderr
+                    'stderr': result.stderr,
+                    'command': ffprobe_cmd
                 }
             
             # Parse ffprobe output
-            import json as json_lib
-            probe_data = json_lib.loads(result.stdout)
+            probe_data = None
+            try:
+                import json as json_lib
+                probe_data = json_lib.loads(result.stdout)
+                print(f"✅ Parsed ffprobe JSON output successfully")
+            except json_lib.JSONDecodeError:
+                # Try to parse alternative format (key=value format)
+                print(f"⚠️  JSON parsing failed, attempting to parse alternative format...")
+                probe_data = {'streams': []}
+                stream_data = {}
+                for line in result.stdout.strip().split('\n'):
+                    line = line.strip()
+                    if '=' in line:
+                        key, value = line.split('=', 1)
+                        key = key.strip()
+                        value = value.strip()
+                        stream_data[key] = value
+                if stream_data:
+                    probe_data['streams'].append(stream_data)
+                    print(f"✅ Parsed alternative ffprobe format successfully")
+                else:
+                    raise ValueError("Could not parse ffprobe output in any known format")
+
+            if not probe_data or 'streams' not in probe_data:
+                return {
+                    'success': False,
+                    'message': 'No stream data found in ffprobe output',
+                    'stdout': result.stdout,
+                    'stderr': result.stderr
+                }
             
             # Second fallback: try to get bitrate from format bitrate in ffprobe
             if not calculated_bitrate_kbps:
