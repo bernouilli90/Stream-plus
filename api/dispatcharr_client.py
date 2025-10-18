@@ -429,8 +429,7 @@ class DispatcharrClient:
         # Mark stats as invalid rather than trying to delete them
         # Dispatcharr API doesn't seem to support complete field removal
         patch_data = {
-            'stream_stats': {},
-            'stream_stats_updated_at': None
+            'stream_stats': {}
         }
 
         return self.patch_stream(stream_id, patch_data)

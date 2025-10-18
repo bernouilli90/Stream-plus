@@ -192,13 +192,10 @@ class RuleExecutor:
                                 # Clear stream stats for failed streams
                                 try:
                                     self.dispatcharr_client.clear_stream_stats(stream['id'])
-                                    if verbose:
-                                        print(f"        Cleared stats for failed stream")
+                                    print(f"        ✅ Cleared stats for failed stream {stream['id']}")
                                 except Exception as e:
-                                    if verbose:
-                                        print(f"        Warning: Failed to clear stats: {e}")
-                                if verbose:
-                                    print(f"        ❌ Test failed")
+                                    print(f"        ❌ Failed to clear stats for stream {stream['id']}: {e}")
+                                print(f"        ❌ Test failed for stream {stream['id']}: {test_result.get('message', 'Unknown error') if test_result else 'No result'}")
                         else:
                             skipped += 1
                     

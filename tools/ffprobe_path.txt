@@ -1,1 +1,1 @@
-/usr/bin/ffprobe
+tools\ffmpeg\ffmpeg-7.1-essentials_build\bin\ffprobe.exe
