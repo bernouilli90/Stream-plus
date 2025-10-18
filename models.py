@@ -279,6 +279,7 @@ class StreamMatcher:
     
     @staticmethod
     def _needs_stream_testing(stream_stats: Optional[Dict], 
+                             stream_updated_at: Optional[str] = None,
                              force_retest: bool = False, 
                              retest_days_threshold: int = 7) -> bool:
         """
@@ -286,6 +287,7 @@ class StreamMatcher:
         
         Args:
             stream_stats: Stream statistics dictionary
+            stream_updated_at: ISO timestamp string of when stream stats were last updated
             force_retest: If True, always needs testing
             retest_days_threshold: Number of days after which stats are considered old
             
@@ -299,14 +301,25 @@ class StreamMatcher:
         if not stream_stats or not isinstance(stream_stats, dict):
             return True
         
-        # Check if stats are recent enough
-        from datetime import datetime, timedelta, timezone
+        # If we have a timestamp, check if stats are recent enough
+        if stream_updated_at:
+            try:
+                from datetime import datetime, timedelta, timezone
+                
+                # Parse the timestamp
+                updated_time = datetime.fromisoformat(stream_updated_at.replace('Z', '+00:00'))
+                now = datetime.now(timezone.utc)
+                threshold = now - timedelta(days=retest_days_threshold)
+                
+                # If stats are older than or equal to threshold, need testing
+                # (using <= to be conservative and ensure stats are fresh)
+                if updated_time <= threshold:
+                    return True
+            except (ValueError, AttributeError):
+                # If timestamp parsing fails, assume we need to test
+                return True
         
-        threshold = datetime.now(timezone.utc) - timedelta(days=retest_days_threshold)
-        
-        # stream_stats should have a 'last_tested' or similar field
-        # In Dispatcharr, check stream_stats_updated_at
-        # For now, if we have stats, assume they're recent unless we can check the date
+        # If we have stats but no timestamp to check, assume they're recent
         return False
     
     @staticmethod

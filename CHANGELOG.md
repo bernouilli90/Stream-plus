@@ -23,10 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Stream Testing Logic**: Fixed critical issue where streams with existing stats were not re-tested
-  - When `test_streams_before_sorting=True`, ALL candidate streams are now tested regardless of existing stats
-  - Previously, only streams without stats or with forced retest were tested, leaving stale stats for streams that should be re-evaluated
-  - **Stream stats are now properly cleared** when testing fails, ensuring no stale data remains in Dispatcharr
-  - Rules requiring stats (resolution, bitrate, etc.) now work correctly with fresh stream analysis
+  - When `test_streams_before_sorting=True`, streams are now properly tested based on timestamp
+  - Implemented proper timestamp checking using `stream_stats_updated_at` field
+  - Streams with stats older than `retest_days_threshold` are re-tested automatically
+  - **Stream stats are now properly updated** when testing succeeds or cleared when testing fails
+  - Fixed issue where stale stats prevented proper rule evaluation
   - Improved reliability of auto-assignment rules with stream testing enabled
 
 ### Enhanced
