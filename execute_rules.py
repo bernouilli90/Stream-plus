@@ -418,10 +418,55 @@ class RuleExecutor:
                     # Update order in Dispatcharr
                     channel = self.dispatcharr_client.get_channel(channel_id)
                     if channel:
-                        channel['streams'] = [s['id'] for s in sorted_streams]
-                        success = self.dispatcharr_client.update_channel(channel_id, channel)
+                        original_streams = channel.get('streams', [])
+                        sorted_stream_ids = [s['id'] for s in sorted_streams]
+                        channel['streams'] = sorted_stream_ids
+                        
+                        if verbose:
+                            print(f"        Original streams order: {original_streams}")
+                            print(f"        New streams order: {sorted_stream_ids}")
+                        
+                        try:
+                            # Try PATCH first (partial update)
+                            result = self.dispatcharr_client.patch_channel(channel_id, {'streams': sorted_stream_ids})
+                            if verbose:
+                                print(f"        PATCH result: {result}")
+                            
+                            # Verify the update worked
+                            updated_channel = self.dispatcharr_client.get_channel(channel_id)
+                            if updated_channel and updated_channel.get('streams') == sorted_stream_ids:
+                                success = True
+                                if verbose:
+                                    print(f"        ✓ Order updated successfully with PATCH")
+                            else:
+                                # If PATCH didn't work, try PUT with full channel object
+                                if verbose:
+                                    print(f"        PATCH failed, trying PUT...")
+                                result = self.dispatcharr_client.update_channel(channel_id, channel)
+                                if verbose:
+                                    print(f"        PUT result: {result}")
+                                
+                                # Verify again
+                                updated_channel = self.dispatcharr_client.get_channel(channel_id)
+                                if updated_channel and updated_channel.get('streams') == sorted_stream_ids:
+                                    success = True
+                                    if verbose:
+                                        print(f"        ✓ Order updated successfully with PUT")
+                                else:
+                                    success = False
+                                    if verbose:
+                                        print(f"        ❌ Order update failed - Dispatcharr automatically reorders streams by ID descending")
+                                        print(f"        Note: This is a limitation of the Dispatcharr API, not the sorting logic")
+                                        print(f"        Expected: {sorted_stream_ids}")
+                                        print(f"        Actual: {updated_channel.get('streams') if updated_channel else 'None'}")
+                        except Exception as e:
+                            success = False
+                            if verbose:
+                                print(f"        ❌ Update failed with exception: {str(e)}")
                     else:
                         success = False
+                        if verbose:
+                            print(f"        ❌ Could not retrieve channel {channel_id}")
                     
                     if success:
                         sorted_count += 1
@@ -576,10 +621,55 @@ class RuleExecutor:
                 # Update order in Dispatcharr
                 channel = self.dispatcharr_client.get_channel(channel_id)
                 if channel:
-                    channel['streams'] = [s['id'] for s in sorted_streams]
-                    success = self.dispatcharr_client.update_channel(channel_id, channel)
+                    original_streams = channel.get('streams', [])
+                    sorted_stream_ids = [s['id'] for s in sorted_streams]
+                    channel['streams'] = sorted_stream_ids
+                    
+                    if verbose:
+                        print(f"        Original streams order: {original_streams}")
+                        print(f"        New streams order: {sorted_stream_ids}")
+                    
+                    try:
+                        # Try PATCH first (partial update)
+                        result = self.dispatcharr_client.patch_channel(channel_id, {'streams': sorted_stream_ids})
+                        if verbose:
+                            print(f"        PATCH result: {result}")
+                        
+                        # Verify the update worked
+                        updated_channel = self.dispatcharr_client.get_channel(channel_id)
+                        if updated_channel and updated_channel.get('streams') == sorted_stream_ids:
+                            success = True
+                            if verbose:
+                                print(f"        ✓ Order updated successfully with PATCH")
+                        else:
+                            # If PATCH didn't work, try PUT with full channel object
+                            if verbose:
+                                print(f"        PATCH failed, trying PUT...")
+                            result = self.dispatcharr_client.update_channel(channel_id, channel)
+                            if verbose:
+                                print(f"        PUT result: {result}")
+                            
+                            # Verify again
+                            updated_channel = self.dispatcharr_client.get_channel(channel_id)
+                            if updated_channel and updated_channel.get('streams') == sorted_stream_ids:
+                                success = True
+                                if verbose:
+                                    print(f"        ✓ Order updated successfully with PUT")
+                            else:
+                                success = False
+                                if verbose:
+                                    print(f"        ❌ Order update failed - Dispatcharr automatically reorders streams by ID descending")
+                                    print(f"        Note: This is a limitation of the Dispatcharr API, not the sorting logic")
+                                    print(f"        Expected: {sorted_stream_ids}")
+                                    print(f"        Actual: {updated_channel.get('streams') if updated_channel else 'None'}")
+                    except Exception as e:
+                        success = False
+                        if verbose:
+                            print(f"        ❌ Update failed with exception: {str(e)}")
                 else:
                     success = False
+                    if verbose:
+                        print(f"        ❌ Could not retrieve channel {channel_id}")
                 
                 if success:
                     sorted_count += 1

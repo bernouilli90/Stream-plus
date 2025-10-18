@@ -1653,7 +1653,12 @@ def execute_sorting_in_background(rule_id, channel_ids, queue):
                 
                 sorted_stream_ids = [s['id'] for s in sorted_streams]
                 channel['streams'] = sorted_stream_ids
-                dispatcharr_client.update_channel(channel_id, channel)
+                
+                # Try PATCH first, then PUT if it fails
+                try:
+                    dispatcharr_client.patch_channel(channel_id, {'streams': sorted_stream_ids})
+                except:
+                    dispatcharr_client.update_channel(channel_id, channel)
 
                 # Accumulate results
                 total_sorted += len(sorted_streams)
@@ -1937,8 +1942,11 @@ def execute_sorting_rule(rule_id):
                 sorted_stream_ids = [s['id'] for s in sorted_streams]
                 channel['streams'] = sorted_stream_ids
 
-                # Save updated channel
-                dispatcharr_client.update_channel(channel_id, channel)
+                # Save updated channel - try PATCH first, then PUT
+                try:
+                    dispatcharr_client.patch_channel(channel_id, {'streams': sorted_stream_ids})
+                except:
+                    dispatcharr_client.update_channel(channel_id, channel)
 
                 # Acumular resultados
                 total_sorted += len(sorted_streams)

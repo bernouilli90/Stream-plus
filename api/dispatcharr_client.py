@@ -99,6 +99,8 @@ class DispatcharrClient:
                 return self.session.post(url, json=data, params=params)
             elif method.upper() == 'PUT':
                 return self.session.put(url, json=data, params=params)
+            elif method.upper() == 'PATCH':
+                return self.session.patch(url, json=data, params=params)
             elif method.upper() == 'DELETE':
                 return self.session.delete(url, params=params)
             else:
@@ -195,7 +197,11 @@ class DispatcharrClient:
         Returns:
             Channel information
         """
-        return self._make_request('GET', f'/api/channels/channels/{channel_id}/')
+        response = self._make_request('GET', f'/api/channels/channels/{channel_id}/?include_streams=true')
+        # Extract ordered stream IDs from the full stream objects
+        if 'streams' in response and isinstance(response['streams'], list):
+            response['streams'] = [stream['id'] for stream in response['streams']]
+        return response
     
     def create_channel(self, channel_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -221,6 +227,19 @@ class DispatcharrClient:
             Updated channel information
         """
         return self._make_request('PUT', f'/api/channels/channels/{channel_id}/', channel_data)
+    
+    def patch_channel(self, channel_id: str, channel_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Partially update an existing channel
+        
+        Args:
+            channel_id: Channel ID
+            channel_data: Partial channel data to update
+            
+        Returns:
+            Updated channel information
+        """
+        return self._make_request('PATCH', f'/api/channels/channels/{channel_id}/', channel_data)
     
     def delete_channel(self, channel_id: str) -> Dict[str, Any]:
         """
