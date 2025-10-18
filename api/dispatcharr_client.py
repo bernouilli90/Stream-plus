@@ -795,8 +795,8 @@ class DispatcharrClient:
                 '-user_agent', user_agent,
                 '-v', 'error',
                 '-skip_frame', 'nokey',
-                '-select_streams', 'v:0',
-                '-select_streams', 'a:0',
+                # '-select_streams', 'v:0',
+                # '-select_streams', 'a:0',
                 '-print_format', 'json',
                 '-show_streams',
                 stream_url
