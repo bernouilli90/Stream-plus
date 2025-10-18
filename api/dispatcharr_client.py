@@ -822,10 +822,9 @@ class DispatcharrClient:
             # If primary command fails, try alternative VLC-style command
             if result.returncode != 0:
                 print(f"⚠️  Primary ffprobe command failed, trying alternative VLC-style command...")
-                alt_user_agent = 'VLC/3.0.21 LibVLC/3.0.21'
                 alt_ffprobe_cmd = [
                     ffprobe_executable,
-                    '-user_agent', alt_user_agent,
+                    '-user_agent', user_agent,  # Use same user-agent as primary command
                     '-v', 'error',
                     '-skip_frame', 'nokey',
                     '-select_streams', 'v:0',
