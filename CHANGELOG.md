@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.8] - 2025-10-18
 
+### Added
+- **Score Breakdown Tooltips in Stream Sorter Preview**: Enhanced preview modal with detailed score information
+  - Hover over score badges to see which conditions contributed to the total score
+  - Tooltips show individual condition matches with points earned
+  - Only displays on hover for clean UI without clutter
+  - Bootstrap tooltips with proper HTML formatting and positioning
+  - Real-time tooltip initialization after preview data loads
+
+### Enhanced
+- **Stream Scoring Engine**: Modified scoring system to track condition-by-condition contributions
+  - `StreamSorter.score_stream()` now returns detailed breakdown alongside total score
+  - Maintains backward compatibility with existing sorting functionality
+  - Enables future enhancements for score analysis and debugging
+
 ### Enhanced
 - **FFprobe Stream Selection**: Primary ffprobe command now focuses on first video stream
   - Added `-select_streams v:0` to VLC-style ffprobe command for better compatibility

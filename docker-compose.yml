@@ -6,7 +6,7 @@ services:
     
     environment:
       # Dispatcharr API configuration (required)
-      - DISPATCHARR_API_URL=http://127.0.0.1:9191
+      - DISPATCHARR_API_URL=http://host.docker.internal:9191
       - DISPATCHARR_API_USER=user
       - DISPATCHARR_API_PASSWORD=password
       # Flask configuration (optional)
