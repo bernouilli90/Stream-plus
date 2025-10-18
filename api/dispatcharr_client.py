@@ -402,15 +402,27 @@ class DispatcharrClient:
         """
         return self._make_request('PUT', f'/api/channels/streams/{stream_id}/', stream_data)
     
-    def delete_stream(self, stream_id: int) -> Dict[str, Any]:
+    def clear_stream_stats(self, stream_id: int) -> Dict[str, Any]:
         """
-        Delete a stream
+        Clear stream statistics for a stream that failed testing
+        
         Args:
             stream_id: Stream ID (int)
+            
         Returns:
-            Deletion confirmation
+            Updated stream information
         """
-        return self._make_request('DELETE', f'/api/channels/streams/{stream_id}/')
+        # Get current stream
+        stream = self.get_stream(stream_id)
+        
+        # Remove stream_stats and stream_stats_updated_at if they exist
+        if 'stream_stats' in stream:
+            del stream['stream_stats']
+        if 'stream_stats_updated_at' in stream:
+            del stream['stream_stats_updated_at']
+        
+        # Update the stream
+        return self.update_stream(stream_id, stream)
     
     def start_stream(self, stream_id: str) -> Dict[str, Any]:
         """
