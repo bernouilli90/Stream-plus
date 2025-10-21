@@ -866,8 +866,31 @@ class DispatcharrClient:
                 if ffmpeg_result.stdout:
                     print(f"      Stdout: {ffmpeg_result.stdout}")
                 print(f"      Command: {' '.join(quoted_cmd)}")
-                print(f"   ⚠️  Using ffprobe data only (no bitrate calculation)")
-                # Don't return failure here - we still have ffprobe data, just no bitrate calculation
+                print(f"   ❌ Stream testing failed - cannot calculate bitrate, clearing all stats")
+                # Clear all stream stats since we can't get complete information
+                stream_obj['stream_stats'] = {}
+                stream_obj['stream_stats_updated_at'] = None
+                
+                try:
+                    updated_stream = self.update_stream(stream_id, stream_obj)
+                    print(f"Cleared statistics for stream {stream_id} in Dispatcharr")
+                    return {
+                        'success': False,
+                        'message': f'Stream {stream_id} testing failed - ffmpeg could not calculate bitrate',
+                        'stream_id': stream_id,
+                        'stream_url': stream_url,
+                        'error_details': error_msg
+                    }
+                except Exception as e:
+                    print(f"Failed to clear statistics in Dispatcharr: {str(e)}")
+                    return {
+                        'success': False,
+                        'message': f'Stream {stream_id} testing failed and could not clear stats in Dispatcharr: {str(e)}',
+                        'stream_id': stream_id,
+                        'stream_url': stream_url,
+                        'error_details': error_msg,
+                        'clear_error': str(e)
+                    }
 
             # Parse bitrate from ffmpeg stderr output
             # Look for output size line like: "video:5607KiB audio:125KiB"

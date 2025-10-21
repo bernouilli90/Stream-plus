@@ -1,3 +1,10 @@
+## [0.2.13] - 2025-10-21
+
+### Changed
+- **Stream Testing Failure Behavior**: When ffmpeg fails to calculate bitrate, all stream statistics are now cleared instead of keeping partial ffprobe data
+  - Previously: ffprobe data was saved even when bitrate calculation failed
+  - Now: Complete failure when bitrate cannot be calculated, clearing all stats from Dispatcharr
+
 ## [0.2.12] - 2025-10-21
 
 ### Changed
