@@ -44,6 +44,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `-select_streams v:0` to VLC-style ffprobe command for better compatibility
   - Improves stream analysis success rate for complex multi-stream sources
   - Maintains JSON output format for consistent data parsing
+- **Stream Testing Performance Optimization**: Reordered ffprobe and ffmpeg execution for faster failure detection
+  - FFprobe now runs first as a quick accessibility check (faster than ffmpeg)
+  - If ffprobe fails, ffmpeg is skipped entirely and test is marked as failed immediately
+  - Reduces testing time for broken streams by avoiding unnecessary ffmpeg execution
+  - Maintains full functionality when both tools succeed
 
 ## [0.2.7] - 2025-10-18
 

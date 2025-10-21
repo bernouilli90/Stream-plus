@@ -727,108 +727,9 @@ class DispatcharrClient:
                     'message': f'ffmpeg executable not found: {ffmpeg_executable}'
                 }
             
-            # Step 1: Use ffmpeg to read the stream and get bitrate info
-            # We'll run it for the specified duration and capture the output
-            print(f"Reading stream for {test_duration} seconds to calculate bitrate...")
-
-            ffmpeg_cmd = [
-                ffmpeg_executable,
-                '-user_agent', user_agent,
-                '-t', str(test_duration),  # Read for test_duration seconds
-                '-i', stream_url,
-                '-c', 'copy',  # Copy without re-encoding
-                '-f', 'null',  # Discard output
-                '-'
-            ]
-
-            # Print command with proper quoting for readability
-            quoted_cmd = []
-            for arg in ffmpeg_cmd:
-                if ' ' in arg or '(' in arg or ')' in arg:
-                    quoted_cmd.append(f'"{arg}"')
-                else:
-                    quoted_cmd.append(arg)
-            print(f"FFmpeg command: {' '.join(quoted_cmd)}")
-
-            ffmpeg_result = subprocess.run(
-                ffmpeg_cmd,
-                capture_output=True,
-                text=True,
-                timeout=test_duration + timeout_buffer
-            )
-
-            # Check for ffmpeg errors
-            if ffmpeg_result.returncode != 0:
-                error_msg = ffmpeg_result.stderr if ffmpeg_result.stderr else "Unknown error"
-                print(f"❌ FFmpeg failed with return code {ffmpeg_result.returncode}")
-                print(f"   Error: {error_msg}")
-                if ffmpeg_result.stdout:
-                    print(f"   Stdout: {ffmpeg_result.stdout}")
-                print(f"   Command: {' '.join(ffmpeg_cmd)}")
-                # Continue anyway - some streams might still provide useful stderr info
-
-            # Parse bitrate from ffmpeg stderr output
-            # Look for output size line like: "video:5607KiB audio:125KiB"
-            calculated_bitrate = None
-            calculated_bitrate_kbps = None
-
-            for line in ffmpeg_result.stderr.split('\n'):
-                # Look for the final summary line with data sizes
-                if 'video:' in line and 'audio:' in line and ('KiB' in line or 'kB' in line):
-                    try:
-                        # Extract video and audio sizes
-                        video_size_kb = 0
-                        audio_size_kb = 0
-
-                        # Parse video size
-                        if 'video:' in line:
-                            # Handle both KiB and kB formats
-                            if 'KiB' in line:
-                                video_part = line.split('video:')[1].split('KiB')[0].strip()
-                            elif 'kB' in line:
-                                video_part = line.split('video:')[1].split('kB')[0].strip()
-                            else:
-                                video_part = None
-                            
-                            if video_part:
-                                video_size_kb = float(video_part)
-
-                        # Parse audio size
-                        if 'audio:' in line:
-                            # Handle both KiB and kB formats
-                            if 'KiB' in line:
-                                audio_part = line.split('audio:')[1].split('KiB')[0].strip()
-                            elif 'kB' in line:
-                                audio_part = line.split('audio:')[1].split('kB')[0].strip()
-                            else:
-                                audio_part = None
-                            
-                            if audio_part:
-                                audio_size_kb = float(audio_part)
-
-                        # Calculate total bitrate: (total_KB * 8) / duration_seconds = kbits/s
-                        total_size_kb = video_size_kb + audio_size_kb
-                        calculated_bitrate_kbps = (total_size_kb * 8) / test_duration
-                        calculated_bitrate = calculated_bitrate_kbps * 1000  # Convert to bits/s
-
-                    except (ValueError, IndexError) as e:
-                        print(f"Error parsing data sizes from line '{line}': {e}")
-                        pass
-
-            # Fallback: try to parse from progress line
-            if not calculated_bitrate:
-                for line in ffmpeg_result.stderr.split('\n'):
-                    if 'bitrate=' in line and 'kbits/s' in line:
-                        try:
-                            bitrate_part = line.split('bitrate=')[1].split('kbits/s')[0].strip()
-                            if bitrate_part and bitrate_part != 'N/A':
-                                calculated_bitrate_kbps = float(bitrate_part)
-                                calculated_bitrate = calculated_bitrate_kbps * 1000
-                        except (ValueError, IndexError):
-                            pass
-            
-            # Step 2: Use ffprobe to get codec information
-            print(f"Analyzing stream metadata with ffprobe...")
+            # Step 1: Use ffprobe FIRST to check if stream is accessible and get basic info
+            # This is faster than ffmpeg and can fail early if stream is not working
+            print(f"Analyzing stream metadata with ffprobe (quick check)...")
 
             # Try primary ffprobe command (VLC-style parameters with JSON output for better compatibility)
             ffprobe_cmd = [
@@ -928,6 +829,106 @@ class DispatcharrClient:
                     'stdout': result.stdout,
                     'stderr': result.stderr
                 }
+            
+            # Step 2: Use ffmpeg to read the stream and get bitrate info (only if ffprobe succeeded)
+            # We'll run it for the specified duration and capture the output
+            print(f"Reading stream for {test_duration} seconds to calculate bitrate...")
+
+            ffmpeg_cmd = [
+                ffmpeg_executable,
+                '-user_agent', user_agent,
+                '-t', str(test_duration),  # Read for test_duration seconds
+                '-i', stream_url,
+                '-c', 'copy',  # Copy without re-encoding
+                '-f', 'null',  # Discard output
+                '-'
+            ]
+
+            # Print command with proper quoting for readability
+            quoted_cmd = []
+            for arg in ffmpeg_cmd:
+                if ' ' in arg or '(' in arg or ')' in arg:
+                    quoted_cmd.append(f'"{arg}"')
+                else:
+                    quoted_cmd.append(arg)
+            print(f"FFmpeg command: {' '.join(quoted_cmd)}")
+
+            ffmpeg_result = subprocess.run(
+                ffmpeg_cmd,
+                capture_output=True,
+                text=True,
+                timeout=test_duration + timeout_buffer
+            )
+
+            # Check for ffmpeg errors - if ffmpeg fails but ffprobe succeeded, we still have basic info
+            if ffmpeg_result.returncode != 0:
+                error_msg = ffmpeg_result.stderr if ffmpeg_result.stderr else "Unknown error"
+                print(f"⚠️  FFmpeg failed with return code {ffmpeg_result.returncode} - using ffprobe data only")
+                print(f"   Error: {error_msg}")
+                if ffmpeg_result.stdout:
+                    print(f"   Stdout: {ffmpeg_result.stdout}")
+                print(f"   Command: {' '.join(ffmpeg_cmd)}")
+                # Don't return failure here - we still have ffprobe data, just no bitrate calculation
+
+            # Parse bitrate from ffmpeg stderr output
+            # Look for output size line like: "video:5607KiB audio:125KiB"
+            calculated_bitrate = None
+            calculated_bitrate_kbps = None
+
+            for line in ffmpeg_result.stderr.split('\n'):
+                # Look for the final summary line with data sizes
+                if 'video:' in line and 'audio:' in line and ('KiB' in line or 'kB' in line):
+                    try:
+                        # Extract video and audio sizes
+                        video_size_kb = 0
+                        audio_size_kb = 0
+
+                        # Parse video size
+                        if 'video:' in line:
+                            # Handle both KiB and kB formats
+                            if 'KiB' in line:
+                                video_part = line.split('video:')[1].split('KiB')[0].strip()
+                            elif 'kB' in line:
+                                video_part = line.split('video:')[1].split('kB')[0].strip()
+                            else:
+                                video_part = None
+                            
+                            if video_part:
+                                video_size_kb = float(video_part)
+
+                        # Parse audio size
+                        if 'audio:' in line:
+                            # Handle both KiB and kB formats
+                            if 'KiB' in line:
+                                audio_part = line.split('audio:')[1].split('KiB')[0].strip()
+                            elif 'kB' in line:
+                                audio_part = line.split('audio:')[1].split('kB')[0].strip()
+                            else:
+                                audio_part = None
+                            
+                            if audio_part:
+                                audio_size_kb = float(audio_part)
+
+                        # Calculate total bitrate: (total_KB * 8) / duration_seconds = kbits/s
+                        total_size_kb = video_size_kb + audio_size_kb
+                        calculated_bitrate_kbps = (total_size_kb * 8) / test_duration
+                        calculated_bitrate = calculated_bitrate_kbps * 1000  # Convert to bits/s
+
+                    except (ValueError, IndexError) as e:
+                        print(f"Error parsing data sizes from line '{line}': {e}")
+                        pass
+
+            # Fallback: try to parse from progress line
+            if not calculated_bitrate:
+                for line in ffmpeg_result.stderr.split('\n'):
+                    if 'bitrate=' in line and 'kbits/s' in line:
+                        try:
+                            bitrate_part = line.split('bitrate=')[1].split('kbits/s')[0].strip()
+                            if bitrate_part and bitrate_part != 'N/A':
+                                calculated_bitrate_kbps = float(bitrate_part)
+                                calculated_bitrate = calculated_bitrate_kbps * 1000
+                        except (ValueError, IndexError):
+                            pass
             
             # Second fallback: try to get bitrate from format bitrate in ffprobe
             if not calculated_bitrate_kbps:
