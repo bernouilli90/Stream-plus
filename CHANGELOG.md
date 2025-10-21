@@ -1,11 +1,28 @@
-# Changelog
+## [0.2.11] - 2025-10-21
 
-All notable changes to this project will be documented in this file.
+### Enhanced
+- **Stream Testing Logging**: Completely redesigned logging output for stream testing operations
+  - **Stream Information**: Now displays stream name and URL at the start of testing
+  - **FFprobe Analysis**: Clear success/failure reporting with detailed stream information when successful
+    - Shows video resolution, codec, framerate when available
+    - Shows audio codec, channels, sample rate when available
+    - Displays stream format type
+    - Shows specific error messages when ffprobe fails
+  - **FFmpeg Bitrate Analysis**: Enhanced logging for bitrate calculation process
+    - Clear success/failure status with calculated bitrate when successful
+    - Detailed error reporting when ffmpeg fails
+    - Warning when using ffprobe data only (no bitrate calculation)
+  - **Visual Structure**: Uses emojis and clear section headers for better readability
+    - 🔍 Stream identification
+    - 📊 FFprobe analysis section
+    - 🎬 FFmpeg bitrate analysis section
+    - 📊 Final statistics summary
+  - **Improved Error Context**: Better error messages with return codes and specific failure reasons
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [0.2.10] - 2025-10-21
+### Technical Details
+- Modified `test_stream()` method in `api/dispatcharr_client.py` with structured logging
+- Maintains all existing functionality while providing much clearer debugging information
+- Created test script `test_stream_logging.py` to demonstrate the improved logging
 
 ### Fixed
 - **Stream Stats Clearing on Test Failures**: Fixed critical issue where `clear_stream_stats()` method wasn't properly clearing stream statistics due to Dispatcharr API limitations with PATCH operations

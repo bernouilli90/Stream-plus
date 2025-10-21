@@ -668,6 +668,11 @@ class DispatcharrClient:
             # Get the stream object from Dispatcharr
             stream_obj = self.get_stream(stream_id)
             stream_url = stream_obj.get('url')
+            stream_name = stream_obj.get('name', f'Stream {stream_id}')
+            
+            # Log stream information
+            print(f"🔍 Testing Stream: {stream_name}")
+            print(f"   URL: {stream_url}")
             
             if not stream_url:
                 return {
@@ -735,29 +740,8 @@ class DispatcharrClient:
             
             # Step 1: Use ffprobe FIRST to check if stream is accessible and get basic info
             # This is faster than ffmpeg and can fail early if stream is not working
-            print(f"Analyzing stream metadata with ffprobe (quick check)...")
-
-            # Try primary ffprobe command (VLC-style parameters with JSON output for better compatibility)
-            ffprobe_cmd = [
-                ffprobe_executable,
-                '-user_agent', user_agent,
-                '-v', 'error',
-                '-skip_frame', 'nokey',
-                # '-select_streams', 'v:0',
-                # '-select_streams', 'a:0',
-                '-print_format', 'json',
-                '-show_streams',
-                stream_url
-            ]
-
-            # Print command with proper quoting for readability
-            quoted_cmd = []
-            for arg in ffprobe_cmd:
-                if ' ' in arg or '(' in arg or ')' in arg:
-                    quoted_cmd.append(f'"{arg}"')
-                else:
-                    quoted_cmd.append(arg)
-            print(f"FFprobe command: {' '.join(quoted_cmd)}")
+            print(f"📊 FFprobe Analysis:")
+            print(f"   Command: {' '.join(quoted_cmd)}")
 
             # Run primary ffprobe command
             result = subprocess.run(
@@ -769,7 +753,7 @@ class DispatcharrClient:
 
             # If primary command fails, try alternative JSON format command with detailed analysis
             if result.returncode != 0:
-                print(f"⚠️  Primary ffprobe command failed, trying alternative detailed analysis command...")
+                print(f"   ⚠️  Primary command failed, trying alternative...")
                 alt_ffprobe_cmd = [
                     ffprobe_executable,
                     '-user_agent', user_agent,  # Use same user-agent as primary command
@@ -788,7 +772,7 @@ class DispatcharrClient:
                         quoted_alt_cmd.append(f'"{arg}"')
                     else:
                         quoted_alt_cmd.append(arg)
-                print(f"Alternative FFprobe command: {' '.join(quoted_alt_cmd)}")
+                print(f"   Alternative Command: {' '.join(quoted_alt_cmd)}")
 
                 alt_result = subprocess.run(
                     alt_ffprobe_cmd,
@@ -798,18 +782,18 @@ class DispatcharrClient:
                 )
 
                 if alt_result.returncode == 0:
-                    print(f"✅ Alternative ffprobe command succeeded")
+                    print(f"   ✅ Alternative command succeeded")
                     result = alt_result
                 else:
-                    print(f"❌ Alternative ffprobe command also failed")
+                    print(f"   ❌ Alternative command also failed")
 
             if result.returncode != 0:
                 error_msg = result.stderr if result.stderr else "Unknown error"
-                print(f"❌ FFprobe failed with return code {result.returncode}")
-                print(f"   Error: {error_msg}")
+                print(f"   ❌ FFprobe FAILED:")
+                print(f"      Return code: {result.returncode}")
+                print(f"      Error: {error_msg}")
                 if result.stdout:
-                    print(f"   Stdout: {result.stdout}")
-                print(f"   Command: {' '.join(ffprobe_cmd)}")
+                    print(f"      Stdout: {result.stdout}")
                 return {
                     'success': False,
                     'message': f'ffprobe failed: {error_msg}',
@@ -823,12 +807,37 @@ class DispatcharrClient:
             try:
                 import json as json_lib
                 probe_data = json_lib.loads(result.stdout)
-                print(f"✅ Parsed ffprobe JSON output successfully")
+                print(f"   ✅ FFprobe SUCCESS:")
+                
+                # Extract and display key stream information
+                streams = probe_data.get('streams', [])
+                video_streams = [s for s in streams if s.get('codec_type') == 'video']
+                audio_streams = [s for s in streams if s.get('codec_type') == 'audio']
+                
+                if video_streams:
+                    video = video_streams[0]
+                    width = video.get('width')
+                    height = video.get('height')
+                    codec = video.get('codec_name')
+                    fps = video.get('avg_frame_rate', 'unknown')
+                    print(f"      Video: {width}x{height} @ {fps}fps ({codec})")
+                
+                if audio_streams:
+                    audio = audio_streams[0]
+                    codec = audio.get('codec_name')
+                    channels = audio.get('channels', 'unknown')
+                    sample_rate = audio.get('sample_rate', 'unknown')
+                    print(f"      Audio: {channels}ch @ {sample_rate}Hz ({codec})")
+                    
+                format_name = probe_data.get('format', {}).get('format_name', 'unknown')
+                print(f"      Format: {format_name}")
+                
             except json_lib.JSONDecodeError as e:
-                print(f"❌ JSON parsing failed: {e}")
+                print(f"   ❌ JSON parsing failed: {e}")
                 probe_data = None
 
             if not probe_data or 'streams' not in probe_data:
+                print(f"   ❌ No stream data found in ffprobe output")
                 return {
                     'success': False,
                     'message': 'No stream data found in ffprobe output',
@@ -838,7 +847,7 @@ class DispatcharrClient:
             
             # Step 2: Use ffmpeg to read the stream and get bitrate info (only if ffprobe succeeded)
             # We'll run it for the specified duration and capture the output
-            print(f"Reading stream for {test_duration} seconds to calculate bitrate...")
+            print(f"🎬 FFmpeg Bitrate Analysis:")
 
             ffmpeg_cmd = [
                 ffmpeg_executable,
@@ -857,7 +866,7 @@ class DispatcharrClient:
                     quoted_cmd.append(f'"{arg}"')
                 else:
                     quoted_cmd.append(arg)
-            print(f"FFmpeg command: {' '.join(quoted_cmd)}")
+            print(f"   Command: {' '.join(quoted_cmd)}")
 
             ffmpeg_result = subprocess.run(
                 ffmpeg_cmd,
@@ -869,11 +878,12 @@ class DispatcharrClient:
             # Check for ffmpeg errors - if ffmpeg fails but ffprobe succeeded, we still have basic info
             if ffmpeg_result.returncode != 0:
                 error_msg = ffmpeg_result.stderr if ffmpeg_result.stderr else "Unknown error"
-                print(f"⚠️  FFmpeg failed with return code {ffmpeg_result.returncode} - using ffprobe data only")
-                print(f"   Error: {error_msg}")
+                print(f"   ❌ FFmpeg FAILED:")
+                print(f"      Return code: {ffmpeg_result.returncode}")
+                print(f"      Error: {error_msg}")
                 if ffmpeg_result.stdout:
-                    print(f"   Stdout: {ffmpeg_result.stdout}")
-                print(f"   Command: {' '.join(ffmpeg_cmd)}")
+                    print(f"      Stdout: {ffmpeg_result.stdout}")
+                print(f"   ⚠️  Using ffprobe data only (no bitrate calculation)")
                 # Don't return failure here - we still have ffprobe data, just no bitrate calculation
 
             # Parse bitrate from ffmpeg stderr output
@@ -1009,11 +1019,14 @@ class DispatcharrClient:
             if calculated_bitrate_kbps:
                 stats['output_bitrate'] = calculated_bitrate_kbps  # Dispatcharr native field
                 stats['ffmpeg_output_bitrate'] = calculated_bitrate_kbps  # Legacy field
-                print(f"Final calculated bitrate: {calculated_bitrate_kbps} kbps")
+                print(f"   ✅ FFmpeg SUCCESS:")
+                print(f"      Calculated bitrate: {calculated_bitrate_kbps:.1f} kbps")
             else:
-                print("Warning: No bitrate could be calculated from ffmpeg output")
+                print(f"   ⚠️  FFmpeg completed but no bitrate calculated")
 
-            print(f"Collected statistics: {stats}")
+            print(f"📊 Final Statistics Collected:")
+            for key, value in stats.items():
+                print(f"   {key}: {value}")
 
             # Update the stream object with the new statistics
             stream_obj['stream_stats'] = stats
