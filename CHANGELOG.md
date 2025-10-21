@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.10] - 2025-10-21
+
+### Fixed
+- **Stream Stats Clearing on Test Failures**: Fixed critical issue where `clear_stream_stats()` method wasn't properly clearing stream statistics due to Dispatcharr API limitations with PATCH operations
+  - Changed implementation from PATCH with partial updates to PUT with complete stream object retrieval and update
+  - Method now retrieves current stream, clears `stream_stats` field, removes `stream_stats_updated_at` timestamp, and updates complete stream object
+  - Ensures failed stream tests properly remove stale statistics that could affect rule evaluation
+  - Added comprehensive unit tests covering success cases, error handling, and edge cases
+  - Created integration test script for validation against real Dispatcharr instances
+
+### Technical Details
+- Modified `clear_stream_stats()` in `api/dispatcharr_client.py` to use PUT instead of PATCH
+- Added unit tests in `test_clear_stats_put.py` with full mock coverage
+- Created integration test in `test_clear_stats_integration.py` for real API validation
+- Maintains backward compatibility while fixing the core clearing functionality
+
 ## [0.2.9] - 2025-10-18
 
 ### Added

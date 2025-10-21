@@ -417,8 +417,8 @@ class DispatcharrClient:
         """
         Clear stream statistics for a stream that failed testing
 
-        Since Dispatcharr API doesn't allow complete removal of stream_stats field,
-        we mark the stats as invalid by setting them to an empty dict and clearing the timestamp.
+        Since PATCH may not work properly for stream_stats field, we use PUT with the complete
+        stream object but with empty stream_stats.
 
         Args:
             stream_id: Stream ID (int)
@@ -426,13 +426,19 @@ class DispatcharrClient:
         Returns:
             Updated stream information
         """
-        # Mark stats as invalid rather than trying to delete them
-        # Dispatcharr API doesn't seem to support complete field removal
-        patch_data = {
-            'stream_stats': {}
-        }
+        # Get the current stream object
+        current_stream = self.get_stream(stream_id)
 
-        return self.patch_stream(stream_id, patch_data)
+        # Clear the stream stats
+        current_stream['stream_stats'] = {}
+
+        # Also clear the timestamp to indicate stats are invalid
+        # Note: We don't set it to None as that might cause API issues
+        if 'stream_stats_updated_at' in current_stream:
+            del current_stream['stream_stats_updated_at']
+
+        # Use PUT to update the complete stream object
+        return self.update_stream(stream_id, current_stream)
     
     def start_stream(self, stream_id: str) -> Dict[str, Any]:
         """
