@@ -19,10 +19,12 @@
     - 📊 Final statistics summary
   - **Improved Error Context**: Better error messages with return codes and specific failure reasons
 
-### Technical Details
-- Modified `test_stream()` method in `api/dispatcharr_client.py` with structured logging
-- Maintains all existing functionality while providing much clearer debugging information
-- Created test script `test_stream_logging.py` to demonstrate the improved logging
+### Fixed
+- **Stream Testing UnboundLocalError**: Fixed critical bug where `test_stream()` method crashed with "UnboundLocalError: cannot access local variable 'quoted_cmd' where it is not associated with a value"
+  - Issue occurred when stream testing failed early due to undefined variable reference in logging code
+  - Properly structured command logging with correct variable definitions and scope
+  - Fixed indentation and code structure issues from recent logging enhancements
+  - Stream testing now handles all error conditions without crashing
 
 ### Fixed
 - **Stream Stats Clearing on Test Failures**: Fixed critical issue where `clear_stream_stats()` method wasn't properly clearing stream statistics due to Dispatcharr API limitations with PATCH operations

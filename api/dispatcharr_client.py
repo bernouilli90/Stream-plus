@@ -741,8 +741,26 @@ class DispatcharrClient:
             # Step 1: Use ffprobe FIRST to check if stream is accessible and get basic info
             # This is faster than ffmpeg and can fail early if stream is not working
             print(f"📊 FFprobe Analysis:")
-            print(f"   Command: {' '.join(quoted_cmd)}")
+            # Try primary ffprobe command (VLC-style parameters with JSON output for better compatibility)
+            ffprobe_cmd = [
+                ffprobe_executable,
+                '-user_agent', user_agent,
+                '-v', 'error',
+                '-skip_frame', 'nokey',
+                # '-select_streams', 'v:0',
+                # '-select_streams', 'a:0',
+                '-print_format', 'json',
+                '-show_streams',
+                stream_url
+            ]
 
+            # Print command with proper quoting for readability
+            ffprobe_quoted_cmd = []
+            for arg in ffprobe_cmd:
+                if ' ' in arg or '(' in arg or ')' in arg:
+                    ffprobe_quoted_cmd.append(f'"{arg}"')
+                else:
+                    ffprobe_quoted_cmd.append(arg)
             # Run primary ffprobe command
             result = subprocess.run(
                 ffprobe_cmd,
@@ -883,6 +901,7 @@ class DispatcharrClient:
                 print(f"      Error: {error_msg}")
                 if ffmpeg_result.stdout:
                     print(f"      Stdout: {ffmpeg_result.stdout}")
+                print(f"      Command: {' '.join(quoted_cmd)}")
                 print(f"   ⚠️  Using ffprobe data only (no bitrate calculation)")
                 # Don't return failure here - we still have ffprobe data, just no bitrate calculation
 
