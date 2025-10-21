@@ -769,42 +769,6 @@ class DispatcharrClient:
                 timeout=test_duration + timeout_buffer
             )
 
-            # If primary command fails, try alternative JSON format command with detailed analysis
-            if result.returncode != 0:
-                print(f"   ⚠️  Primary command failed, trying alternative...")
-                alt_ffprobe_cmd = [
-                    ffprobe_executable,
-                    '-user_agent', user_agent,  # Use same user-agent as primary command
-                    '-analyzeduration', str(test_duration * 2000000),  # Increased for Docker (2x)
-                    '-probesize', str(test_duration * 10000000),  # Increased for Docker (2x)
-                    '-v', 'error',
-                    '-print_format', 'json',
-                    '-show_format',
-                    '-show_streams',
-                    stream_url
-                ]
-
-                quoted_alt_cmd = []
-                for arg in alt_ffprobe_cmd:
-                    if ' ' in arg or '(' in arg or ')' in arg:
-                        quoted_alt_cmd.append(f'"{arg}"')
-                    else:
-                        quoted_alt_cmd.append(arg)
-                print(f"   Alternative Command: {' '.join(quoted_alt_cmd)}")
-
-                alt_result = subprocess.run(
-                    alt_ffprobe_cmd,
-                    capture_output=True,
-                    text=True,
-                    timeout=test_duration + timeout_buffer
-                )
-
-                if alt_result.returncode == 0:
-                    print(f"   ✅ Alternative command succeeded")
-                    result = alt_result
-                else:
-                    print(f"   ❌ Alternative command also failed")
-
             if result.returncode != 0:
                 error_msg = result.stderr if result.stderr else "Unknown error"
                 print(f"   ❌ FFprobe FAILED:")

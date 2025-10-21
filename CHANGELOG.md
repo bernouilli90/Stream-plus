@@ -1,3 +1,8 @@
+## [0.2.12] - 2025-10-21
+
+### Changed
+- **Stream Testing**: Removed alternative ffprobe command fallback, now uses only the primary ffprobe command for stream analysis
+
 ## [0.2.11] - 2025-10-21
 
 ### Enhanced
