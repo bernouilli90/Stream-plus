@@ -1,3 +1,13 @@
+## [0.2.14] - 2025-10-21
+
+### Changed
+- **Complete Stream Testing Failure Behavior**: All stream statistics are now cleared whenever ANY part of stream testing fails
+  - **ffprobe failures**: When ffprobe command fails or returns invalid data, all stats are cleared
+  - **ffmpeg failures**: When ffmpeg fails to calculate bitrate, all stats are cleared (previous change)
+  - **Timeouts**: When stream testing times out, all stats are cleared
+  - **General errors**: When any exception occurs during testing, all stats are cleared
+  - **Consistent behavior**: Stream testing now requires complete success of both ffprobe and ffmpeg for stats to be saved
+
 ## [0.2.13] - 2025-10-21
 
 ### Changed

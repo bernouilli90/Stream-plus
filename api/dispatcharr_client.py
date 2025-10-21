@@ -776,13 +776,31 @@ class DispatcharrClient:
                 print(f"      Error: {error_msg}")
                 if result.stdout:
                     print(f"      Stdout: {result.stdout}")
-                return {
-                    'success': False,
-                    'message': f'ffprobe failed: {error_msg}',
-                    'stdout': result.stdout,
-                    'stderr': result.stderr,
-                    'command': ffprobe_cmd
-                }
+                print(f"   ❌ Stream testing failed - cannot analyze stream, clearing all stats")
+                # Clear all stream stats since we can't get any information
+                stream_obj['stream_stats'] = {}
+                stream_obj['stream_stats_updated_at'] = None
+                
+                try:
+                    updated_stream = self.update_stream(stream_id, stream_obj)
+                    print(f"Cleared statistics for stream {stream_id} in Dispatcharr")
+                    return {
+                        'success': False,
+                        'message': f'ffprobe failed: {error_msg}',
+                        'stdout': result.stdout,
+                        'stderr': result.stderr,
+                        'command': ffprobe_cmd
+                    }
+                except Exception as e:
+                    print(f"Failed to clear statistics in Dispatcharr: {str(e)}")
+                    return {
+                        'success': False,
+                        'message': f'ffprobe failed and could not clear stats in Dispatcharr: {str(e)}',
+                        'stdout': result.stdout,
+                        'stderr': result.stderr,
+                        'command': ffprobe_cmd,
+                        'clear_error': str(e)
+                    }
             
             # Parse ffprobe output (both commands use JSON format)
             probe_data = None
@@ -820,12 +838,29 @@ class DispatcharrClient:
 
             if not probe_data or 'streams' not in probe_data:
                 print(f"   ❌ No stream data found in ffprobe output")
-                return {
-                    'success': False,
-                    'message': 'No stream data found in ffprobe output',
-                    'stdout': result.stdout,
-                    'stderr': result.stderr
-                }
+                print(f"   ❌ Stream testing failed - no valid stream data, clearing all stats")
+                # Clear all stream stats since we can't get any information
+                stream_obj['stream_stats'] = {}
+                stream_obj['stream_stats_updated_at'] = None
+                
+                try:
+                    updated_stream = self.update_stream(stream_id, stream_obj)
+                    print(f"Cleared statistics for stream {stream_id} in Dispatcharr")
+                    return {
+                        'success': False,
+                        'message': 'No stream data found in ffprobe output',
+                        'stdout': result.stdout,
+                        'stderr': result.stderr
+                    }
+                except Exception as e:
+                    print(f"Failed to clear statistics in Dispatcharr: {str(e)}")
+                    return {
+                        'success': False,
+                        'message': f'No stream data found and could not clear stats in Dispatcharr: {str(e)}',
+                        'stdout': result.stdout,
+                        'stderr': result.stderr,
+                        'clear_error': str(e)
+                    }
             
             # Step 2: Use ffmpeg to read the stream and get bitrate info (only if ffprobe succeeded)
             # We'll run it for the specified duration and capture the output
@@ -1071,13 +1106,44 @@ class DispatcharrClient:
                 }
             
         except subprocess.TimeoutExpired:
-            return {
-                'success': False,
-                'message': f'ffprobe timeout after {test_duration} seconds'
-            }
+            print(f"   ❌ Stream testing timeout - clearing all stats")
+            # Clear all stream stats since testing timed out
+            stream_obj['stream_stats'] = {}
+            stream_obj['stream_stats_updated_at'] = None
+            
+            try:
+                updated_stream = self.update_stream(stream_id, stream_obj)
+                print(f"Cleared statistics for stream {stream_id} in Dispatcharr due to timeout")
+                return {
+                    'success': False,
+                    'message': f'ffprobe timeout after {test_duration} seconds'
+                }
+            except Exception as e:
+                print(f"Failed to clear statistics in Dispatcharr: {str(e)}")
+                return {
+                    'success': False,
+                    'message': f'ffprobe timeout and could not clear stats in Dispatcharr: {str(e)}',
+                    'clear_error': str(e)
+                }
             
         except Exception as e:
-            return {
-                'success': False,
-                'message': f'Error testing stream {stream_id}: {str(e)}'
-            }
+            print(f"   ❌ Stream testing error - clearing all stats")
+            # Clear all stream stats since testing failed with exception
+            stream_obj['stream_stats'] = {}
+            stream_obj['stream_stats_updated_at'] = None
+            
+            try:
+                updated_stream = self.update_stream(stream_id, stream_obj)
+                print(f"Cleared statistics for stream {stream_id} in Dispatcharr due to error")
+                return {
+                    'success': False,
+                    'message': f'Error testing stream {stream_id}: {str(e)}'
+                }
+            except Exception as clear_e:
+                print(f"Failed to clear statistics in Dispatcharr: {str(clear_e)}")
+                return {
+                    'success': False,
+                    'message': f'Error testing stream {stream_id} and could not clear stats in Dispatcharr: {str(clear_e)}',
+                    'original_error': str(e),
+                    'clear_error': str(clear_e)
+                }
