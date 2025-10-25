@@ -1,3 +1,20 @@
+## [0.2.16] - 2025-10-21
+
+### Added
+- **Pixel Format Field**: Added pixel_format field to stream statistics and rule conditions
+  - **Stats Collection**: ffprobe now extracts pixel format (e.g., yuv420p, yuv420p10le) from video streams and stores it in stream_stats
+  - **Auto-Assignment Rules**: New pixel_format condition for exact string matching in auto-assignment rules
+  - **Sorting Rules**: New pixel_format condition with == and != operators for stream scoring and sorting
+  - **Frontend Support**: Updated web interface to include pixel_format input fields and display in rule previews
+  - **API Integration**: Pixel format data is now available in stream statistics for all rule evaluation
+
+### Technical Details
+- Modified `test_stream()` in `api/dispatcharr_client.py` to extract `pix_fmt` from ffprobe JSON output
+- Added `pixel_format` field to `AutoAssignmentRule` dataclass in `models.py`
+- Added `pixel_format` condition type to `SortingCondition` in `stream_sorter_models.py`
+- Updated frontend JavaScript files (`auto_assign.js`, `stream_sorter.js`) for pixel_format support
+- Pixel format values include: yuv420p, yuv420p10le, yuv444p, yuv444p10le, rgb24, rgb48be
+
 ## [0.2.15] - 2025-10-21
 
 ### Cleanup

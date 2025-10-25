@@ -50,7 +50,7 @@ class SortingCondition:
         value: Value to compare against (depends on condition_type)
         points: Points awarded if condition is met
     """
-    condition_type: str  # m3u_source, video_bitrate, video_resolution, video_codec, audio_codec, video_fps
+    condition_type: str  # m3u_source, video_bitrate, video_resolution, video_codec, audio_codec, video_fps, pixel_format
     operator: Optional[str] = None  # >, >=, <, <=, ==, !=
     value: Optional[Any] = None
     points: int = 1
@@ -485,6 +485,17 @@ class StreamSorter:
             if video_fps and condition.operator and condition.value:
                 if StreamSorter._compare_value(video_fps, condition.operator, float(condition.value)):
                     return condition.points
+        
+        # Pixel Format condition
+        elif condition.condition_type == 'pixel_format':
+            pixel_format = stream_stats.get('pixel_format')
+            if pixel_format and condition.value:
+                if condition.operator == '==':
+                    if pixel_format.lower() == str(condition.value).lower():
+                        return condition.points
+                elif condition.operator == '!=':
+                    if pixel_format.lower() != str(condition.value).lower():
+                        return condition.points
         
         return 0
     

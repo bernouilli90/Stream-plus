@@ -235,6 +235,7 @@ async function editRule(ruleId) {
         setMultipleSelectValues('resolution', rule.video_resolution);
         setMultipleSelectValues('videoFps', rule.video_fps);
         setMultipleSelectValues('audioCodec', rule.audio_codec);
+        document.getElementById('pixelFormat').value = rule.pixel_format || '';
         
         // Load stream testing options
         document.getElementById('testStreamsBeforeSorting').checked = rule.test_streams_before_sorting || false;
@@ -306,6 +307,7 @@ async function saveRule() {
         video_resolution: getSelectedValues('resolution'),
         video_fps: getFpsValues(),
         audio_codec: getSelectedValues('audioCodec'),
+        pixel_format: document.getElementById('pixelFormat').value || null,
         test_streams_before_sorting: testStreamsBeforeSorting,
         force_retest_old_streams: testStreamsBeforeSorting && forceRetestOldStreams,
         retest_days_threshold: retestDaysThreshold,
@@ -476,6 +478,9 @@ async function previewRule(ruleId) {
             // Format Audio Codec
             const audioCodec = stats.audio_codec || 'N/A';
             
+            // Format Pixel Format
+            const pixelFormat = stats.pixel_format || 'N/A';
+            
             return `
                 <tr class="${rowClass}">
                     <td>${stream.id}</td>
@@ -486,6 +491,7 @@ async function previewRule(ruleId) {
                     <td>${audioCodec}</td>
                     <td>${resolutionDisplay}</td>
                     <td>${fpsDisplay}</td>
+                    <td>${pixelFormat}</td>
                 </tr>
             `;
         }
@@ -512,6 +518,7 @@ async function previewRule(ruleId) {
                                 <th>Audio Codec</th>
                                 <th>Resolution</th>
                                 <th>FPS</th>
+                                <th>Pixel Format</th>
                             </tr>
                         </thead>
                         <tbody>

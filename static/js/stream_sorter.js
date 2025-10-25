@@ -49,6 +49,13 @@ var conditionTypes = {
         hasOperator: true,
         valueType: 'number',
         operators: ['>', '>=', '<', '<=', '==']
+    },
+    pixel_format: {
+        label: 'Pixel Format',
+        hasOperator: true,
+        valueType: 'select',
+        operators: ['==', '!='],
+        values: ['yuv420p', 'yuv420p10le', 'yuv444p', 'yuv444p10le', 'rgb24', 'rgb48be']
     }
 };
 

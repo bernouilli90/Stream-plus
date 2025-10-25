@@ -38,6 +38,7 @@ class AutoAssignmentRule:
         video_codec: Required video codec (h264, h265, etc.)
         video_resolution: Required resolution (720p, 1080p, 2160p, SD)
         video_fps: Required exact FPS
+        pixel_format: Required pixel format (yuv420p, yuv420p10le, etc.)
         
         # Audio stats conditions:
         audio_codec: Required audio codec (ac3, aac, etc.)
@@ -63,6 +64,7 @@ class AutoAssignmentRule:
     video_codec: Optional[List[str]] = None  # Can be a list: ["h264", "h265"]
     video_resolution: Optional[List[str]] = None  # Can be a list: ["720p", "1080p", "SD"]
     video_fps: Optional[List[float]] = None  # Can be a list: [25.0, 30.0, 50.0]
+    pixel_format: Optional[str] = None  # Pixel format (e.g., "yuv420p", "yuv420p10le")
     
     # Audio conditions
     audio_codec: Optional[List[str]] = None  # Can be a list: ["aac", "ac3"]
@@ -362,7 +364,8 @@ class StreamMatcher:
                 rule.video_codec or
                 rule.video_resolution or
                 rule.video_fps or
-                rule.audio_codec
+                rule.audio_codec or
+                rule.pixel_format
             )
             
             if rule_requires_stats and stream_id in failed_test_stream_ids:
@@ -432,7 +435,8 @@ class StreamMatcher:
             rule.video_codec or
             rule.video_resolution or
             rule.video_fps or
-            rule.audio_codec
+            rule.audio_codec or
+            rule.pixel_format
         )
         
         # From here, we need stream statistics
@@ -485,11 +489,11 @@ class StreamMatcher:
             if video_fps not in rule.video_fps:
                 return False
         
-        # 7. Filter by audio codec
-        if rule.audio_codec:
-            audio_codec = StreamMatcher._extract_stream_stat(stream_stats, 'audio_codec')
-            # audio_codec is now a list, check if stream's codec is in the list
-            if audio_codec not in rule.audio_codec:
+        # 7. Filter by pixel format
+        if rule.pixel_format:
+            pixel_format = StreamMatcher._extract_stream_stat(stream_stats, 'pixel_format')
+            # pixel_format is a single string value, check if it matches exactly
+            if pixel_format != rule.pixel_format:
                 return False
         
         # If it passed all filters, the stream matches
@@ -557,7 +561,8 @@ class StreamMatcher:
                 rule.video_codec or
                 rule.video_resolution or
                 rule.video_fps or
-                rule.audio_codec
+                rule.audio_codec or
+                rule.pixel_format
             )
             
             if rule_requires_stats:
@@ -589,6 +594,8 @@ class StreamMatcher:
             conditions.append(f"FPS: {rule.video_fps}")
         if rule.audio_codec:
             conditions.append(f"Audio codec: {rule.audio_codec}")
+        if rule.pixel_format:
+            conditions.append(f"Pixel format: {rule.pixel_format}")
         
         return {
             'total_streams': len(streams),
