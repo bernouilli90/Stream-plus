@@ -64,6 +64,7 @@ class AutoAssignmentRule:
     video_codec: Optional[List[str]] = None  # Can be a list: ["h264", "h265"]
     video_resolution: Optional[List[str]] = None  # Can be a list: ["720p", "1080p", "SD"]
     video_fps: Optional[List[float]] = None  # Can be a list: [25.0, 30.0, 50.0]
+    pixel_format_operator: Optional[str] = None  # ==, !=
     pixel_format: Optional[str] = None  # Pixel format (e.g., "yuv420p", "yuv420p10le")
     
     # Audio conditions
@@ -492,9 +493,14 @@ class StreamMatcher:
         # 7. Filter by pixel format
         if rule.pixel_format:
             pixel_format = StreamMatcher._extract_stream_stat(stream_stats, 'pixel_format')
-            # pixel_format is a single string value, check if it matches exactly
-            if pixel_format != rule.pixel_format:
-                return False
+            # Use operator if specified, default to == for backward compatibility
+            operator = rule.pixel_format_operator or '=='
+            if operator == '==':
+                if pixel_format != rule.pixel_format:
+                    return False
+            elif operator == '!=':
+                if pixel_format == rule.pixel_format:
+                    return False
         
         # If it passed all filters, the stream matches
         return True
@@ -595,7 +601,8 @@ class StreamMatcher:
         if rule.audio_codec:
             conditions.append(f"Audio codec: {rule.audio_codec}")
         if rule.pixel_format:
-            conditions.append(f"Pixel format: {rule.pixel_format}")
+            operator_text = rule.pixel_format_operator or '=='
+            conditions.append(f"Pixel format {operator_text} {rule.pixel_format}")
         
         return {
             'total_streams': len(streams),

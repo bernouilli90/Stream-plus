@@ -167,6 +167,9 @@ function showCreateRuleModal() {
     document.getElementById('forceIncludeStreamsList').innerHTML = '';
     document.getElementById('forceExcludeStreamsList').innerHTML = '';
     
+    // Reset pixel format operator to default
+    document.getElementById('pixelFormatOperator').value = '==';
+    
     // Setup event listeners for modal
     setupModalEventListeners();
     toggleRetestOptions();
@@ -235,6 +238,7 @@ async function editRule(ruleId) {
         setMultipleSelectValues('resolution', rule.video_resolution);
         setMultipleSelectValues('videoFps', rule.video_fps);
         setMultipleSelectValues('audioCodec', rule.audio_codec);
+        document.getElementById('pixelFormatOperator').value = rule.pixel_format_operator || '==';
         document.getElementById('pixelFormat').value = rule.pixel_format || '';
         
         // Load stream testing options
@@ -307,6 +311,7 @@ async function saveRule() {
         video_resolution: getSelectedValues('resolution'),
         video_fps: getFpsValues(),
         audio_codec: getSelectedValues('audioCodec'),
+        pixel_format_operator: document.getElementById('pixelFormatOperator').value || '==',
         pixel_format: document.getElementById('pixelFormat').value || null,
         test_streams_before_sorting: testStreamsBeforeSorting,
         force_retest_old_streams: testStreamsBeforeSorting && forceRetestOldStreams,

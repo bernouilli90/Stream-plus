@@ -856,6 +856,24 @@
                         </select>
                         <small class="form-text text-muted">Leave empty for no restriction</small>
                     </div>
+
+                    <!-- Pixel Format -->
+                    <div class="mb-3">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label for="pixelFormatOperator" class="form-label">Pixel Format Operator</label>
+                                <select class="form-select" id="pixelFormatOperator">
+                                    <option value="==">Equal (==)</option>
+                                    <option value="!=">Not equal (!=)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-8">
+                                <label for="pixelFormat" class="form-label">Pixel Format Value</label>
+                                <input type="text" class="form-control" id="pixelFormat" placeholder="Ex: yuv420p, yuv420p10le">
+                            </div>
+                        </div>
+                        <small class="form-text text-muted">Leave empty for no restriction</small>
+                    </div>
                         </div>
                     </div>
                     </div>

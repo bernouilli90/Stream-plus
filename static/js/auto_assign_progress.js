@@ -108,9 +108,10 @@ function handleExecutionMessage(data) {
                 const resolution = stats.resolution || 'Unknown';
                 const codec = stats.video_codec || 'Unknown';
                 const fps = stats.source_fps ? `${stats.source_fps.toFixed(1)}fps` : 'Unknown';
+                const pixelFormat = stats.pixel_format || 'Unknown';
                 
                 if (bitrate) {
-                    message += `\n    📊 Stats: ${resolution} | ${codec} | ${bitrate.toFixed(0)}kbps | ${fps}`;
+                    message += `\n    📊 Stats: ${resolution} | ${codec} | ${bitrate.toFixed(0)}kbps | ${fps} | ${pixelFormat}`;
                 }
             }
             addLogLine(message, 'success');
