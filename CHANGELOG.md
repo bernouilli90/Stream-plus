@@ -1,3 +1,14 @@
+## [0.2.15] - 2025-10-21
+
+### Cleanup
+- **Repository Cleanup**: Removed all unnecessary test files and development artifacts
+  - Removed test files: `test_*.py`, `check_*.py`, `example_*.py`, `simple_test.py`
+  - Removed development screenshots and design images
+  - Removed historical documentation files (`GITHUB_RELEASE_*.md`, `REBUILD_INSTRUCTIONS.md`)
+  - Removed unused components (`stream_player.py`, `STREAM_PLAYER_README.md`)
+  - Removed API documentation (`swagger_docs.json`)
+  - Repository is now clean with only essential production files
+
 ## [0.2.14] - 2025-10-21
 
 ### Changed
