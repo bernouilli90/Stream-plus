@@ -1030,11 +1030,18 @@ def execute_auto_assignment_in_background(rule_id, queue):
                 'message': f'Assigning {len(matching_streams)} streams to channel...'
             })
             
+            # Get current channel streams to check what's already assigned
+            channel = dispatcharr_client.get_channel(rule.channel_id)
+            current_streams = set(channel.get('streams', []))
+            
             added_count = 0
             for stream in matching_streams:
                 try:
-                    dispatcharr_client.add_stream_to_channel(rule.channel_id, stream['id'])
-                    added_count += 1
+                    if stream['id'] not in current_streams:
+                        dispatcharr_client.add_stream_to_channel(rule.channel_id, stream['id'])
+                        added_count += 1
+                        current_streams.add(stream['id'])  # Update our local set
+                    # If stream is already assigned, don't increment added_count
                 except Exception as e:
                     # Continue even if some stream fails (it may already be assigned)
                     error_msg = f"Error adding stream {stream['id']}: {str(e)}"
@@ -1085,8 +1092,8 @@ def execute_auto_assignment_in_background(rule_id, queue):
                         })
                         
                         for profile in profiles:
-                            dispatcharr_client.update_channel_profile_status(rule.channel_id, profile['id'], False)
                             profile_name = profile.get('name', f'Profile {profile["id"]}')
+                            dispatcharr_client.update_channel_profile_status(rule.channel_id, profile['id'], False)
                             queue.put({
                                 'type': 'profile_disabled',
                                 'profile_name': profile_name,
