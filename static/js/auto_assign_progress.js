@@ -104,7 +104,7 @@ function handleExecutionMessage(data) {
             let message = data.message;
             if (data.statistics) {
                 const stats = data.statistics;
-                const bitrate = stats.output_bitrate || stats.ffmpeg_output_bitrate;
+                const bitrate = stats.ffmpeg_output_bitrate;
                 const resolution = stats.resolution || 'Unknown';
                 const codec = stats.video_codec || 'Unknown';
                 const fps = stats.source_fps ? `${stats.source_fps.toFixed(1)}fps` : 'Unknown';

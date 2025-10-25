@@ -450,9 +450,7 @@ async function previewRule(ruleId) {
             
             // Format bitrate
             let bitrateDisplay = 'N/A';
-            if (stats.output_bitrate) {
-                bitrateDisplay = `${Math.round(stats.output_bitrate)} kbps`;
-            } else if (stats.ffmpeg_output_bitrate) {
+            if (stats.ffmpeg_output_bitrate) {
                 bitrateDisplay = `${Math.round(stats.ffmpeg_output_bitrate)} kbps`;
             }
             

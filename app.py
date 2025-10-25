@@ -892,7 +892,7 @@ def execute_auto_assignment_in_background(rule_id, queue):
                         stats = result.get('statistics', {})
                         stats_message = ""
                         if stats:
-                            bitrate = stats.get('output_bitrate') or stats.get('ffmpeg_output_bitrate')
+                            bitrate = stats.get('ffmpeg_output_bitrate')
                             resolution = stats.get('resolution', 'Unknown')
                             codec = stats.get('video_codec', 'Unknown')
                             if bitrate:

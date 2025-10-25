@@ -445,11 +445,8 @@ class StreamMatcher:
         
         # 3. Filter by video bitrate
         if rule.video_bitrate_operator and rule.video_bitrate_value is not None:
-            # Try both field names: output_bitrate (native) and ffmpeg_output_bitrate (legacy)
-            video_bitrate = (
-                StreamMatcher._extract_stream_stat(stream_stats, 'output_bitrate') or
-                StreamMatcher._extract_stream_stat(stream_stats, 'ffmpeg_output_bitrate')
-            )
+            # Use ffmpeg_output_bitrate (Dispatcharr native field)
+            video_bitrate = StreamMatcher._extract_stream_stat(stream_stats, 'ffmpeg_output_bitrate')
             if not StreamMatcher._compare_value(
                 video_bitrate, 
                 rule.video_bitrate_operator, 
