@@ -144,6 +144,41 @@ async function loadM3UAccounts() {
     }
 }
 
+// Load profiles for disable options
+async function loadProfiles() {
+    try {
+        const response = await fetch('/api/profiles');
+        if (!response.ok) throw new Error('Error loading profiles');
+        
+        const profiles = await response.json();
+        
+        const container = document.getElementById('profilesContainer');
+        container.innerHTML = '';
+        
+        if (profiles.length === 0) {
+            container.innerHTML = '<small class="text-muted">No profiles available</small>';
+            return;
+        }
+        
+        profiles.forEach(profile => {
+            const checkboxDiv = document.createElement('div');
+            checkboxDiv.className = 'form-check';
+            checkboxDiv.innerHTML = `
+                <input class="form-check-input profile-checkbox" type="checkbox" 
+                       value="${profile.name}" id="profile_${profile.id}">
+                <label class="form-check-label" for="profile_${profile.id}">
+                    ${profile.name}
+                </label>
+            `;
+            container.appendChild(checkboxDiv);
+        });
+    } catch (error) {
+        console.error('Error loading profiles:', error);
+        const container = document.getElementById('profilesContainer');
+        container.innerHTML = '<small class="text-danger">Error loading profiles</small>';
+    }
+}
+
 // Show create rule modal
 function showCreateRuleModal() {
     currentRuleId = null;
@@ -169,6 +204,9 @@ function showCreateRuleModal() {
     
     // Reset pixel format operator to default
     document.getElementById('pixelFormatOperator').value = '==';
+    
+    // Load profiles
+    loadProfiles();
     
     // Setup event listeners for modal
     setupModalEventListeners();
@@ -253,6 +291,18 @@ async function editRule(ruleId) {
         // Populate stream lists
         populateStreamLists(rule.force_include_stream_ids || [], rule.force_exclude_stream_ids || []);
         
+        // Load profiles and set selected ones
+        loadProfiles().then(() => {
+            if (rule.disable_profiles) {
+                rule.disable_profiles.forEach(profileName => {
+                    const checkbox = document.querySelector(`input.profile-checkbox[value="${profileName}"]`);
+                    if (checkbox) {
+                        checkbox.checked = true;
+                    }
+                });
+            }
+        });
+        
         // Setup event listeners for modal
         setupModalEventListeners();
         toggleRetestOptions();
@@ -317,12 +367,16 @@ async function saveRule() {
         force_retest_old_streams: testStreamsBeforeSorting && forceRetestOldStreams,
         retest_days_threshold: retestDaysThreshold,
         force_include_stream_ids: JSON.parse(document.getElementById('forceIncludeStreamIds').value || '[]'),
-        force_exclude_stream_ids: JSON.parse(document.getElementById('forceExcludeStreamIds').value || '[]')
+        force_exclude_stream_ids: JSON.parse(document.getElementById('forceExcludeStreamIds').value || '[]'),
+        disable_profiles: Array.from(document.querySelectorAll('input.profile-checkbox:checked')).map(cb => cb.value)
     };
+    
+    console.log('DEBUG: JavaScript saveRule - ruleData to send:', ruleData);
     
     try {
         let response;
         if (currentRuleId) {
+            console.log('DEBUG: JavaScript saveRule - updating rule with ID:', currentRuleId);
             // Update existing rule
             response = await fetch(`/api/auto-assign-rules/${currentRuleId}`, {
                 method: 'PUT',
@@ -330,6 +384,7 @@ async function saveRule() {
                 body: JSON.stringify(ruleData)
             });
         } else {
+            console.log('DEBUG: JavaScript saveRule - creating new rule');
             // Create new rule
             response = await fetch('/api/auto-assign-rules', {
                 method: 'POST',
@@ -338,10 +393,17 @@ async function saveRule() {
             });
         }
         
+        console.log('DEBUG: JavaScript saveRule - response status:', response.status);
+        console.log('DEBUG: JavaScript saveRule - response ok:', response.ok);
+        
         if (!response.ok) {
             const error = await response.json();
+            console.log('DEBUG: JavaScript saveRule - error response:', error);
             throw new Error(error.error || 'Error saving rule');
         }
+        
+        const result = await response.json();
+        console.log('DEBUG: JavaScript saveRule - success response:', result);
         
         showToast(currentRuleId ? 'Rule updated successfully' : 'Rule created successfully', 'success');
         

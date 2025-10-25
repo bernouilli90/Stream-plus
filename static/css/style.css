@@ -143,6 +143,20 @@ body {
     background-color: #f8f9fa;
 }
 
+/* Modal Rule Cards Layout */
+.modal-rule-card {
+    flex: 1 1 48%;
+    min-width: 300px;
+    margin-bottom: 1rem;
+}
+
+.modal-body:has(.modal-rule-card) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: space-between;
+}
+
 /* Stream Status Indicators */
 .stream-running {
     position: relative;

@@ -1147,3 +1147,57 @@ class DispatcharrClient:
                     'original_error': str(e),
                     'clear_error': str(clear_e)
                 }
+    
+    def get_profiles(self) -> List[Dict[str, Any]]:
+        """
+        Get all channel profiles
+        
+        Returns:
+            List of channel profiles
+        """
+        result = self._make_request('GET', '/api/channels/profiles/')
+        # API may return direct list or paginated object
+        if isinstance(result, list):
+            return result
+        return result.get('results', [])
+    
+    def get_profile(self, profile_id: int) -> Dict[str, Any]:
+        """
+        Get information from a specific profile
+        
+        Args:
+            profile_id: Profile ID
+            
+        Returns:
+            Profile information
+        """
+        return self._make_request('GET', f'/api/channels/profiles/{profile_id}/')
+    
+    def bulk_update_channel_profile(self, profile_id: int, channel_updates: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Bulk enable or disable channels for a specific profile
+        
+        Args:
+            profile_id: Profile ID
+            channel_updates: Dictionary with channel updates, e.g.:
+                {"enable_channel_ids": [1, 2, 3], "disable_channel_ids": [4, 5, 6]}
+                
+        Returns:
+            Response from the API
+        """
+        return self._make_request('PATCH', f'/api/channels/profiles/{profile_id}/channels/bulk-update/', channel_updates)
+    
+    def update_channel_profile_status(self, profile_id: int, channel_id: int, enabled: bool) -> Dict[str, Any]:
+        """
+        Enable or disable a single channel for a specific profile
+        
+        Args:
+            profile_id: Profile ID
+            channel_id: Channel ID
+            enabled: True to enable, False to disable
+            
+        Returns:
+            Response from the API
+        """
+        data = {"enabled": enabled}
+        return self._make_request('PATCH', f'/api/channels/profiles/{profile_id}/channels/{channel_id}/', data)

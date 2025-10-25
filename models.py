@@ -70,6 +70,9 @@ class AutoAssignmentRule:
     # Audio conditions
     audio_codec: Optional[List[str]] = None  # Can be a list: ["aac", "ac3"]
     
+    # Profile disable conditions
+    disable_profiles: Optional[List[str]] = None  # List of profile names to disable channel when no streams
+    
     # Stream testing options
     test_streams_before_sorting: bool = False
     force_retest_old_streams: bool = False
@@ -141,9 +144,13 @@ class RulesManager:
     
     def save_rules(self, rules: List[AutoAssignmentRule]):
         """Saves all rules to the file"""
+        print(f"DEBUG: Saving {len(rules)} rules to {self.rules_file}")
         with open(self.rules_file, 'w', encoding='utf-8') as f:
             # Save in {"rules": [...]} format for consistency
-            json.dump({"rules": [rule.to_dict() for rule in rules]}, f, indent=2, ensure_ascii=False)
+            data = {"rules": [rule.to_dict() for rule in rules]}
+            print(f"DEBUG: Data to save: {data}")
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        print(f"DEBUG: Rules saved to file successfully")
     
     def get_rule(self, rule_id: int) -> Optional[AutoAssignmentRule]:
         """Gets a rule by its ID"""
@@ -169,15 +176,21 @@ class RulesManager:
     
     def update_rule(self, rule_id: int, updated_rule: AutoAssignmentRule) -> Optional[AutoAssignmentRule]:
         """Updates an existing rule"""
+        print(f"DEBUG: RulesManager.update_rule called with rule_id={rule_id}")
         rules = self.load_rules()
+        print(f"DEBUG: Loaded {len(rules)} rules from file")
         
         for i, rule in enumerate(rules):
             if rule.id == rule_id:
+                print(f"DEBUG: Found rule with id {rule_id}, updating...")
                 updated_rule.id = rule_id  # Keep the same ID
                 rules[i] = updated_rule
+                print(f"DEBUG: Updated rule in list, saving...")
                 self.save_rules(rules)
+                print(f"DEBUG: Rules saved successfully")
                 return updated_rule
         
+        print(f"DEBUG: Rule with id {rule_id} not found")
         return None
     
     def delete_rule(self, rule_id: int) -> bool:

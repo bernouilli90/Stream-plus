@@ -629,33 +629,32 @@
                                 </h6>
                             </div>
                             <div class="card-body">
-                        
-                        <!-- Name and Channel -->
-                        <div class="row mb-0">
-                            <div class="col-md-6">
-                                <label for="ruleName" class="form-label fw-bold">
-                                    <i class="fas fa-signature text-primary me-2"></i>Rule Name *
-                                </label>
-                                <input type="text" class="form-control" id="ruleName" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="channelSearch" class="form-label fw-bold">
-                                    <i class="fas fa-tv text-info me-2"></i>Channel *
-                                </label>
-                                <input type="text" class="form-control" id="channelSearch" 
-                                       placeholder="Search channel by name or ID..." 
-                                       autocomplete="off" required>
-                                <input type="hidden" id="channelId" required>
-                                <div id="channelDropdown" class="dropdown-menu" style="max-height: 300px; overflow-y: auto; width: 100%;">
-                                    <!-- Channels will be loaded dynamically -->
+                                <!-- Name and Channel -->
+                                <div class="row mb-0">
+                                    <div class="col-md-6">
+                                        <label for="ruleName" class="form-label fw-bold">
+                                            <i class="fas fa-signature text-primary me-2"></i>Rule Name *
+                                        </label>
+                                        <input type="text" class="form-control" id="ruleName" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="channelSearch" class="form-label fw-bold">
+                                            <i class="fas fa-tv text-info me-2"></i>Channel *
+                                        </label>
+                                        <input type="text" class="form-control" id="channelSearch" 
+                                            placeholder="Search channel by name or ID..." 
+                                            autocomplete="off" required>
+                                        <input type="hidden" id="channelId" required>
+                                        <div id="channelDropdown" class="dropdown-menu" style="max-height: 300px; overflow-y: auto; width: 100%;">
+                                            <!-- Channels will be loaded dynamically -->
+                                        </div>
+                                        <small class="form-text text-muted">
+                                            <i class="fas fa-search text-muted me-1"></i>Type to search or click to see all
+                                        </small>
+                                    </div>
                                 </div>
-                                <small class="form-text text-muted">
-                                    <i class="fas fa-search text-muted me-1"></i>Type to search or click to see all
-                                </small>
                             </div>
                         </div>
-                    </div>
-                    </div>
                     </div>
 
                     <!-- Status and Replace Section -->
@@ -668,80 +667,81 @@
                             </div>
                             <div class="card-body">
                         
-                        <!-- Status and Replace -->
-                        <div class="row mb-0">
-                            <div class="col-md-6">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="ruleEnabled" checked>
-                                    <label class="form-check-label fw-bold" for="ruleEnabled">
-                                        <i class="fas fa-toggle-on text-success me-2"></i>Rule enabled
-                                    </label>
+                                <!-- Status and Replace -->
+                                <div class="row mb-0">
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="ruleEnabled" checked>
+                                            <label class="form-check-label fw-bold" for="ruleEnabled">
+                                                <i class="fas fa-toggle-on text-success me-2"></i>Rule enabled
+                                            </label>
+                                        </div>
+                                        <small class="form-text text-muted ms-4">
+                                            <i class="fas fa-info-circle text-info me-1"></i>Enable or disable this auto-assignment rule
+                                        </small>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="replaceExisting">
+                                            <label class="form-check-label fw-bold" for="replaceExisting">
+                                                <i class="fas fa-exchange-alt text-warning me-2"></i>Replace existing streams
+                                            </label>
+                                        </div>
+                                        <small class="form-text text-muted ms-4">
+                                            <i class="fas fa-exclamation-triangle text-warning me-1"></i>Replace current streams in the channel
+                                        </small>
+                                    </div>
                                 </div>
-                                <small class="form-text text-muted ms-4">
-                                    <i class="fas fa-info-circle text-info me-1"></i>Enable or disable this auto-assignment rule
-                                </small>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="replaceExisting">
-                                    <label class="form-check-label fw-bold" for="replaceExisting">
-                                        <i class="fas fa-exchange-alt text-warning me-2"></i>Replace existing streams
-                                    </label>
-                                </div>
-                                <small class="form-text text-muted ms-4">
-                                    <i class="fas fa-exclamation-triangle text-warning me-1"></i>Replace current streams in the channel
-                                </small>
+
                             </div>
                         </div>
-                    </div>
-                    </div>
                     </div>
 
                     <!-- Test Streams Option Section -->
                     <div class="modal-rule-card mb-4">
                         <div class="card h-100">
-                            <div class="card-header">
-                                <h6 class="mb-0">
-                                    <i class="fas fa-flask me-2"></i>Stream Testing
-                                </h6>
-                            </div>
-                            <div class="card-body">
-                        
-                        <!-- Test Streams Option -->
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="testStreamsBeforeSorting">
-                                <label class="form-check-label fw-bold" for="testStreamsBeforeSorting">
-                                    <i class="fas fa-flask text-info me-2"></i> Test streams before assigning (obtains stats via ffmpeg)
-                                </label>
-                            </div>
-                            <small class="form-text text-muted ms-4">
-                                <i class="fas fa-info-circle text-info me-1"></i> Only tests streams without stats or with outdated stats. Each stream will be started for 10 seconds to obtain stats (bitrate, codec, resolution, etc.).
-                            </small>
-                            
-                            <!-- Force Retest All Streams Sub-option -->
-                            <div class="mt-3 ms-4 p-3 bg-white rounded border">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="forceRetestOldStreams" disabled>
-                                    <label class="form-check-label fw-bold" for="forceRetestOldStreams">
-                                        <i class="fas fa-redo text-danger me-2"></i> Force retest of ALL streams (even with recent stats)
-                                    </label>
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-flask me-2"></i>Stream Testing
+                                    </h6>
                                 </div>
-                                <small class="form-text text-muted">
-                                    <i class="fas fa-exclamation-triangle text-warning me-1"></i> <strong>Warning:</strong> This will test ALL streams, even those with recent stats. Only use if you need to refresh all statistics.
-                                </small>
-                                <div class="mt-3" id="retestThresholdContainer">
-                                    <small class="text-muted">
-                                        <i class="fas fa-clock text-secondary me-1"></i> By default, only streams without stats or with stats older than 
-                                        <input type="number" id="retestDaysThreshold" class="form-control form-control-sm d-inline-block" 
-                                               style="width: 60px;" min="1" value="7" disabled>
-                                        days will be tested.
+                            <div class="card-body">
+                            
+                                <!-- Test Streams Option -->
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="testStreamsBeforeSorting">
+                                        <label class="form-check-label fw-bold" for="testStreamsBeforeSorting">
+                                            <i class="fas fa-flask text-info me-2"></i> Test streams before assigning (obtains stats via ffmpeg)
+                                        </label>
+                                    </div>
+                                    <small class="form-text text-muted ms-4">
+                                        <i class="fas fa-info-circle text-info me-1"></i> Only tests streams without stats or with outdated stats. Each stream will be started for 10 seconds to obtain stats (bitrate, codec, resolution, etc.).
                                     </small>
+                                    
+                                    <!-- Force Retest All Streams Sub-option -->
+                                    <div class="mt-3 ms-4 p-3 bg-white rounded border">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="forceRetestOldStreams" disabled>
+                                            <label class="form-check-label fw-bold" for="forceRetestOldStreams">
+                                                <i class="fas fa-redo text-danger me-2"></i> Force retest of ALL streams (even with recent stats)
+                                            </label>
+                                        </div>
+                                        <small class="form-text text-muted">
+                                            <i class="fas fa-exclamation-triangle text-warning me-1"></i> <strong>Warning:</strong> This will test ALL streams, even those with recent stats. Only use if you need to refresh all statistics.
+                                        </small>
+                                        <div class="mt-3" id="retestThresholdContainer">
+                                            <small class="text-muted">
+                                                <i class="fas fa-clock text-secondary me-1"></i> By default, only streams without stats or with stats older than 
+                                                <input type="number" id="retestDaysThreshold" class="form-control form-control-sm d-inline-block" 
+                                                    style="width: 60px;" min="1" value="7" disabled>
+                                                days will be tested.
+                                            </small>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    </div>
                     </div>
 
                     <!-- Search Filters Section -->
@@ -754,222 +754,257 @@
                             </div>
                             <div class="card-body">
 
-                        <!-- Regex Pattern -->
-                        <div class="mb-4">
-                            <label for="regexPattern" class="form-label fw-bold">
-                                <i class="fas fa-code text-warning me-2"></i>Regex Pattern (stream name)
-                            </label>
-                            <small class="text-muted d-block mb-2">
-                                <i class="fas fa-lightbulb text-warning me-1"></i>Example: ^ESPN.*HD$
-                            </small>
-                            <input type="text" class="form-control" id="regexPattern" placeholder="Regex pattern...">
-                        </div>
+                                <!-- Regex Pattern -->
+                                <div class="mb-4">
+                                    <label for="regexPattern" class="form-label fw-bold">
+                                        <i class="fas fa-code text-warning me-2"></i>Regex Pattern (stream name)
+                                    </label>
+                                    <small class="text-muted d-block mb-2">
+                                        <i class="fas fa-lightbulb text-warning me-1"></i>Example: ^ESPN.*HD$
+                                    </small>
+                                    <input type="text" class="form-control" id="regexPattern" placeholder="Regex pattern...">
+                                </div>
 
-                        <!-- M3U Account -->
-                        <div class="mb-0">
-                            <label for="m3uAccountIds" class="form-label fw-bold">
-                                <i class="fas fa-server text-info me-2"></i>M3U Accounts
-                            </label>
-                            <select class="form-select" id="m3uAccountIds" multiple size="3">
-                                <option value="">All accounts...</option>
-                            </select>
-                            <small class="form-text text-muted">
-                                <i class="fas fa-mouse-pointer text-muted me-1"></i>Hold Ctrl/Cmd to select multiple accounts. Leave empty for all accounts.
-                            </small>
+                                <!-- M3U Account -->
+                                <div class="mb-0">
+                                    <label for="m3uAccountIds" class="form-label fw-bold">
+                                        <i class="fas fa-server text-info me-2"></i>M3U Accounts
+                                    </label>
+                                    <select class="form-select" id="m3uAccountIds" multiple size="3">
+                                        <option value="">All accounts...</option>
+                                    </select>
+                                    <small class="form-text text-muted">
+                                        <i class="fas fa-mouse-pointer text-muted me-1"></i>Hold Ctrl/Cmd to select multiple accounts. Leave empty for all accounts.
+                                    </small>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    </div>
                     </div>
 
                     <!-- Video Conditions Section -->
                     <div class="modal-rule-card mb-4">
                         <div class="card h-100">
-                        <div class="card-header">
-                            <h6 class="mb-0">
-                                <i class="fas fa-video me-2"></i>Video Conditions
-                            </h6>
-                        </div>
-                        <div class="card-body">
-
-                    <!-- Bitrate -->
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="bitrateOperator" class="form-label">Bitrate Operator</label>
-                            <select class="form-select" id="bitrateOperator">
-                                <option value="">No restriction...</option>
-                                <option value=">">Greater than (>)</option>
-                                <option value=">=">Greater or equal (>=)</option>
-                                <option value="<">Less than (<)</option>
-                                <option value="<=">Less or equal (<=)</option>
-                                <option value="==">Equal (==)</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="bitrateValue" class="form-label">Bitrate Value (Kbps)</label>
-                            <input type="number" class="form-control" id="bitrateValue" placeholder="Ex: 5000">
-                        </div>
-                    </div>
-
-                    <!-- Video Codec -->
-                    <div class="mb-3">
-                        <label for="videoCodec" class="form-label">
-                            Video Codec 
-                            <small class="text-muted">(hold Ctrl/Cmd to select multiple)</small>
-                        </label>
-                        <select class="form-select" id="videoCodec" multiple size="6">
-                            <option value="h264">H.264</option>
-                            <option value="h265">H.265 (HEVC)</option>
-                            <option value="mpeg2">MPEG-2</option>
-                            <option value="vp9">VP9</option>
-                            <option value="av1">AV1</option>
-                        </select>
-                        <small class="form-text text-muted">Leave empty for no restriction</small>
-                    </div>
-
-                    <!-- Resolution -->
-                    <div class="mb-3">
-                        <label for="resolution" class="form-label">
-                            Video Resolution 
-                            <small class="text-muted">(hold Ctrl/Cmd to select multiple)</small>
-                        </label>
-                        <select class="form-select" id="resolution" multiple size="4">
-                            <option value="720p">720p (HD)</option>
-                            <option value="1080p">1080p (Full HD)</option>
-                            <option value="2160p">2160p (4K)</option>
-                            <option value="SD">SD (&lt; 720p)</option>
-                        </select>
-                        <small class="form-text text-muted">Leave empty for no restriction</small>
-                    </div>
-
-                    <!-- FPS -->
-                    <div class="mb-3">
-                        <label for="videoFps" class="form-label">
-                            FPS (Frames per second) 
-                            <small class="text-muted">(hold Ctrl/Cmd to select multiple)</small>
-                        </label>
-                        <select class="form-select" id="videoFps" multiple size="5">
-                            <option value="24">24</option>
-                            <option value="25">25</option>
-                            <option value="30">30</option>
-                            <option value="50">50</option>
-                            <option value="60">60</option>
-                        </select>
-                        <small class="form-text text-muted">Leave empty for no restriction</small>
-                    </div>
-
-                    <!-- Pixel Format -->
-                    <div class="mb-3">
-                        <div class="row">
-                            <div class="col-md-4">
-                                <label for="pixelFormatOperator" class="form-label">Pixel Format Operator</label>
-                                <select class="form-select" id="pixelFormatOperator">
-                                    <option value="==">Equal (==)</option>
-                                    <option value="!=">Not equal (!=)</option>
-                                </select>
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-video me-2"></i>Video Conditions
+                                </h6>
                             </div>
-                            <div class="col-md-8">
-                                <label for="pixelFormat" class="form-label">Pixel Format Value</label>
-                                <input type="text" class="form-control" id="pixelFormat" placeholder="Ex: yuv420p, yuv420p10le">
+                            <div class="card-body">
+
+                                <!-- Bitrate -->
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="bitrateOperator" class="form-label">Bitrate Operator</label>
+                                        <select class="form-select" id="bitrateOperator">
+                                            <option value="">No restriction...</option>
+                                            <option value=">">Greater than (>)</option>
+                                            <option value=">=">Greater or equal (>=)</option>
+                                            <option value="<">Less than (<)</option>
+                                            <option value="<=">Less or equal (<=)</option>
+                                            <option value="==">Equal (==)</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="bitrateValue" class="form-label">Bitrate Value (Kbps)</label>
+                                        <input type="number" class="form-control" id="bitrateValue" placeholder="Ex: 5000">
+                                    </div>
+                                </div>
+
+                                <!-- Video Codec -->
+                                <div class="mb-3">
+                                    <label for="videoCodec" class="form-label">
+                                        Video Codec 
+                                        <small class="text-muted">(hold Ctrl/Cmd to select multiple)</small>
+                                    </label>
+                                    <select class="form-select" id="videoCodec" multiple size="6">
+                                        <option value="h264">H.264</option>
+                                        <option value="h265">H.265 (HEVC)</option>
+                                        <option value="mpeg2">MPEG-2</option>
+                                        <option value="vp9">VP9</option>
+                                        <option value="av1">AV1</option>
+                                    </select>
+                                    <small class="form-text text-muted">Leave empty for no restriction</small>
+                                </div>
+
+                                <!-- Resolution -->
+                                <div class="mb-3">
+                                    <label for="resolution" class="form-label">
+                                        Video Resolution 
+                                        <small class="text-muted">(hold Ctrl/Cmd to select multiple)</small>
+                                    </label>
+                                    <select class="form-select" id="resolution" multiple size="4">
+                                        <option value="720p">720p (HD)</option>
+                                        <option value="1080p">1080p (Full HD)</option>
+                                        <option value="2160p">2160p (4K)</option>
+                                        <option value="SD">SD (&lt; 720p)</option>
+                                    </select>
+                                    <small class="form-text text-muted">Leave empty for no restriction</small>
+                                </div>
+
+                                <!-- FPS -->
+                                <div class="mb-3">
+                                    <label for="videoFps" class="form-label">
+                                        FPS (Frames per second) 
+                                        <small class="text-muted">(hold Ctrl/Cmd to select multiple)</small>
+                                    </label>
+                                    <select class="form-select" id="videoFps" multiple size="5">
+                                        <option value="24">24</option>
+                                        <option value="25">25</option>
+                                        <option value="30">30</option>
+                                        <option value="50">50</option>
+                                        <option value="60">60</option>
+                                    </select>
+                                    <small class="form-text text-muted">Leave empty for no restriction</small>
+                                </div>
+
+                                <!-- Pixel Format -->
+                                <div class="mb-3">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <label for="pixelFormatOperator" class="form-label">Pixel Format Operator</label>
+                                            <select class="form-select" id="pixelFormatOperator">
+                                                <option value="==">Equal (==)</option>
+                                                <option value="!=">Not equal (!=)</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-8">
+                                            <label for="pixelFormat" class="form-label">Pixel Format Value</label>
+                                            <input type="text" class="form-control" id="pixelFormat" placeholder="Ex: yuv420p, yuv420p10le">
+                                        </div>
+                                    </div>
+                                    <small class="form-text text-muted">Leave empty for no restriction</small>
+                                </div>
                             </div>
                         </div>
-                        <small class="form-text text-muted">Leave empty for no restriction</small>
-                    </div>
-                        </div>
-                    </div>
                     </div>
 
                     <!-- Audio Conditions Section -->
                     <div class="modal-rule-card mb-4">
                         <div class="card h-100">
-                        <div class="card-header">
-                            <h6 class="mb-0">
-                                <i class="fas fa-volume-up me-2"></i>Audio Conditions
-                            </h6>
-                        </div>
-                        <div class="card-body">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-volume-up me-2"></i>Audio Conditions
+                                </h6>
+                            </div>
+                            <div class="card-body">
 
-                        <!-- Audio Codec -->
-                        <div class="mb-0">
-                            <label for="audioCodec" class="form-label fw-bold">
-                                <i class="fas fa-music text-warning me-2"></i>Audio Codec
-                            </label>
-                            <small class="text-muted d-block mb-2">
-                                <i class="fas fa-mouse-pointer text-muted me-1"></i>(hold Ctrl/Cmd to select multiple)
-                            </small>
-                            <select class="form-select" id="audioCodec" multiple size="5">
-                            <option value="aac">AAC</option>
-                            <option value="ac3">AC3 (Dolby Digital)</option>
-                            <option value="eac3">E-AC3 (Dolby Digital Plus)</option>
-                            <option value="mp3">MP3</option>
-                            <option value="opus">Opus</option>
-                        </select>
-                        <small class="form-text text-muted">Leave empty for no restriction</small>
-                    </div>
+                                <!-- Audio Codec -->
+                                <div class="mb-0">
+                                    <label for="audioCodec" class="form-label fw-bold">
+                                        <i class="fas fa-music text-warning me-2"></i>Audio Codec
+                                    </label>
+                                    <small class="text-muted d-block mb-2">
+                                        <i class="fas fa-mouse-pointer text-muted me-1"></i>(hold Ctrl/Cmd to select multiple)
+                                    </small>
+                                    <select class="form-select" id="audioCodec" multiple size="5">
+                                    <option value="aac">AAC</option>
+                                    <option value="ac3">AC3 (Dolby Digital)</option>
+                                    <option value="eac3">E-AC3 (Dolby Digital Plus)</option>
+                                    <option value="mp3">MP3</option>
+                                    <option value="opus">Opus</option>
+                                </select>
+                                <small class="form-text text-muted">Leave empty for no restriction</small>
+                                </div>
+                            </div>
                         </div>
                     </div>
+
+                    <!-- Profile Disable Section -->
+                    <div class="modal-rule-card mb-4">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-ban me-2"></i>Profile Disable Options
+                                </h6>
+                            </div>
+                            <div class="card-body">
+
+                                <!-- Disable Profiles -->
+                                <div class="mb-0">
+                                    <label for="disableProfiles" class="form-label fw-bold">
+                                        <i class="fas fa-eye-slash text-danger me-2"></i>Disable Channel in Profiles
+                                    </label>
+                                    <small class="text-muted d-block mb-2">
+                                        <i class="fas fa-info-circle text-info me-1"></i>Select profiles where the channel should be disabled when no streams match this rule
+                                    </small>
+                                    <div id="profilesContainer">
+                                        <div class="text-center">
+                                            <div class="spinner-border spinner-border-sm" role="status">
+                                                <span class="visually-hidden">Loading profiles...</span>
+                                            </div>
+                                            <small class="text-muted">Loading available profiles...</small>
+                                        </div>
+                                    </div>
+                                    <small class="form-text text-muted mt-2">
+                                        <i class="fas fa-exclamation-triangle text-warning me-1"></i> If no streams are assigned by this rule, the channel will be disabled in the selected profiles.
+                                    </small>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Manual Stream Inclusion/Exclusion -->
                     <div class="modal-rule-card mb-4">
                         <div class="card h-100">
-                        <div class="card-header">
-                            <h6 class="mb-0">
-                                <i class="fas fa-hand-paper me-2"></i>Manual Stream Overrides
-                            </h6>
-                        </div>
-                        <div class="card-body">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-hand-paper me-2"></i>Manual Stream Overrides
+                                </h6>
+                            </div>
+                            <div class="card-body">
 
-                        <!-- Force Include Streams -->
-                        <div class="mb-4">
-                            <div class="d-flex align-items-center mb-3">
-                                <div class="flex-grow-1">
-                                    <label for="forceIncludeStreams" class="form-label fw-bold mb-1">
-                                        <i class="fas fa-plus-circle text-success me-2"></i>Force Include Streams
-                                    </label>
-                                    <small class="text-success d-block">Streams to include even if they don't match conditions</small>
+                                <!-- Force Include Streams -->
+                                <div class="mb-4">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="flex-grow-1">
+                                            <label for="forceIncludeStreams" class="form-label fw-bold mb-1">
+                                                <i class="fas fa-plus-circle text-success me-2"></i>Force Include Streams
+                                            </label>
+                                            <small class="text-success d-block">Streams to include even if they don't match conditions</small>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-success shadow-sm d-flex align-items-center" type="button" onclick="showStreamSelector('include')" style="transition: all 0.3s ease;">
+                                        <i class="fas fa-plus me-2"></i>
+                                        <span>Select Streams to Include</span>
+                                    </button>
+                                    <div id="forceIncludeStreamsList" class="mt-3 p-3 bg-white rounded border">
+                                        <!-- Selected streams will be displayed here -->
+                                    </div>
+                                    <input type="hidden" id="forceIncludeStreamIds" value="[]">
+                                    <small class="form-text text-muted mt-2">
+                                        <i class="fas fa-info-circle text-info me-1"></i> These streams will be included in the channel regardless of whether they match the rule conditions above.
+                                    </small>
+                                </div>
+
+                                <!-- Visual separator -->
+                                <hr class="my-4">
+
+                                <!-- Force Exclude Streams -->
+                                <div class="mb-0">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="flex-grow-1">
+                                            <label for="forceExcludeStreams" class="form-label fw-bold mb-1">
+                                                <i class="fas fa-minus-circle text-danger me-2"></i>Force Exclude Streams
+                                            </label>
+                                            <small class="text-danger d-block">Streams to exclude even if they match conditions</small>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-danger shadow-sm d-flex align-items-center" type="button" onclick="showStreamSelector('exclude')" style="transition: all 0.3s ease;">
+                                        <i class="fas fa-minus me-2"></i>
+                                        <span>Select Streams to Exclude</span>
+                                    </button>
+                                    <div id="forceExcludeStreamsList" class="mt-3 p-3 bg-white rounded border">
+                                        <!-- Selected streams will be displayed here -->
+                                    </div>
+                                    <input type="hidden" id="forceExcludeStreamIds" value="[]">
+                                    <small class="form-text text-muted mt-2">
+                                        <i class="fas fa-info-circle text-warning me-1"></i> These streams will be excluded from the channel even if they match all the rule conditions above.
+                                    </small>
                                 </div>
                             </div>
-                            <button class="btn btn-success shadow-sm d-flex align-items-center" type="button" onclick="showStreamSelector('include')" style="transition: all 0.3s ease;">
-                                <i class="fas fa-plus me-2"></i>
-                                <span>Select Streams to Include</span>
-                            </button>
-                            <div id="forceIncludeStreamsList" class="mt-3 p-3 bg-white rounded border">
-                                <!-- Selected streams will be displayed here -->
-                            </div>
-                            <input type="hidden" id="forceIncludeStreamIds" value="[]">
-                            <small class="form-text text-muted mt-2">
-                                <i class="fas fa-info-circle text-info me-1"></i> These streams will be included in the channel regardless of whether they match the rule conditions above.
-                            </small>
-                        </div>
-
-                        <!-- Visual separator -->
-                        <hr class="my-4">
-
-                        <!-- Force Exclude Streams -->
-                        <div class="mb-0">
-                            <div class="d-flex align-items-center mb-3">
-                                <div class="flex-grow-1">
-                                    <label for="forceExcludeStreams" class="form-label fw-bold mb-1">
-                                        <i class="fas fa-minus-circle text-danger me-2"></i>Force Exclude Streams
-                                    </label>
-                                    <small class="text-danger d-block">Streams to exclude even if they match conditions</small>
-                                </div>
-                            </div>
-                            <button class="btn btn-danger shadow-sm d-flex align-items-center" type="button" onclick="showStreamSelector('exclude')" style="transition: all 0.3s ease;">
-                                <i class="fas fa-minus me-2"></i>
-                                <span>Select Streams to Exclude</span>
-                            </button>
-                            <div id="forceExcludeStreamsList" class="mt-3 p-3 bg-white rounded border">
-                                <!-- Selected streams will be displayed here -->
-                            </div>
-                            <input type="hidden" id="forceExcludeStreamIds" value="[]">
-                            <small class="form-text text-muted mt-2">
-                                <i class="fas fa-info-circle text-warning me-1"></i> These streams will be excluded from the channel even if they match all the rule conditions above.
-                            </small>
-                        </div>
                         </div>
                     </div>
+
                 </form>
             </div>
             <div class="modal-footer">
@@ -1355,46 +1390,8 @@ document.addEventListener('DOMContentLoaded', function() {
 <script>
 // Apply gradient styles to modal card headers when modal is shown
 document.getElementById('ruleModal').addEventListener('shown.bs.modal', function () {
-    // Force consistent positioning with continuous application and specific targeting
-    const applyStyles = () => {
-        const modalSections = document.querySelectorAll('#ruleModalContent .modal-rule-card');
-        modalSections.forEach((section, index) => {
-            // Special handling for Manual Stream Overrides section
-            if (section.querySelector('h6') && section.querySelector('h6').textContent.includes('Manual Stream Overrides')) {
-                // Force absolute positioning to override any layout issues
-                section.style.setProperty('position', 'relative', 'important');
-                section.style.setProperty('left', '16px', 'important'); // Compensate for the 16px offset
-                section.style.setProperty('margin-left', '0', 'important');
-            } else {
-                section.style.setProperty('position', 'relative', 'important');
-                section.style.setProperty('left', '0', 'important');
-                section.style.setProperty('margin-left', '0', 'important');
-            }
-            
-            section.style.setProperty('width', '768px', 'important');
-            section.style.setProperty('max-width', '768px', 'important');
-            section.style.setProperty('min-width', '768px', 'important');
-            section.style.setProperty('margin-right', '0', 'important');
-            section.style.setProperty('transform', 'none', 'important');
-            section.style.setProperty('float', 'none', 'important');
-            section.style.setProperty('display', 'block', 'important');
-        });
-    };
-    
-    // Apply immediately
-    applyStyles();
-    
-    // Apply multiple times with increasing delays
-    let count = 0;
-    const interval = setInterval(() => {
-        applyStyles();
-        count++;
-        if (count >= 15) { // Stop after 15 applications (3 seconds)
-            clearInterval(interval);
-        }
-    }, 200);
-    
-    const modalHeaders = document.querySelectorAll('#ruleModalContent .modal-rule-card .card-header');
+    // Apply gradient background to all modal section headers
+    const modalHeaders = document.querySelectorAll('#ruleModal .modal-rule-card .card-header');
     modalHeaders.forEach(header => {
         header.style.background = 'linear-gradient(135deg, #4c63d2 0%, #6b46c1 100%)';
         header.style.backgroundColor = 'transparent';

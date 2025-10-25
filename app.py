@@ -445,6 +445,7 @@ def api_auto_assign_rules():
                 pixel_format_operator=data.get('pixel_format_operator'),
                 pixel_format=data.get('pixel_format'),
                 audio_codec=data.get('audio_codec'),
+                disable_profiles=data.get('disable_profiles'),
                 test_streams_before_sorting=data.get('test_streams_before_sorting', False),
                 force_retest_old_streams=data.get('force_retest_old_streams', False),
                 retest_days_threshold=int(data.get('retest_days_threshold', 7)),
@@ -473,6 +474,9 @@ def api_auto_assign_rule(rule_id):
         elif request.method == 'PUT':
             # Update rule
             data = request.get_json()
+            
+            # DEBUG: Log received data
+            print(f"DEBUG: PUT /api/auto-assign-rules/{rule_id} received data: {data}")
             
             # Validate required fields
             if not data.get('name'):
@@ -512,6 +516,7 @@ def api_auto_assign_rule(rule_id):
                 pixel_format_operator=data.get('pixel_format_operator'),
                 pixel_format=data.get('pixel_format'),
                 audio_codec=data.get('audio_codec'),
+                disable_profiles=data.get('disable_profiles'),
                 test_streams_before_sorting=data.get('test_streams_before_sorting', False),
                 force_retest_old_streams=data.get('force_retest_old_streams', False),
                 retest_days_threshold=int(data.get('retest_days_threshold', 7)),
@@ -519,8 +524,12 @@ def api_auto_assign_rule(rule_id):
                 force_exclude_stream_ids=data.get('force_exclude_stream_ids', [])
             )
             
+            print(f"DEBUG: Created updated_rule object: {updated_rule.to_dict()}")
+            
             # Update rule
             result = rules_manager.update_rule(rule_id, updated_rule)
+            print(f"DEBUG: rules_manager.update_rule returned: {result}")
+            
             if not result:
                 return jsonify({'error': 'Rule not found'}), 404
             return jsonify(result.to_dict())
@@ -649,6 +658,25 @@ def api_execute_rule(rule_id):
             except Exception as e:
                 # Continue even if some stream fails (it may already be assigned)
                 print(f"Error adding stream {stream['id']}: {str(e)}")
+        
+        # If no streams were added and disable_profiles is specified, disable channel in those profiles
+        if added_count == 0 and rule.disable_profiles:
+            for profile_name in rule.disable_profiles:
+                try:
+                    # Get profile ID by name
+                    profiles = dispatcharr_client.get_profiles()
+                    profile_id = None
+                    for profile in profiles:
+                        if profile.get('name') == profile_name:
+                            profile_id = profile.get('id')
+                            break
+                    
+                    if profile_id:
+                        dispatcharr_client.update_channel_profile_status(profile_id, rule.channel_id, False)
+                    else:
+                        print(f'Profile "{profile_name}" not found')
+                except Exception as e:
+                    print(f'Error disabling channel in profile "{profile_name}": {str(e)}')
         
         return jsonify({
             'message': 'Rule executed successfully',
@@ -1002,6 +1030,39 @@ def execute_auto_assignment_in_background(rule_id, queue):
                     errors.append(error_msg)
                     queue.put({'type': 'error', 'message': error_msg})
             
+            # If no streams were added and disable_profiles is specified, disable channel in those profiles
+            if added_count == 0 and rule.disable_profiles:
+                queue.put({
+                    'type': 'disabling',
+                    'message': f'No streams matched. Disabling channel in {len(rule.disable_profiles)} profile(s): {", ".join(rule.disable_profiles)}'
+                })
+                
+                for profile_name in rule.disable_profiles:
+                    try:
+                        # Get profile ID by name
+                        profiles = dispatcharr_client.get_profiles()
+                        profile_id = None
+                        for profile in profiles:
+                            if profile.get('name') == profile_name:
+                                profile_id = profile.get('id')
+                                break
+                        
+                        if profile_id:
+                            dispatcharr_client.update_channel_profile_status(rule.channel_id, profile_id, False)
+                            queue.put({
+                                'type': 'profile_disabled',
+                                'profile_name': profile_name,
+                                'message': f'✓ Disabled channel in profile: {profile_name}'
+                            })
+                        else:
+                            error_msg = f'Profile "{profile_name}" not found'
+                            errors.append(error_msg)
+                            queue.put({'type': 'error', 'message': error_msg})
+                    except Exception as e:
+                        error_msg = f'Error disabling channel in profile "{profile_name}": {str(e)}'
+                        errors.append(error_msg)
+                        queue.put({'type': 'error', 'message': error_msg})
+            
             # Send final summary
             message = f'Successfully added {added_count} stream(s) from {len(matching_streams)} matches'
             if rule.test_streams_before_sorting:
@@ -1009,6 +1070,9 @@ def execute_auto_assignment_in_background(rule_id, queue):
                 if not rule.force_retest_old_streams:
                     message += f', skipped: {skipped_count}'
                 message += ')'
+            
+            if added_count == 0 and rule.disable_profiles:
+                message += f'. Channel disabled in {len(rule.disable_profiles)} profile(s): {", ".join(rule.disable_profiles)}'
             
             queue.put({
                 'type': 'complete',
@@ -1046,6 +1110,16 @@ def execute_auto_assignment_in_background(rule_id, queue):
     finally:
         # Always send termination signal
         queue.put(None)
+
+@app.route('/api/profiles', methods=['GET'])
+def api_get_profiles():
+    """API endpoint to get all dispatcharr profiles"""
+    try:
+        profiles = dispatcharr_client.get_profiles()
+        return jsonify(profiles)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/m3u-accounts', methods=['GET'])
 def api_get_m3u_accounts():
@@ -1202,6 +1276,7 @@ def api_bulk_create_auto_assign_rules():
                         pixel_format_operator=data.get('pixel_format_operator'),
                         pixel_format=data.get('pixel_format'),
                         audio_codec=data.get('audio_codec'),
+                        disable_profiles=data.get('disable_profiles'),
                         test_streams_before_sorting=data.get('test_streams_before_sorting', False),
                         force_retest_old_streams=data.get('force_retest_old_streams', False),
                         retest_days_threshold=int(data.get('retest_days_threshold', 7))
@@ -1231,6 +1306,7 @@ def api_bulk_create_auto_assign_rules():
                         pixel_format_operator=data.get('pixel_format_operator'),
                         pixel_format=data.get('pixel_format'),
                         audio_codec=data.get('audio_codec'),
+                        disable_profiles=data.get('disable_profiles'),
                         test_streams_before_sorting=data.get('test_streams_before_sorting', False),
                         force_retest_old_streams=data.get('force_retest_old_streams', False),
                         retest_days_threshold=int(data.get('retest_days_threshold', 7))
@@ -1906,7 +1982,7 @@ def execute_sorting_rule(rule_id):
                         streams_to_test = [s['id'] for s in streams]
                     
                     # Testear streams seleccionados
-                    for stream_id in streams_to_test:
+                    for stream_idx, stream_id in enumerate(streams_to_test, 1):
                         try:
                             stream_name = next((s.get('name', f'Stream {stream_id}') for s in streams if s['id'] == stream_id), f'Stream {stream_id}')
                             
