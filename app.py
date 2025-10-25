@@ -811,6 +811,16 @@ def execute_auto_assignment_in_background(rule_id, queue):
                 'message': f'Found {len(streams)} total streams'
             })
             
+            # If should replace, first remove existing streams from channel BEFORE any filtering/testing
+            if rule.replace_existing_streams:
+                queue.put({
+                    'type': 'info',
+                    'message': 'Removing existing streams from channel...'
+                })
+                existing_streams = dispatcharr_client.get_channel_streams(rule.channel_id)
+                for stream in existing_streams:
+                    dispatcharr_client.remove_stream_from_channel(rule.channel_id, stream['id'])
+            
             # Pre-filter streams by basic conditions (regex, m3u_account) AND forced overrides before testing
             # This avoids testing streams that won't match anyway or are explicitly excluded
             queue.put({
@@ -1013,16 +1023,6 @@ def execute_auto_assignment_in_background(rule_id, queue):
                 'type': 'info',
                 'message': f'Found {len(matching_streams)} matching streams'
             })
-            
-            # If should replace, first remove existing streams from channel
-            if rule.replace_existing_streams:
-                queue.put({
-                    'type': 'info',
-                    'message': 'Removing existing streams from channel...'
-                })
-                existing_streams = dispatcharr_client.get_channel_streams(rule.channel_id)
-                for stream in existing_streams:
-                    dispatcharr_client.remove_stream_from_channel(rule.channel_id, stream['id'])
             
             # Add matching streams to channel
             queue.put({
