@@ -1089,7 +1089,7 @@ def execute_auto_assignment_in_background(rule_id, queue):
                             queue.put({
                                 'type': 'profile_disabled',
                                 'profile_name': profile.get('name', f'Profile {profile["id"]}'),
-                                'message': f'✓ Disabled channel in profile: {profile.get("name", f"Profile {profile["id"]}")})'
+                                'message': f'✓ Disabled channel in profile: {profile.get("name", f"Profile {profile['id']}")})'
                             })
                     except Exception as e:
                         error_msg = f'Error disabling channel in all profiles: {str(e)}'
