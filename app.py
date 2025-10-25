@@ -20,7 +20,7 @@ from stream_sorter_models import (
 load_dotenv()
 
 # Application version
-APP_VERSION = "v.0.2.10"
+APP_VERSION = "v.0.3.0"
 
 # Execution state file
 EXECUTION_STATE_FILE = 'execution_state.json'

@@ -1,32 +1,27 @@
-## [0.2.16] - 2025-10-21
+## [0.3.0] - 2025-10-25
 
 ### Added
-- **Pixel Format Field**: Added pixel_format field to stream statistics and rule conditions
-  - **Stats Collection**: ffprobe now extracts pixel format (e.g., yuv420p, yuv420p10le) from video streams and stores it in stream_stats
-  - **Auto-Assignment Rules**: New pixel_format condition for exact string matching in auto-assignment rules
-  - **Sorting Rules**: New pixel_format condition with == and != operators for stream scoring and sorting
-  - **Frontend Support**: Updated web interface to include pixel_format input fields and display in rule previews
-  - **API Integration**: Pixel format data is now available in stream statistics for all rule evaluation
-
-### Technical Details
-- Modified `test_stream()` in `api/dispatcharr_client.py` to extract `pix_fmt` from ffprobe JSON output
-- Added `pixel_format` field to `AutoAssignmentRule` dataclass in `models.py`
-- Added `pixel_format` condition type to `SortingCondition` in `stream_sorter_models.py`
-- Updated frontend JavaScript files (`auto_assign.js`, `stream_sorter.js`) for pixel_format support
-- Pixel format values include: yuv420p, yuv420p10le, yuv444p, yuv444p10le, rgb24, rgb48be
-
-## [0.2.15] - 2025-10-21
-
-### Cleanup
-- **Repository Cleanup**: Removed all unnecessary test files and development artifacts
-  - Removed test files: `test_*.py`, `check_*.py`, `example_*.py`, `simple_test.py`
-  - Removed development screenshots and design images
-  - Removed historical documentation files (`GITHUB_RELEASE_*.md`, `REBUILD_INSTRUCTIONS.md`)
-  - Removed unused components (`stream_player.py`, `STREAM_PLAYER_README.md`)
-  - Removed API documentation (`swagger_docs.json`)
-  - Repository is now clean with only essential production files
-
-## [0.2.14] - 2025-10-21
+- **Pixel Format Support**: Complete pixel format extraction and condition support
+  - **Stream Statistics**: ffprobe now extracts pixel format (yuv420p, yuv420p10le, etc.) from video streams
+  - **Auto-Assignment Rules**: New pixel format conditions with exact string matching operators
+  - **Stream Sorting Rules**: Pixel format conditions for stream scoring and sorting
+  - **Frontend Integration**: Pixel format inputs and display in rule previews and modals
+- **Manual Stream Overrides**: Force-include or force-exclude specific streams in auto-assignment rules
+  - Force Include: Streams assigned to channels regardless of rule conditions
+  - Force Exclude: Streams excluded from channels even if they match all conditions
+  - UI components with search and visual stream badges
+  - Logic applied during both testing and evaluation phases
+- **Stream Testing User-Agent**: Configurable user-agent to prevent provider detection
+  - Default: Chrome 132.0.0.0 Windows user-agent
+  - Environment variable: `STREAM_TEST_USER_AGENT`
+  - Prevents blocking by user-agent sensitive stream providers
+- **Dispatcharr Statistics Dashboard**: Comprehensive overview on home page
+  - Groups with channels, total channels, streams, and assignment statistics
+  - Real-time data loading with automatic refresh
+- **Score Breakdown Tooltips**: Detailed scoring information in stream sorter previews
+  - Hover tooltips showing individual condition contributions
+  - Bootstrap tooltips with formatted HTML display
+  - Real-time tooltip initialization after data loads
 
 ### Changed
 - **Complete Stream Testing Failure Behavior**: All stream statistics are now cleared whenever ANY part of stream testing fails
@@ -36,104 +31,25 @@
   - **General errors**: When any exception occurs during testing, all stats are cleared
   - **Consistent behavior**: Stream testing now requires complete success of both ffprobe and ffmpeg for stats to be saved
 
-## [0.2.13] - 2025-10-21
-
-### Changed
-- **Stream Testing Failure Behavior**: When ffmpeg fails to calculate bitrate, all stream statistics are now cleared instead of keeping partial ffprobe data
-  - Previously: ffprobe data was saved even when bitrate calculation failed
-  - Now: Complete failure when bitrate cannot be calculated, clearing all stats from Dispatcharr
-
-## [0.2.12] - 2025-10-21
-
-### Changed
-- **Stream Testing**: Removed alternative ffprobe command fallback, now uses only the primary ffprobe command for stream analysis
-
-## [0.2.11] - 2025-10-21
-
-### Enhanced
-- **Stream Testing Logging**: Completely redesigned logging output for stream testing operations
-  - **Stream Information**: Now displays stream name and URL at the start of testing
-  - **FFprobe Analysis**: Clear success/failure reporting with detailed stream information when successful
-    - Shows video resolution, codec, framerate when available
-    - Shows audio codec, channels, sample rate when available
-    - Displays stream format type
-    - Shows specific error messages when ffprobe fails
-  - **FFmpeg Bitrate Analysis**: Enhanced logging for bitrate calculation process
-    - Clear success/failure status with calculated bitrate when successful
-    - Detailed error reporting when ffmpeg fails
-    - Warning when using ffprobe data only (no bitrate calculation)
-  - **Visual Structure**: Uses emojis and clear section headers for better readability
-    - 🔍 Stream identification
-    - 📊 FFprobe analysis section
-    - 🎬 FFmpeg bitrate analysis section
-    - 📊 Final statistics summary
-  - **Improved Error Context**: Better error messages with return codes and specific failure reasons
-
 ### Fixed
-- **Stream Testing UnboundLocalError**: Fixed critical bug where `test_stream()` method crashed with "UnboundLocalError: cannot access local variable 'quoted_cmd' where it is not associated with a value"
-  - Issue occurred when stream testing failed early due to undefined variable reference in logging code
-  - Properly structured command logging with correct variable definitions and scope
-  - Fixed indentation and code structure issues from recent logging enhancements
-  - Stream testing now handles all error conditions without crashing
-
-### Fixed
-- **Stream Stats Clearing on Test Failures**: Fixed critical issue where `clear_stream_stats()` method wasn't properly clearing stream statistics due to Dispatcharr API limitations with PATCH operations
-  - Changed implementation from PATCH with partial updates to PUT with complete stream object retrieval and update
-  - Method now retrieves current stream, clears `stream_stats` field, removes `stream_stats_updated_at` timestamp, and updates complete stream object
-  - Ensures failed stream tests properly remove stale statistics that could affect rule evaluation
-  - Added comprehensive unit tests covering success cases, error handling, and edge cases
-  - Created integration test script for validation against real Dispatcharr instances
+- **Critical Stream Testing Bugs**: Multiple fixes for testing reliability
+  - **UnboundLocalError**: Fixed variable scope issues in logging code
+  - **Stats Clearing**: Proper removal of stale statistics on test failures
+  - **Stream Re-testing**: Fixed logic for testing streams with existing stats
+  - **API Compatibility**: Changed from PATCH to PUT for stats clearing operations
+- **Rule Evaluation Issues**: Consistent filtering and evaluation logic
+  - **M3U Source Conditions**: Fixed sorting rules with M3U account filtering
+  - **Stream Enrichment**: Added M3U data enrichment before sorting evaluation
+  - **Group Resolution**: Proper channel-to-group expansion in CLI execution
+- **UI Template Issues**: Fixed JavaScript and template syntax problems
+  - **Search Functionality**: Resolved critical errors in rule filtering
+  - **Bulk Operations**: Fixed success message display and page reload
+  - **Dropdown Overflow**: Improved positioning and boundary management
+  - **Version Display**: Better contrast and visibility in footer
 
 ### Technical Details
-- Modified `clear_stream_stats()` in `api/dispatcharr_client.py` to use PUT instead of PATCH
-- Added unit tests in `test_clear_stats_put.py` with full mock coverage
-- Created integration test in `test_clear_stats_integration.py` for real API validation
-- Maintains backward compatibility while fixing the core clearing functionality
-
-## [0.2.9] - 2025-10-18
-
-### Added
-- **Score Breakdown Tooltips in Stream Sorter Preview**: Enhanced preview modal with detailed score information
-  - Hover over score badges to see which conditions contributed to the total score
-  - Tooltips show individual condition matches with points earned
-  - Only displays on hover for clean UI without clutter
-  - Bootstrap tooltips with proper HTML formatting and positioning
-  - Real-time tooltip initialization after preview data loads
-
-### Enhanced
-- **Stream Scoring Engine**: Modified scoring system to track condition-by-condition contributions
-  - `StreamSorter.score_stream()` now returns detailed breakdown alongside total score
-  - Maintains backward compatibility with existing sorting functionality
-  - Enables future enhancements for score analysis and debugging
-
-### Fixed
-- **Stream Testing Logic**: Fixed critical issue where streams with existing stats were not re-tested
-  - When `test_streams_before_sorting=True`, streams are now properly tested based on timestamp
-  - Implemented proper timestamp checking using `stream_stats_updated_at` field
-  - Streams with stats older than `retest_days_threshold` are re-tested automatically
-  - **Stream stats are now properly updated** when testing succeeds or cleared when testing fails
-  - Fixed issue where stale stats prevented proper rule evaluation
-  - Improved reliability of auto-assignment rules with stream testing enabled
-- **FFprobe Path Configuration**: Fixed Windows compatibility issue with ffprobe executable path
-  - Updated `tools/ffprobe_path.txt` to use correct Windows path for local ffmpeg installation
-  - Changed from Linux path (`/usr/bin/ffprobe`) to Windows relative path (`tools\ffmpeg\ffmpeg-7.1-essentials_build\bin\ffprobe.exe`)
-  - Resolves "ffprobe executable not found" error on Windows systems
-- **Stream Stats Clearing on Test Failures**: Fixed issue where failed stream tests didn't clear stale statistics
-  - Modified `clear_stream_stats()` to only update `stream_stats` field, avoiding API issues with timestamp
-  - Removed problematic `stream_stats_updated_at: None` that could cause API rejection
-  - Added explicit logging to show when stats are cleared or clearing fails
-  - Ensures failed streams have their invalid stats properly removed from Dispatcharr
-
-### Enhanced
-- **FFprobe Stream Selection**: Primary ffprobe command now focuses on first video stream
-  - Added `-select_streams v:0` to VLC-style ffprobe command for better compatibility
-  - Improves stream analysis success rate for complex multi-stream sources
-  - Maintains JSON output format for consistent data parsing
-- **Stream Testing Performance Optimization**: Reordered ffprobe and ffmpeg execution for faster failure detection
-  - FFprobe now runs first as a quick accessibility check (faster than ffmpeg)
-  - If ffprobe fails, ffmpeg is skipped entirely and test is marked as failed immediately
-  - Reduces testing time for broken streams by avoiding unnecessary ffmpeg execution
-  - Maintains full functionality when both tools succeed
+- **API Enhancements**: Pixel format data available in all stream statistics
+- **Repository Cleanup**: Removed all unnecessary test files and development artifacts
 
 ## [0.2.7] - 2025-10-18
 
