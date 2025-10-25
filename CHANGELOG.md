@@ -24,12 +24,10 @@
   - Real-time tooltip initialization after data loads
 
 ### Changed
-- **Complete Stream Testing Failure Behavior**: All stream statistics are now cleared whenever ANY part of stream testing fails
-  - **ffprobe failures**: When ffprobe command fails or returns invalid data, all stats are cleared
-  - **ffmpeg failures**: When ffmpeg fails to calculate bitrate, all stats are cleared (previous change)
-  - **Timeouts**: When stream testing times out, all stats are cleared
-  - **General errors**: When any exception occurs during testing, all stats are cleared
-  - **Consistent behavior**: Stream testing now requires complete success of both ffprobe and ffmpeg for stats to be saved
+- **Auto-Assignment Profile Disabling Logic**: When no profiles are selected in a rule, channels are now automatically disabled in ALL profiles when no streams match the rule conditions
+  - Previously: Only disabled in specific selected profiles
+  - Now: If `disable_profiles` is empty/None, disables channel in all available profiles
+  - Maintains backward compatibility for rules with specific profile selections
 
 ### Fixed
 - **Critical Stream Testing Bugs**: Multiple fixes for testing reliability

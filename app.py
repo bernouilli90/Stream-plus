@@ -659,24 +659,35 @@ def api_execute_rule(rule_id):
                 # Continue even if some stream fails (it may already be assigned)
                 print(f"Error adding stream {stream['id']}: {str(e)}")
         
-        # If no streams were added and disable_profiles is specified, disable channel in those profiles
-        if added_count == 0 and rule.disable_profiles:
-            for profile_name in rule.disable_profiles:
+        # If no streams were added, disable channel in profiles based on rule configuration
+        if added_count == 0:
+            if rule.disable_profiles:
+                # Disable in specific profiles
+                for profile_name in rule.disable_profiles:
+                    try:
+                        # Get profile ID by name
+                        profiles = dispatcharr_client.get_profiles()
+                        profile_id = None
+                        for profile in profiles:
+                            if profile.get('name') == profile_name:
+                                profile_id = profile.get('id')
+                                break
+                        
+                        if profile_id:
+                            dispatcharr_client.update_channel_profile_status(profile_id, rule.channel_id, False)
+                        else:
+                            print(f'Profile "{profile_name}" not found')
+                    except Exception as e:
+                        print(f'Error disabling channel in profile "{profile_name}": {str(e)}')
+            else:
+                # No specific profiles selected, disable in ALL profiles
                 try:
-                    # Get profile ID by name
                     profiles = dispatcharr_client.get_profiles()
-                    profile_id = None
                     for profile in profiles:
-                        if profile.get('name') == profile_name:
-                            profile_id = profile.get('id')
-                            break
-                    
-                    if profile_id:
-                        dispatcharr_client.update_channel_profile_status(profile_id, rule.channel_id, False)
-                    else:
-                        print(f'Profile "{profile_name}" not found')
+                        dispatcharr_client.update_channel_profile_status(profile['id'], rule.channel_id, False)
+                    print(f'Channel {rule.channel_id} disabled in all {len(profiles)} profiles (no streams matched)')
                 except Exception as e:
-                    print(f'Error disabling channel in profile "{profile_name}": {str(e)}')
+                    print(f'Error disabling channel in all profiles: {str(e)}')
         
         return jsonify({
             'message': 'Rule executed successfully',
@@ -1030,36 +1041,58 @@ def execute_auto_assignment_in_background(rule_id, queue):
                     errors.append(error_msg)
                     queue.put({'type': 'error', 'message': error_msg})
             
-            # If no streams were added and disable_profiles is specified, disable channel in those profiles
-            if added_count == 0 and rule.disable_profiles:
-                queue.put({
-                    'type': 'disabling',
-                    'message': f'No streams matched. Disabling channel in {len(rule.disable_profiles)} profile(s): {", ".join(rule.disable_profiles)}'
-                })
-                
-                for profile_name in rule.disable_profiles:
-                    try:
-                        # Get profile ID by name
-                        profiles = dispatcharr_client.get_profiles()
-                        profile_id = None
-                        for profile in profiles:
-                            if profile.get('name') == profile_name:
-                                profile_id = profile.get('id')
-                                break
-                        
-                        if profile_id:
-                            dispatcharr_client.update_channel_profile_status(rule.channel_id, profile_id, False)
-                            queue.put({
-                                'type': 'profile_disabled',
-                                'profile_name': profile_name,
-                                'message': f'✓ Disabled channel in profile: {profile_name}'
-                            })
-                        else:
-                            error_msg = f'Profile "{profile_name}" not found'
+            # If no streams were added, disable channel in profiles based on rule configuration
+            if added_count == 0:
+                if rule.disable_profiles:
+                    # Disable in specific profiles
+                    queue.put({
+                        'type': 'disabling',
+                        'message': f'No streams matched. Disabling channel in {len(rule.disable_profiles)} profile(s): {", ".join(rule.disable_profiles)}'
+                    })
+                    
+                    for profile_name in rule.disable_profiles:
+                        try:
+                            # Get profile ID by name
+                            profiles = dispatcharr_client.get_profiles()
+                            profile_id = None
+                            for profile in profiles:
+                                if profile.get('name') == profile_name:
+                                    profile_id = profile.get('id')
+                                    break
+                            
+                            if profile_id:
+                                dispatcharr_client.update_channel_profile_status(rule.channel_id, profile_id, False)
+                                queue.put({
+                                    'type': 'profile_disabled',
+                                    'profile_name': profile_name,
+                                    'message': f'✓ Disabled channel in profile: {profile_name}'
+                                })
+                            else:
+                                error_msg = f'Profile "{profile_name}" not found'
+                                errors.append(error_msg)
+                                queue.put({'type': 'error', 'message': error_msg})
+                        except Exception as e:
+                            error_msg = f'Error disabling channel in profile "{profile_name}": {str(e)}'
                             errors.append(error_msg)
                             queue.put({'type': 'error', 'message': error_msg})
+                else:
+                    # No specific profiles selected, disable in ALL profiles
+                    try:
+                        profiles = dispatcharr_client.get_profiles()
+                        queue.put({
+                            'type': 'disabling',
+                            'message': f'No streams matched. Disabling channel in all {len(profiles)} profile(s)'
+                        })
+                        
+                        for profile in profiles:
+                            dispatcharr_client.update_channel_profile_status(rule.channel_id, profile['id'], False)
+                            queue.put({
+                                'type': 'profile_disabled',
+                                'profile_name': profile.get('name', f'Profile {profile["id"]}'),
+                                'message': f'✓ Disabled channel in profile: {profile.get("name", f"Profile {profile["id"]}")})'
+                            })
                     except Exception as e:
-                        error_msg = f'Error disabling channel in profile "{profile_name}": {str(e)}'
+                        error_msg = f'Error disabling channel in all profiles: {str(e)}'
                         errors.append(error_msg)
                         queue.put({'type': 'error', 'message': error_msg})
             
