@@ -1058,8 +1058,8 @@ class DispatcharrClient:
             # Output bitrate - the KEY field for sorting
             # Save with both names for compatibility
             if calculated_bitrate_kbps:
-                stats['output_bitrate'] = calculated_bitrate_kbps  # Dispatcharr native field
-                stats['ffmpeg_output_bitrate'] = calculated_bitrate_kbps  # Legacy field
+                #stats['output_bitrate'] = calculated_bitrate_kbps  # Legacy field 
+                stats['ffmpeg_output_bitrate'] = calculated_bitrate_kbps  # Dispatcharr native field
                 print(f"   ✅ FFmpeg SUCCESS:")
                 print(f"      Calculated bitrate: {calculated_bitrate_kbps:.1f} kbps")
             else:
