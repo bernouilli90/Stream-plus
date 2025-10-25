@@ -1050,21 +1050,15 @@ def execute_auto_assignment_in_background(rule_id, queue):
             
             # If no streams were added, disable channel in profiles based on rule configuration
             if added_count == 0:
-                print(f"DEBUG: added_count is 0, checking disable_profiles. rule.disable_profiles: {rule.disable_profiles}")
                 if rule.disable_profiles:
                     # Disable in ALL profiles EXCEPT the ones specified in disable_profiles
                     try:
                         profiles = dispatcharr_client.get_profiles()
-                        print(f"DEBUG: Got {len(profiles)} profiles from API")
-                        for p in profiles:
-                            print(f"DEBUG: Profile - ID: {p.get('id')}, Name: {p.get('name')}")
                         
                         # Get profile IDs that should NOT be disabled
                         excluded_profile_names = set(rule.disable_profiles)
-                        print(f"DEBUG: Excluded profile names: {excluded_profile_names}")
                         
                         profiles_to_disable = [p for p in profiles if p.get('name') not in excluded_profile_names]
-                        print(f"DEBUG: Profiles to disable: {[p.get('name') for p in profiles_to_disable]}")
                         
                         if profiles_to_disable:
                             queue.put({
@@ -1074,7 +1068,6 @@ def execute_auto_assignment_in_background(rule_id, queue):
                             
                             for profile in profiles_to_disable:
                                 profile_name = profile.get('name', f'Profile {profile["id"]}')
-                                print(f"DEBUG: Disabling channel {rule.channel_id} in profile {profile_name} (ID: {profile['id']})")
                                 dispatcharr_client.update_channel_profile_status(rule.channel_id, profile['id'], False)
                                 queue.put({
                                     'type': 'profile_disabled',
@@ -1088,14 +1081,12 @@ def execute_auto_assignment_in_background(rule_id, queue):
                             })
                     except Exception as e:
                         error_msg = f'Error disabling channel in profiles: {str(e)}'
-                        print(f"DEBUG: Exception in disable logic: {str(e)}")
                         errors.append(error_msg)
                         queue.put({'type': 'error', 'message': error_msg})
                 else:
                     # No specific profiles selected, disable in ALL profiles
                     try:
                         profiles = dispatcharr_client.get_profiles()
-                        print(f"DEBUG: No specific profiles selected, disabling in ALL {len(profiles)} profiles")
                         queue.put({
                             'type': 'disabling',
                             'message': f'No streams matched. Disabling channel in all {len(profiles)} profile(s)'
@@ -1103,16 +1094,14 @@ def execute_auto_assignment_in_background(rule_id, queue):
                         
                         for profile in profiles:
                             profile_name = profile.get('name', f'Profile {profile["id"]}')
-                            print(f"DEBUG: Disabling channel {rule.channel_id} in profile {profile_name} (ID: {profile['id']})")
                             dispatcharr_client.update_channel_profile_status(rule.channel_id, profile['id'], False)
                             queue.put({
                                 'type': 'profile_disabled',
                                 'profile_name': profile_name,
-                                'message': f'✓ Disabled channel in profile: {profile_name})'
+                                'message': f'✓ Disabled channel in profile: {profile_name}'
                             })
                     except Exception as e:
                         error_msg = f'Error disabling channel in all profiles: {str(e)}'
-                        print(f"DEBUG: Exception in disable all logic: {str(e)}")
                         errors.append(error_msg)
                         queue.put({'type': 'error', 'message': error_msg})
             
@@ -1123,9 +1112,6 @@ def execute_auto_assignment_in_background(rule_id, queue):
                 if not rule.force_retest_old_streams:
                     message += f', skipped: {skipped_count}'
                 message += ')'
-            
-            if added_count == 0 and rule.disable_profiles:
-                message += f'. Channel disabled in {len(rule.disable_profiles)} profile(s): {", ".join(rule.disable_profiles)}'
             
             queue.put({
                 'type': 'complete',
