@@ -170,7 +170,7 @@ class SortingRulesManager:
     def load_rules_ordered(self) -> List[SortingRule]:
         """Loads all rules ordered by execution_order"""
         rules = self.load_rules()
-        return sorted(rules, key=lambda r: r.execution_order)
+        return sorted(rules, key=lambda r: r.execution_order or 999)
     
     def load_rules(self) -> List[SortingRule]:
         """Loads all rules from the file"""
