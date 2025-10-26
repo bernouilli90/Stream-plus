@@ -919,13 +919,13 @@
                             </div>
                             <div class="card-body">
 
-                                <!-- Disable Profiles -->
+                                <!-- Assigned Profiles -->
                                 <div class="mb-0">
-                                    <label for="disableProfiles" class="form-label fw-bold">
-                                        <i class="fas fa-shield-alt text-success me-2"></i>Protected Profiles (Exclude from Disabling)
+                                    <label for="assignedProfiles" class="form-label fw-bold">
+                                        <i class="fas fa-check-circle text-success me-2"></i>Assigned Profiles (Enable when streams found)
                                     </label>
                                     <small class="text-muted d-block mb-2">
-                                        <i class="fas fa-info-circle text-info me-1"></i>Select profiles where the channel should NOT be disabled when no streams match this rule
+                                        <i class="fas fa-info-circle text-info me-1"></i>Select profiles where the channel should be enabled when streams match this rule
                                     </small>
                                     <div id="profilesContainer">
                                         <div class="text-center">
@@ -936,7 +936,7 @@
                                         </div>
                                     </div>
                                     <small class="form-text text-muted mt-2">
-                                        <i class="fas fa-exclamation-triangle text-warning me-1"></i> If no streams are assigned by this rule, the channel will be disabled in ALL profiles except the selected ones.
+                                        <i class="fas fa-exclamation-triangle text-warning me-1"></i> If streams are assigned by this rule, the channel will be enabled in the selected profiles (or all profiles if none selected).
                                     </small>
                                 </div>
                             </div>

@@ -70,8 +70,8 @@ class AutoAssignmentRule:
     # Audio conditions
     audio_codec: Optional[List[str]] = None  # Can be a list: ["aac", "ac3"]
     
-    # Profile disable conditions
-    disable_profiles: Optional[List[str]] = None  # List of profile names to disable channel when no streams
+    # Profile assignment conditions
+    assigned_profiles: Optional[List[str]] = None  # List of profile names where channel should be enabled when streams are found
     
     # Stream testing options
     test_streams_before_sorting: bool = False
@@ -107,13 +107,13 @@ class AutoAssignmentRule:
             # Remove old field
             data.pop('m3u_account_id', None)
         
-        # Normalize single values to lists for multi-value fields
-        multi_value_fields = ['video_codec', 'video_resolution', 'video_fps', 'audio_codec', 'm3u_account_ids']
-        for field in multi_value_fields:
-            if field in data and data[field] is not None:
-                # If it's a string or number, convert to list
-                if not isinstance(data[field], list):
-                    data[field] = [data[field]]
+        # Migrate disable_profiles to assigned_profiles
+        if 'disable_profiles' in data and data['disable_profiles'] is not None:
+            if 'assigned_profiles' not in data or data['assigned_profiles'] is None:
+                # Convert old field to new field
+                data['assigned_profiles'] = data['disable_profiles']
+            # Remove old field
+            data.pop('disable_profiles', None)
         
         return AutoAssignmentRule(**data)
 

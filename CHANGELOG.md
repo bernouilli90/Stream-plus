@@ -1,16 +1,22 @@
-## [0.3.2] - 2025-10-26
+## [0.3.3] - 2025-10-27
 
-### Fixed
-- **Profile Disabling API Parameter Order**: Fixed critical bug where channels were not being disabled in profiles when no streams matched auto-assignment rules
-  - **Root Cause**: Incorrect parameter order in `update_channel_profile_status` API calls (channel_id, profile_id instead of profile_id, channel_id)
-  - **Impact**: Profile disabling failed silently with 404 errors, causing inconsistent behavior where some profiles worked but others didn't
-  - **Fix**: Corrected parameter order in all 4 affected API calls in `execute_auto_assignment_in_background` function
-  - **Verification**: Tested with "Test No Match" rule - now successfully disables channels in ALL profiles including previously failing ones
+### Changed
+- **Major Profile Logic Inversion**: Completely inverted the channel profile management logic from "protected profiles" to "assigned profiles"
+  - **Before**: Selected profiles were "protected" (NOT disabled when no streams matched)
+  - **After**: Selected profiles are "assigned" (enabled when streams ARE found, disabled everywhere when no streams)
+  - **New Logic**: 
+    - When streams are found: Enable channel in selected profiles (or all profiles if none selected)
+    - When no streams match: Disable channel in ALL profiles
+  - **Migration**: Existing rules automatically convert `disable_profiles` to `assigned_profiles` with backward compatibility
+  - **UI Update**: Changed "Protected Profiles" to "Assigned Profiles" in modal interface
+  - **API Update**: All endpoints now use `assigned_profiles` field instead of `disable_profiles`
 
 ### Technical Details
-- Fixed API calls in `app.py` execute_auto_assignment_in_background function
-- Parameter order corrected from `update_channel_profile_status(rule.channel_id, profile['id'], False)` to `update_channel_profile_status(profile['id'], rule.channel_id, False)`
-- Ensures consistent profile disabling behavior when `disable_profiles` array is empty (disable in all profiles)
+- Updated data model in `models.py` with new `assigned_profiles` field and migration logic
+- Modified execution logic in `execute_auto_assignment_in_background` function
+- Updated frontend JavaScript to use `assigned_profiles` instead of `disable_profiles`
+- Updated HTML templates with new labeling and help text
+- Maintains full backward compatibility with existing rule files
 
 ## [0.3.0] - 2025-10-25
 

@@ -293,8 +293,8 @@ async function editRule(ruleId) {
         
         // Load profiles and set selected ones
         loadProfiles().then(() => {
-            if (rule.disable_profiles) {
-                rule.disable_profiles.forEach(profileName => {
+            if (rule.assigned_profiles) {
+                rule.assigned_profiles.forEach(profileName => {
                     const checkbox = document.querySelector(`input.profile-checkbox[value="${profileName}"]`);
                     if (checkbox) {
                         checkbox.checked = true;
@@ -368,7 +368,7 @@ async function saveRule() {
         retest_days_threshold: retestDaysThreshold,
         force_include_stream_ids: JSON.parse(document.getElementById('forceIncludeStreamIds').value || '[]'),
         force_exclude_stream_ids: JSON.parse(document.getElementById('forceExcludeStreamIds').value || '[]'),
-        disable_profiles: Array.from(document.querySelectorAll('input.profile-checkbox:checked')).map(cb => cb.value)
+        assigned_profiles: Array.from(document.querySelectorAll('input.profile-checkbox:checked')).map(cb => cb.value)
     };
     
     console.log('DEBUG: JavaScript saveRule - ruleData to send:', ruleData);
