@@ -912,7 +912,7 @@ def execute_auto_assignment_in_background(rule_id, queue):
                         
                         queue.put({
                             'type': 'disabling',
-                            'message': f'No streams matched. Disabling channel in all {len(profiles)} profile(s)'
+                            'message': f'No streams matched. Disabling channel in all {len(profiles)} profile(s): {", ".join(["{}:{}".format(p.get("id", "?"), p.get("name", "?")) for p in profiles])}'
                         })
                         
                         for profile in profiles:
@@ -1154,7 +1154,7 @@ def execute_auto_assignment_in_background(rule_id, queue):
                         
                         queue.put({
                             'type': 'disabling',
-                            'message': f'No streams matched. Disabling channel in all {len(profiles)} profile(s)'
+                            'message': f'No streams matched. Disabling channel in all {len(profiles)} profile(s): {", ".join(["{}:{}".format(p.get("id", "?"), p.get("name", "?")) for p in profiles])}'
                         })
                         
                         for profile in profiles:
