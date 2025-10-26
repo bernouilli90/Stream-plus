@@ -146,6 +146,11 @@ function handleExecutionMessage(data) {
         case 'profile_disabled':
             addLogLine(data.message, 'warning');
             break;
+            
+        case 'complete':
+            console.log('SSE: Complete message received:', data);
+            handleExecutionComplete(data);
+            break;
     }
 }
 
@@ -207,7 +212,10 @@ function handleExecutionComplete(data) {
     resultDiv.innerHTML = summaryHTML;
     
     // Enable close button
-    document.getElementById('closeProgressBtn').disabled = false;
+    const closeBtn = document.getElementById('closeProgressBtn');
+    if (closeBtn) {
+        closeBtn.disabled = false;
+    }
     
     // Change modal title
     document.querySelector('#executionProgressModal .modal-title').innerHTML = 
@@ -245,8 +253,10 @@ function addLogLine(message, type = 'info') {
             color = 'text-light';
             break;
     }
+    
+    const line = document.createElement('div');
     line.className = `log-line ${color}`;
-    line.innerHTML = `<span class="text-muted">[${timestamp}]</span> ${message}`;
+    line.innerHTML = `<span class="text-muted">[${timestamp}]</span> ${icon ? icon + ' ' : ''}${message}`;
     
     logDiv.appendChild(line);
     
