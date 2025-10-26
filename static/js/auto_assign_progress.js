@@ -139,12 +139,17 @@ function handleExecutionMessage(data) {
             handleExecutionComplete(data);
             break;
             
-        case 'keepalive':
-            // Just a keepalive, ignore
+        case 'debug':
+            addLogLine(`🔧 ${data.message}`, 'debug');
             break;
             
-        default:
-            console.log('Unknown message type:', data.type, data);
+        case 'disabling':
+            addLogLine(`\n🚫 ${data.message}`, 'warning');
+            break;
+            
+        case 'profile_disabled':
+            addLogLine(data.message, 'warning');
+            break;
     }
 }
 
@@ -236,12 +241,10 @@ function addLogLine(message, type = 'info') {
             color = 'text-warning';
             icon = '⚠️';
             break;
-        case 'test':
-            color = 'text-primary';
-            icon = '🔍';
+        case 'debug':
+            color = 'text-info';
+            icon = '�';
             break;
-        default:
-            color = 'text-light';
     }
     
     const line = document.createElement('div');

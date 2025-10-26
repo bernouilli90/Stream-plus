@@ -1,3 +1,17 @@
+## [0.3.2] - 2025-10-26
+
+### Fixed
+- **Profile Disabling API Parameter Order**: Fixed critical bug where channels were not being disabled in profiles when no streams matched auto-assignment rules
+  - **Root Cause**: Incorrect parameter order in `update_channel_profile_status` API calls (channel_id, profile_id instead of profile_id, channel_id)
+  - **Impact**: Profile disabling failed silently with 404 errors, causing inconsistent behavior where some profiles worked but others didn't
+  - **Fix**: Corrected parameter order in all 4 affected API calls in `execute_auto_assignment_in_background` function
+  - **Verification**: Tested with "Test No Match" rule - now successfully disables channels in ALL profiles including previously failing ones
+
+### Technical Details
+- Fixed API calls in `app.py` execute_auto_assignment_in_background function
+- Parameter order corrected from `update_channel_profile_status(rule.channel_id, profile['id'], False)` to `update_channel_profile_status(profile['id'], rule.channel_id, False)`
+- Ensures consistent profile disabling behavior when `disable_profiles` array is empty (disable in all profiles)
+
 ## [0.3.0] - 2025-10-25
 
 ### Added
