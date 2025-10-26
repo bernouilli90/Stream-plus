@@ -20,7 +20,7 @@ from stream_sorter_models import (
 load_dotenv()
 
 # Application version
-APP_VERSION = "v.0.3.0"
+APP_VERSION = "v.0.3.2"
 
 # Execution state file
 EXECUTION_STATE_FILE = 'execution_state.json'
@@ -875,23 +875,11 @@ def execute_auto_assignment_in_background(rule_id, queue):
                     # Disable in ALL profiles EXCEPT the ones specified in disable_profiles
                     try:
                         profiles = dispatcharr_client.get_profiles()
-                        queue.put({
-                            'type': 'debug',
-                            'message': f'DEBUG: Retrieved {len(profiles)} profiles: {[f"{p.get("id", "?")}:{p.get("name", "?")}" for p in profiles]}'
-                        })
                         
                         # Get profile IDs that should NOT be disabled
                         excluded_profile_names = set(rule.disable_profiles)
-                        queue.put({
-                            'type': 'debug',
-                            'message': f'DEBUG: Excluded profile names: {excluded_profile_names}'
-                        })
                         
                         profiles_to_disable = [p for p in profiles if p.get('name') not in excluded_profile_names]
-                        queue.put({
-                            'type': 'debug',
-                            'message': f'DEBUG: Profiles to disable: {[f"{p.get("id", "?")}:{p.get("name", "?")}" for p in profiles_to_disable]}'
-                        })
                         
                         if profiles_to_disable:
                             queue.put({
@@ -901,10 +889,7 @@ def execute_auto_assignment_in_background(rule_id, queue):
                             
                             for profile in profiles_to_disable:
                                 profile_name = profile.get('name', f'Profile {profile["id"]}')
-                                queue.put({
-                                    'type': 'debug',
-                                    'message': f'DEBUG: About to disable channel {rule.channel_id} in profile {profile_name} (ID: {profile["id"]})'
-                                })
+                                
                                 dispatcharr_client.update_channel_profile_status(profile['id'], rule.channel_id, False)
                                 queue.put({
                                     'type': 'profile_disabled',
@@ -922,17 +907,8 @@ def execute_auto_assignment_in_background(rule_id, queue):
                         queue.put({'type': 'error', 'message': error_msg})
                 else:
                     # No specific profiles selected, disable in ALL profiles
-                    queue.put({
-                        'type': 'debug',
-                        'message': f'DEBUG: disable_profiles is empty/falsy, disabling in ALL profiles'
-                    })
-                    
                     try:
                         profiles = dispatcharr_client.get_profiles()
-                        queue.put({
-                            'type': 'debug',
-                            'message': f'DEBUG: Retrieved {len(profiles)} profiles for ALL disabling: {[f"{p.get("id", "?")}:{p.get("name", "?")}" for p in profiles]}'
-                        })
                         
                         queue.put({
                             'type': 'disabling',
@@ -941,10 +917,7 @@ def execute_auto_assignment_in_background(rule_id, queue):
                         
                         for profile in profiles:
                             profile_name = profile.get('name', f'Profile {profile["id"]}')
-                            queue.put({
-                                'type': 'debug',
-                                'message': f'DEBUG: About to disable channel {rule.channel_id} in profile {profile_name} (ID: {profile["id"]})'
-                            })
+                            
                             dispatcharr_client.update_channel_profile_status(profile['id'], rule.channel_id, False)
                             queue.put({
                                 'type': 'profile_disabled',
@@ -1138,32 +1111,16 @@ def execute_auto_assignment_in_background(rule_id, queue):
             
             # If no streams were added, disable channel in profiles based on rule configuration
             if added_count == 0:
-                queue.put({
-                    'type': 'debug',
-                    'message': f'DEBUG: No streams added, checking profile disabling. rule.disable_profiles = {rule.disable_profiles}, bool(rule.disable_profiles) = {bool(rule.disable_profiles)}'
-                })
                 
                 if rule.disable_profiles:
                     # Disable in ALL profiles EXCEPT the ones specified in disable_profiles
                     try:
                         profiles = dispatcharr_client.get_profiles()
-                        queue.put({
-                            'type': 'debug',
-                            'message': f'DEBUG: Retrieved {len(profiles)} profiles: {[f"{p.get("id", "?")}:{p.get("name", "?")}" for p in profiles]}'
-                        })
                         
                         # Get profile IDs that should NOT be disabled
                         excluded_profile_names = set(rule.disable_profiles)
-                        queue.put({
-                            'type': 'debug',
-                            'message': f'DEBUG: Excluded profile names: {excluded_profile_names}'
-                        })
                         
                         profiles_to_disable = [p for p in profiles if p.get('name') not in excluded_profile_names]
-                        queue.put({
-                            'type': 'debug',
-                            'message': f'DEBUG: Profiles to disable: {[f"{p.get("id", "?")}:{p.get("name", "?")}" for p in profiles_to_disable]}'
-                        })
                         
                         if profiles_to_disable:
                             queue.put({
@@ -1173,10 +1130,7 @@ def execute_auto_assignment_in_background(rule_id, queue):
                             
                             for profile in profiles_to_disable:
                                 profile_name = profile.get('name', f'Profile {profile["id"]}')
-                                queue.put({
-                                    'type': 'debug',
-                                    'message': f'DEBUG: About to disable channel {rule.channel_id} in profile {profile_name} (ID: {profile["id"]})'
-                                })
+                                
                                 dispatcharr_client.update_channel_profile_status(profile['id'], rule.channel_id, False)
                                 queue.put({
                                     'type': 'profile_disabled',
@@ -1194,17 +1148,9 @@ def execute_auto_assignment_in_background(rule_id, queue):
                         queue.put({'type': 'error', 'message': error_msg})
                 else:
                     # No specific profiles selected, disable in ALL profiles
-                    queue.put({
-                        'type': 'debug',
-                        'message': f'DEBUG: disable_profiles is empty/falsy, disabling in ALL profiles'
-                    })
                     
                     try:
                         profiles = dispatcharr_client.get_profiles()
-                        queue.put({
-                            'type': 'debug',
-                            'message': f'DEBUG: Retrieved {len(profiles)} profiles for ALL disabling: {[f"{p.get("id", "?")}:{p.get("name", "?")}" for p in profiles]}'
-                        })
                         
                         queue.put({
                             'type': 'disabling',
@@ -1213,10 +1159,7 @@ def execute_auto_assignment_in_background(rule_id, queue):
                         
                         for profile in profiles:
                             profile_name = profile.get('name', f'Profile {profile["id"]}')
-                            queue.put({
-                                'type': 'debug',
-                                'message': f'DEBUG: About to disable channel {rule.channel_id} in profile {profile_name} (ID: {profile["id"]})'
-                            })
+                            
                             dispatcharr_client.update_channel_profile_status(profile['id'], rule.channel_id, False)
                             queue.put({
                                 'type': 'profile_disabled',

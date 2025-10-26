@@ -135,12 +135,8 @@ function handleExecutionMessage(data) {
             addLogLine(`❌ ${data.message}`, 'error');
             break;
             
-        case 'complete':
-            handleExecutionComplete(data);
-            break;
-            
-        case 'debug':
-            addLogLine(`🔧 ${data.message}`, 'debug');
+        case 'keepalive':
+            // Just a keepalive, ignore
             break;
             
         case 'disabling':
@@ -241,13 +237,14 @@ function addLogLine(message, type = 'info') {
             color = 'text-warning';
             icon = '⚠️';
             break;
-        case 'debug':
-            color = 'text-info';
-            icon = '�';
+        case 'test':
+            color = 'text-primary';
+            icon = '🔍';
+            break;
+        default:
+            color = 'text-light';
             break;
     }
-    
-    const line = document.createElement('div');
     line.className = `log-line ${color}`;
     line.innerHTML = `<span class="text-muted">[${timestamp}]</span> ${message}`;
     
