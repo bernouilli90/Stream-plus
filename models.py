@@ -138,6 +138,45 @@ class RulesManager:
                 data = json.load(f)
                 # Support both formats: {"rules": [...]} and [...]
                 rules_data = data.get('rules', data) if isinstance(data, dict) else data
+                
+                # Check if migration from v0.3.2 is needed (disable_profiles -> assigned_profiles)
+                needs_migration = any(
+                    'disable_profiles' in rule_data and 'assigned_profiles' not in rule_data
+                    for rule_data in rules_data
+                )
+                
+                if needs_migration:
+                    print("INFO: Detected v0.3.2 rules file with disable_profiles. Migrating to assigned_profiles...")
+                    
+                    # Get all available profiles to assign by default
+                    try:
+                        from api.dispatcharr_client import DispatcharrClient
+                        dispatcharr_client = DispatcharrClient()
+                        profiles = dispatcharr_client.get_profiles()
+                        all_profile_names = [profile.get('name', '') for profile in profiles if profile.get('name')]
+                        
+                        if not all_profile_names:
+                            print("WARNING: Could not retrieve profiles from Dispatcharr. Using empty assigned_profiles.")
+                            all_profile_names = []
+                    except Exception as e:
+                        print(f"WARNING: Could not retrieve profiles from Dispatcharr: {e}. Using empty assigned_profiles.")
+                        all_profile_names = []
+                    
+                    # Migrate each rule
+                    for rule_data in rules_data:
+                        if 'disable_profiles' in rule_data and 'assigned_profiles' not in rule_data:
+                            # Convert disable_profiles to assigned_profiles with all profiles by default
+                            rule_data['assigned_profiles'] = all_profile_names.copy()
+                            # Remove the old field
+                            del rule_data['disable_profiles']
+                            print(f"INFO: Migrated rule '{rule_data.get('name', 'Unknown')}' - assigned all {len(all_profile_names)} profiles")
+                    
+                    # Save the migrated data back to file
+                    migrated_data = {"rules": rules_data}
+                    with open(self.rules_file, 'w', encoding='utf-8') as f:
+                        json.dump(migrated_data, f, indent=2, ensure_ascii=False)
+                    print(f"INFO: Migration completed. Rules file updated with assigned_profiles.")
+                
                 return [AutoAssignmentRule.from_dict(rule_data) for rule_data in rules_data]
         except (json.JSONDecodeError, FileNotFoundError):
             return []
